@@ -11,9 +11,17 @@ https://github.com/tedslittlerobot/svm.
 - Module path: `github.com/tedslittlerobot/svm`
 - Go version: the one in `go.mod`
 - CLI framework: [Cobra](https://github.com/spf13/cobra)
-- Spec: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) is the
-  source of truth for parsing, validation and precedence. Cite the relevant
-  section in comments and tests where behaviour follows from it.
+- Spec: [`conventions/semver.md`](conventions/semver.md) defines the version
+  format svm accepts: a strict subset of
+  [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html) with fixed stages
+  (`alpha` < `beta` < `rc` < `ga`), three-digit indexes, and its own
+  precedence rules. It is the source of truth for parsing, validation,
+  precedence and stage progression. Where it is silent, SemVer 2.0.0 applies.
+  Where they differ (notably `rc` vs `ga` ordering), the conventions file wins.
+  Cite the relevant section in comments, and turn its valid/invalid example
+  tables into test cases.
+- Changing `conventions/semver.md` changes behaviour. Update the doc and the
+  code together, in the same commit.
 
 ## Commands
 

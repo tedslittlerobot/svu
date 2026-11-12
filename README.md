@@ -12,6 +12,19 @@
 > version-manipulation commands are still being written. Expect breaking
 > changes until v1.0.0.
 
+## Version format
+
+svm works with a strict subset of SemVer:
+
+```text
+[v]MAJOR.MINOR.PATCH[-STAGE-INDEX]      e.g. 1.2.3, v1.2.3, 1.2.3-alpha-001, v2.3.4-rc-987
+```
+
+Stages are `alpha`, `beta`, `rc` and `ga`, always in that order. The index is
+three digits, from `001` to `999`. See
+[`conventions/semver.md`](conventions/semver.md) for the full rules, including
+how svm's precedence differs from plain SemVer.
+
 ## Installation
 
 ### Pre-built binaries
