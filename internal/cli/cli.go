@@ -13,8 +13,10 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/tedslittlerobot/svm/internal/buildinfo"
+	"github.com/tedslittlerobot/svm/internal/git"
 )
 
 // Process exit codes.
@@ -33,15 +35,15 @@ type Streams struct {
 // Execute runs svm with the given arguments (excluding the program name) and
 // returns the process exit code.
 func Execute(ctx context.Context, args []string, streams Streams) int {
-	return execute(ctx, args, streams, buildinfo.Get())
+	return execute(ctx, args, streams, buildinfo.Get(), git.Tags)
 }
 
-func execute(ctx context.Context, args []string, streams Streams, info buildinfo.Info) int {
-	root := newRootCommand(streams, info)
+func execute(ctx context.Context, args []string, streams Streams, info buildinfo.Info, readTags tagReader) int {
+	root := newRootCommand(streams, info, readTags)
 	root.SetArgs(args)
 
 	if err := root.ExecuteContext(ctx); err != nil {
-		_, _ = fmt.Fprintf(streams.Err, "svm: %v\n", err)
+		render(streams.Err, err)
 
 		return ExitFailure
 	}
@@ -49,17 +51,63 @@ func execute(ctx context.Context, args []string, streams Streams, info buildinfo
 	return ExitOK
 }
 
-func newRootCommand(streams Streams, info buildinfo.Info) *cobra.Command {
+const rootLong = `svm (SemVer Modifier) reads and modifies semantic version strings.
+
+svm reads one version:
+
+  - from the version argument, or from standard input if the argument is "-";
+  - with no argument, from the latest git tag that is a valid version, in the
+    repository that contains the current directory, or --directory if given.
+
+svm prints the version on standard output, without a "v" prefix unless
+--with-v-prefix is given.`
+
+const rootExample = `  svm 1.2.3-rc-001
+  echo v1.2.3 | svm -
+  svm --with-v-prefix
+  svm --directory path/to/repository`
+
+func newRootCommand(streams Streams, info buildinfo.Info, readTags tagReader) *cobra.Command {
+	var (
+		opts    inputOptions
+		vPrefix bool
+	)
+
 	root := &cobra.Command{
-		Use:     "svm",
-		Short:   "svm (SemVer Modifier) reads and modifies semantic versions",
-		Long:    "svm (SemVer Modifier) reads and modifies semantic version strings.",
-		Version: info.Version,
+		Use:               "svm [version]",
+		Short:             "svm (SemVer Modifier) reads and modifies semantic versions",
+		Long:              rootLong,
+		Example:           rootExample,
+		Version:           info.Version,
+		Args:              atMostOneVersion,
+		ValidArgsFunction: cobra.NoFileCompletions,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.directorySet = cmd.Flags().Changed("directory")
+
+			v, err := readVersion(cmd.Context(), args, cmd.InOrStdin(), opts, readTags)
+			if err != nil {
+				return err
+			}
+
+			out := v.String()
+			if vPrefix {
+				out = "v" + out
+			}
+
+			return writeResult(cmd.OutOrStdout(), out)
+		},
 
 		// Errors are reported once, by execute, rather than by cobra.
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
+
+	flags := root.Flags()
+	flags.StringVar(&opts.directory, "directory", "",
+		"read the latest version from the git tags of the repository containing this directory")
+	flags.BoolVar(&vPrefix, "with-v-prefix", false, `print the version with a leading "v" (alias --vp)`)
+	flags.SetNormalizeFunc(flagAliases)
+	_ = root.MarkFlagDirname("directory") // Only fails if the flag doesn't exist.
 
 	root.SetIn(streams.In)
 	root.SetOut(streams.Out)
@@ -71,4 +119,40 @@ func newRootCommand(streams Streams, info buildinfo.Info) *cobra.Command {
 	)
 
 	return root
+}
+
+// flagAliases maps alternative flag names to their canonical names.
+func flagAliases(_ *pflag.FlagSet, name string) pflag.NormalizedName {
+	if name == "vp" {
+		name = "with-v-prefix"
+	}
+
+	return pflag.NormalizedName(name)
+}
+
+// atMostOneVersion checks that svm was given no more than one version.
+func atMostOneVersion(_ *cobra.Command, args []string) error {
+	if len(args) <= 1 {
+		return nil
+	}
+
+	return &userError{
+		headline: fmt.Sprintf("svm was given %d versions, but it takes at most one.", len(args)),
+		hint:     "Give a single version, as in svm 1.2.3.",
+	}
+}
+
+// writeResult writes the result to stdout, as conventions/output.md requires:
+// one version and a newline.
+func writeResult(w io.Writer, version string) error {
+	if _, err := fmt.Fprintln(w, version); err != nil {
+		return &userError{
+			headline: "svm could not write its output.",
+			detail:   "The output stream was closed before svm finished writing.",
+			hint:     reportHint,
+			err:      err,
+		}
+	}
+
+	return nil
 }

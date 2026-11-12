@@ -1,0 +1,116 @@
+// Package git reads information from git repositories by running the git
+// command.
+//
+// It is an adapter: it knows how to ask git for things, but nothing about
+// versions. Callers decide what the results mean.
+package git
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"os/exec"
+	"strings"
+)
+
+// Errors returned by Tags. Use errors.Is to check for them.
+var (
+	// ErrNotInstalled means the git command could not be found.
+	ErrNotInstalled = errors.New("git is not installed")
+	// ErrNotRepository means the directory is not inside a git repository.
+	ErrNotRepository = errors.New("not a git repository")
+	// ErrDirectoryNotFound means the directory does not exist.
+	ErrDirectoryNotFound = errors.New("directory not found")
+	// ErrNotDirectory means the path exists but is not a directory.
+	ErrNotDirectory = errors.New("not a directory")
+)
+
+// CommandError reports that git ran but failed for a reason other than the
+// ones covered by the sentinel errors.
+type CommandError struct {
+	// Args are the arguments git was run with.
+	Args []string
+	// Stderr is what git wrote to its standard error, trimmed.
+	Stderr string
+	// Err is the underlying error from running the command.
+	Err error
+}
+
+// Error implements error.
+func (e *CommandError) Error() string {
+	return fmt.Sprintf("running git %s: %v: %s", strings.Join(e.Args, " "), e.Err, e.Stderr)
+}
+
+// Unwrap returns the underlying error.
+func (e *CommandError) Unwrap() error {
+	return e.Err
+}
+
+// Tags returns the names of the tags in the git repository that contains
+// dir, in no particular order. An empty dir means the current directory.
+func Tags(ctx context.Context, dir string) ([]string, error) {
+	return tags(ctx, "git", dir)
+}
+
+// tags is Tags with the git executable injected, so tests can simulate git
+// being missing or failing.
+func tags(ctx context.Context, gitPath, dir string) ([]string, error) {
+	if dir != "" {
+		if err := checkDirectory(dir); err != nil {
+			return nil, err
+		}
+	}
+
+	out, err := run(ctx, gitPath, dir, "tag", "--list")
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Fields(out), nil
+}
+
+func checkDirectory(dir string) error {
+	info, err := os.Stat(dir)
+
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("%w: %s", ErrDirectoryNotFound, dir)
+	case err != nil:
+		return fmt.Errorf("checking directory: %w", err)
+	case !info.IsDir():
+		return fmt.Errorf("%w: %s", ErrNotDirectory, dir)
+	}
+
+	return nil
+}
+
+// run runs git with args in dir and returns its standard output.
+func run(ctx context.Context, gitPath, dir string, args ...string) (string, error) {
+	var stdout, stderr bytes.Buffer
+
+	cmd := exec.CommandContext(ctx, gitPath, args...) //nolint:gosec // G204: gitPath is "git" or a test double, and args are fixed by this package.
+	cmd.Dir = dir
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	// Untranslated messages, so that errors can be recognised below, and no
+	// prompting for credentials.
+	cmd.Env = append(cmd.Environ(), "LC_ALL=C", "GIT_TERMINAL_PROMPT=0")
+
+	err := cmd.Run()
+
+	var exitErr *exec.ExitError
+
+	switch {
+	case err == nil:
+		return stdout.String(), nil
+	case errors.Is(err, exec.ErrNotFound):
+		return "", ErrNotInstalled
+	case errors.As(err, &exitErr) && strings.Contains(stderr.String(), "not a git repository"):
+		return "", ErrNotRepository
+	default:
+		return "", &CommandError{Args: args, Stderr: strings.TrimSpace(stderr.String()), Err: err}
+	}
+}

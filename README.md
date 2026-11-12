@@ -66,9 +66,30 @@ go install github.com/tedslittlerobot/svm/cmd/svm@latest
 
 ## Usage
 
+svm reads one version, checks it against the [version format](#version-format)
+and prints it:
+
 ```sh
-svm --help       # list commands
-svm --version    # print the version
+svm 1.2.3-rc-001            # from an argument                 → 1.2.3-rc-001
+echo v1.2.3 | svm -         # from standard input, with "-"     → 1.2.3
+svm                         # from the latest valid git tag     → e.g. 0.10.0
+svm --directory ../app      # ...of the repository at ../app
+svm --with-v-prefix 1.2.3   # add a "v" prefix (alias --vp)    → v1.2.3
+```
+
+With no argument, svm reads the tags of the git repository that contains the
+current directory (or `--directory`), ignores any that aren't valid versions,
+and uses the latest. It's an error if there is no repository or no valid tag.
+
+svm only reads standard input when the argument is `-`. It never reads it
+otherwise, so it can't hang in CI jobs, git hooks or loops where standard input
+is open but not meant for svm.
+
+The `v` prefix is never printed unless you ask for it, whatever the input had.
+
+```sh
+svm --help       # list commands and flags
+svm --version    # print svm's own version
 svm version      # print full build information
 ```
 
@@ -118,6 +139,8 @@ make snapshot   # build every release artefact into ./dist without publishing
 cmd/svm/            Entry point. Wires OS streams and signals into the CLI; no logic.
 internal/cli/       Cobra commands. Parses input, calls domain code, formats output.
 internal/buildinfo/ Version, commit and build date of the running binary.
+internal/semver/    Parsing, ordering and formatting of svm versions.
+internal/git/       Reads tags by running the git command.
 ```
 
 Domain logic (parsing and modifying versions) lives in its own packages under

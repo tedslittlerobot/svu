@@ -2,6 +2,9 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -24,20 +27,69 @@ type result struct {
 	stderr string
 }
 
-// run invokes svm in-process with the given arguments and empty stdin, using
-// testInfo as the build information.
+// invocation describes one in-process run of svm.
+type invocation struct {
+	args []string
+	// stdin is what svm reads from standard input. nil means empty.
+	stdin io.Reader
+	// tags stands in for git. nil fails the test if svm reads git tags.
+	tags tagReader
+}
+
+// run invokes svm in-process with the given arguments, empty stdin and no
+// access to git, using testInfo as the build information.
 func run(t *testing.T, args ...string) result {
 	t.Helper()
 
+	return invoke(t, invocation{args: args})
+}
+
+// invoke runs svm in-process as described by inv.
+func invoke(t *testing.T, inv invocation) result {
+	t.Helper()
+
+	if inv.stdin == nil {
+		inv.stdin = strings.NewReader("")
+	}
+
+	if inv.tags == nil {
+		inv.tags = func(context.Context, string) ([]string, error) {
+			t.Error("svm read git tags, want it not to")
+
+			return nil, errors.New("unexpected call to read git tags")
+		}
+	}
+
 	var stdout, stderr bytes.Buffer
 
-	code := execute(t.Context(), args, Streams{
-		In:  strings.NewReader(""),
+	code := execute(t.Context(), inv.args, Streams{
+		In:  inv.stdin,
 		Out: &stdout,
 		Err: &stderr,
-	}, testInfo)
+	}, testInfo, inv.tags)
 
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
+}
+
+// fixedTags returns a tagReader that always returns tags, and checks that it
+// is asked about wantDir.
+func fixedTags(t *testing.T, wantDir string, tags ...string) tagReader {
+	t.Helper()
+
+	return func(_ context.Context, dir string) ([]string, error) {
+		if dir != wantDir {
+			t.Errorf("read tags in %q, want %q", dir, wantDir)
+		}
+
+		return tags, nil
+	}
+}
+
+// failingTags returns a tagReader that always fails with err.
+func failingTags(err error) tagReader {
+	return func(context.Context, string) ([]string, error) {
+		return nil, err
+	}
 }
 
 func TestRoot(t *testing.T) {
@@ -52,12 +104,6 @@ func TestRoot(t *testing.T) {
 		exactStdout bool
 	}{
 		{
-			name:       "no arguments prints help",
-			args:       nil,
-			wantCode:   ExitOK,
-			wantStdout: "Usage:",
-		},
-		{
 			name:       "help flag prints help",
 			args:       []string{"--help"},
 			wantCode:   ExitOK,
@@ -71,10 +117,16 @@ func TestRoot(t *testing.T) {
 			exactStdout: true,
 		},
 		{
-			name:       "unknown command fails",
+			name:       "help describes where the version comes from",
+			args:       []string{"--help"},
+			wantCode:   ExitOK,
+			wantStdout: "from the latest git tag that is a valid version",
+		},
+		{
+			name:       "an unknown command is read as an invalid version",
 			args:       []string{"frobnicate"},
 			wantCode:   ExitFailure,
-			wantStderr: `svm: unknown command "frobnicate"`,
+			wantStderr: `Error: "frobnicate" is not a valid version.`,
 		},
 		{
 			name:       "unknown flag fails",
