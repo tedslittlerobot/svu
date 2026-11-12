@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/git/gittest"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/git/gittest"
 )
 
 // tagCall records one call to make a tag.
@@ -153,7 +153,7 @@ func TestApplyGivesTheEditorTheTerminal(t *testing.T) {
 	assertResult(t, got, result{stdout: "v1.0.1\n", stderr: "editor screen\n"})
 
 	if editor == nil || editor.In == nil {
-		t.Fatal("svu made the tag without giving git the terminal")
+		t.Fatal("semvu made the tag without giving git the terminal")
 	}
 }
 
@@ -193,15 +193,15 @@ func TestApplyErrors(t *testing.T) {
 			tags: failingTags(git.ErrNotRepository),
 			code: ExitRepository,
 			want: "Error: The current directory is not in a git repository.\n\n" +
-				"  --apply tags the new version, so svu needs a git repository.\n\n" +
-				"Hint: Run svu inside a git repository, or leave out --apply.\n",
+				"  --apply tags the new version, so semvu needs a git repository.\n\n" +
+				"Hint: Run semvu inside a git repository, or leave out --apply.\n",
 		},
 		{
 			name: "reports git missing",
 			args: []string{"modify", "1.2.3", "--apply"},
 			tags: failingTags(git.ErrNotInstalled),
 			code: ExitGit,
-			want: "Error: svu could not find git.\n\n" +
+			want: "Error: semvu could not find git.\n\n" +
 				"  --apply needs git to tag the new version.\n\n" +
 				"Hint: Install git, or leave out --apply.\n",
 		},
@@ -237,8 +237,8 @@ func TestApplyErrors(t *testing.T) {
 			tagError: git.ErrNotRepository,
 			code:     ExitRepository,
 			want: "Error: The current directory is not in a git repository.\n\n" +
-				"  --apply tags the new version, so svu needs a git repository.\n\n" +
-				"Hint: Run svu inside a git repository, or leave out --apply.\n",
+				"  --apply tags the new version, so semvu needs a git repository.\n\n" +
+				"Hint: Run semvu inside a git repository, or leave out --apply.\n",
 		},
 		{
 			name:     "reports an unexpected failure",
@@ -246,7 +246,7 @@ func TestApplyErrors(t *testing.T) {
 			tags:     fixedTags(t, "", "v1.2.3"),
 			tagError: errors.New("boom"),
 			code:     ExitInternal,
-			want:     "Error: svu could not read the git tags in the current directory.\n\n" + reportLine,
+			want:     "Error: semvu could not read the git tags in the current directory.\n\n" + reportLine,
 		},
 	}
 

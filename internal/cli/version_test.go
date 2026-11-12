@@ -16,13 +16,13 @@ func TestVersionCommand(t *testing.T) {
 			name:       "prints full build information",
 			args:       []string{"version"},
 			wantCode:   ExitOK,
-			wantStdout: "svu 1.2.3 (commit abc123, built 2026-01-01T00:00:00Z, go1.26.4, linux/amd64)\n",
+			wantStdout: "semvu 1.2.3 (commit abc123, built 2026-01-01T00:00:00Z, go1.26.4, linux/amd64)\n",
 		},
 		{
 			name:       "rejects positional arguments",
 			args:       []string{"version", "extra"},
 			wantCode:   ExitUsage,
-			wantStderr: "Error: svu version takes no arguments, but was given \"extra\".\n\nHint: Run svu version on its own.\n",
+			wantStderr: "Error: semvu version takes no arguments, but was given \"extra\".\n\nHint: Run semvu version on its own.\n",
 		},
 	}
 

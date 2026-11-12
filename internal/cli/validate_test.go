@@ -45,20 +45,20 @@ func TestValidate(t *testing.T) {
 			args:  []string{"validate", "-"},
 			stdin: "\n",
 			want: result{code: ExitInvalidVersion, stderr: "Error: Standard input is empty.\n\n" +
-				"  With \"-\" as the argument, svu reads one version from standard input.\n\n" +
-				"Hint: Pipe a version into svu, as in echo 1.2.3 | svu modify -.\n"},
+				"  With \"-\" as the argument, semvu reads one version from standard input.\n\n" +
+				"Hint: Pipe a version into semvu, as in echo 1.2.3 | semvu modify -.\n"},
 		},
 		{
 			name: "needs a version",
 			args: []string{"validate"},
-			want: result{code: ExitUsage, stderr: "Error: svu validate needs a version.\n\n" +
-				"Hint: Give one, as in svu validate 1.2.3, or - to read it from standard input.\n"},
+			want: result{code: ExitUsage, stderr: "Error: semvu validate needs a version.\n\n" +
+				"Hint: Give one, as in semvu validate 1.2.3, or - to read it from standard input.\n"},
 		},
 		{
 			name: "takes only one version",
 			args: []string{"validate", "1.2.3", "1.2.4"},
-			want: result{code: ExitUsage, stderr: "Error: svu validate was given 2 versions, but it takes one.\n\n" +
-				"Hint: Check one version at a time, as in svu validate 1.2.3.\n"},
+			want: result{code: ExitUsage, stderr: "Error: semvu validate was given 2 versions, but it takes one.\n\n" +
+				"Hint: Check one version at a time, as in semvu validate 1.2.3.\n"},
 		},
 	}
 

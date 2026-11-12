@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
 // modifier is one flag that changes the version, such as --minor or --rc.
@@ -32,7 +32,7 @@ func newVersionModifiers() []*modifier[semver.Part] {
 }
 
 // hotfixFlag is the version modifier that patches the latest release. From
-// git tags, svu modify then reads the latest release rather than the latest
+// git tags, semvu modify then reads the latest release rather than the latest
 // version, so a release candidate in progress doesn't get in the way.
 const hotfixFlag = "hotfix"
 
@@ -60,7 +60,7 @@ func modifierNames() []string {
 	return names
 }
 
-// modifiers holds the modifier flags for one run of svu.
+// modifiers holds the modifier flags for one run of semvu.
 type modifiers struct {
 	versions []*modifier[semver.Part]
 	stages   []*modifier[semver.Stage]
@@ -158,7 +158,7 @@ func (m *modifiers) apply(v semver.Version) (semver.Version, error) {
 			code:     ExitModification,
 			headline: fmt.Sprintf("%q is a pre-release, so it can't be hotfixed.", v.String()),
 			detail:   "--hotfix patches a released version.",
-			hint:     "Give the release to fix, as in `svu modify 1.2.3 --hotfix`, or use `--patch`.",
+			hint:     "Give the release to fix, as in `semvu modify 1.2.3 --hotfix`, or use `--patch`.",
 		}
 	}
 
@@ -201,7 +201,7 @@ func (m *modifiers) modifyError(err error) *userError {
 			err:      err,
 		}
 	default:
-		return &userError{code: ExitInternal, headline: "svu could not modify the version.", hint: reportHint, err: err}
+		return &userError{code: ExitInternal, headline: "semvu could not modify the version.", hint: reportHint, err: err}
 	}
 }
 
@@ -248,7 +248,7 @@ func (m *modifiers) stageError(err *semver.StageError) *userError {
 			err:      err,
 		}
 	default:
-		return &userError{code: ExitInternal, headline: "svu could not modify the version.", hint: reportHint, err: err}
+		return &userError{code: ExitInternal, headline: "semvu could not modify the version.", hint: reportHint, err: err}
 	}
 }
 

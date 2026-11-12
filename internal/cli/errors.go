@@ -11,18 +11,18 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svu/internal/colour"
+	"github.com/tedslittlerobot/semvu/internal/colour"
 )
 
 // reportHint asks for a bug report, for failures the user can't fix.
-const reportHint = "If this keeps happening, please report it at https://github.com/tedslittlerobot/svu/issues."
+const reportHint = "If this keeps happening, please report it at https://github.com/tedslittlerobot/semvu/issues."
 
 // userError is an error with a message written for the user, rendered as
-// described in conventions/output.md. Every error svu returns from a command
+// described in conventions/output.md. Every error semvu returns from a command
 // is a userError, and render turns anything else into one.
 //
 // In a hint, wrap suggested commands, flags and values in backticks, as in
-// "run `svu --help`". render shows them in green, without the backticks.
+// "run `semvu --help`". render shows them in green, without the backticks.
 // Quoted values in a hint are green too.
 type userError struct {
 	// headline is one sentence saying what went wrong, without "Error: ".
@@ -168,7 +168,7 @@ type tokenKind int
 
 const (
 	tokenText   tokenKind = iota
-	tokenCode             // `svu --help`, without the backticks.
+	tokenCode             // `semvu --help`, without the backticks.
 	tokenQuoted           // "1.2.3", with its quotes, as %q writes it.
 	tokenURL              // https://…, without a sentence's final full stop.
 )
@@ -323,7 +323,7 @@ func unknownFlagError(cmd *cobra.Command, notExist *pflag.NotExistError, err err
 		// for --released.
 		ue.hint = fmt.Sprintf("Did you mean `--%s`?", near)
 	default:
-		// A flag that belongs to another command, as in svu --patch.
+		// A flag that belongs to another command, as in semvu --patch.
 		if owner := flagOwner(cmd.Root(), name); owner != nil && owner != cmd {
 			ue.hint = fmt.Sprintf("Did you mean `%s %s`?", owner.CommandPath(), flag)
 		}

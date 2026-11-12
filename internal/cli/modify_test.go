@@ -71,7 +71,7 @@ func TestVFlagsAreMutuallyExclusive(t *testing.T) {
 	t.Parallel()
 
 	const want = "Error: --with-v and --without-v can't be used together.\n\n" +
-		"  Without either, svu keeps the \"v\" of the version it read: from the argument,\n" +
+		"  Without either, semvu keeps the \"v\" of the version it read: from the argument,\n" +
 		"  standard input or the tag.\n\n" +
 		"Hint: Remove one of them.\n"
 

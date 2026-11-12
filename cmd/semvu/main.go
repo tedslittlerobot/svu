@@ -1,4 +1,4 @@
-// Command svu (Semantic Version Utilities) reads and modifies semantic version strings.
+// Command semvu (Semantic Version Utilities) reads and modifies semantic version strings.
 //
 // This file is the process boundary: it collects the real arguments, streams
 // and signals, hands them to the cli package, and exits with the code it
@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/tedslittlerobot/svu/internal/cli"
+	"github.com/tedslittlerobot/semvu/internal/cli"
 )
 
 func main() {

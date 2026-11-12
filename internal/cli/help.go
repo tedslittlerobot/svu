@@ -9,12 +9,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svu/internal/colour"
+	"github.com/tedslittlerobot/semvu/internal/colour"
 )
 
 // helpGroupAnnotation is the flag annotation that names a flag's group in
 // help.
-const helpGroupAnnotation = "svu_help_group"
+const helpGroupAnnotation = "semvu_help_group"
 
 // Flag groups, in the order help shows them. Flags without a group are shown
 // last.
@@ -102,7 +102,7 @@ func writeCommands(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
 	var commands []*cobra.Command
 
 	for _, c := range cmd.Commands() {
-		// cobra counts the help command as unavailable, but it's one of svu's
+		// cobra counts the help command as unavailable, but it's one of semvu's
 		// commands like any other.
 		if c.IsAvailableCommand() || (c.Name() == "help" && !c.Hidden) {
 			commands = append(commands, c)
@@ -227,13 +227,13 @@ func newFlagLine(f *pflag.Flag) flagLine {
 	return flagLine{names: names, placeholder: placeholder, usage: usage}
 }
 
-// newHelpCommand returns svu's help command. Unlike --help, it writes help to
+// newHelpCommand returns semvu's help command. Unlike --help, it writes help to
 // stdout, because help is its main output. show renders help for a command
 // to a stream.
 func newHelpCommand(show func(w io.Writer, cmd *cobra.Command)) *cobra.Command {
 	return &cobra.Command{
 		Use:   "help [command]",
-		Short: "Show help for svu or one of its commands",
+		Short: "Show help for semvu or one of its commands",
 		Args:  cobra.ArbitraryArgs,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, _ string) ([]cobra.Completion, cobra.ShellCompDirective) {
 			var names []cobra.Completion

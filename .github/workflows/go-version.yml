@@ -1,6 +1,6 @@
 name: Go version
 
-# svu always builds with the latest Go release (see CLAUDE.md). This fails as
+# semvu always builds with the latest Go release (see CLAUDE.md). This fails as
 # soon as go.mod falls behind, including on a quiet week with no other
 # changes, so that a new Go release is never missed. It also checks that
 # .go-version, which goenv reads, says the same as go.mod.

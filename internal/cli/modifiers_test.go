@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
 func TestModifiers(t *testing.T) {
@@ -199,7 +199,7 @@ func TestModifyErrorAsksForAReportWhenUnexpected(t *testing.T) {
 
 			got := m.modifyError(tt.err)
 
-			if got.headline != "svu could not modify the version." || got.hint != reportHint {
+			if got.headline != "semvu could not modify the version." || got.hint != reportHint {
 				t.Errorf("modifyError() = %+v, want the unexpected-failure message", got)
 			}
 		})

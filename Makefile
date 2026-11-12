@@ -1,5 +1,5 @@
-BINARY  := svu
-PKG     := github.com/tedslittlerobot/svu
+BINARY  := semvu
+PKG     := github.com/tedslittlerobot/semvu
 BIN_DIR := bin
 
 VERSION ?= $(or $(shell git describe --tags --always --dirty 2>/dev/null),dev)
@@ -18,12 +18,12 @@ help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-17s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: build
-build: ## Build the svu binary into ./bin
-	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY) ./cmd/svu
+build: ## Build the semvu binary into ./bin
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY) ./cmd/semvu
 
 .PHONY: install
-install: ## Install svu into $GOBIN
-	go install -trimpath -ldflags "$(LDFLAGS)" ./cmd/svu
+install: ## Install semvu into $GOBIN
+	go install -trimpath -ldflags "$(LDFLAGS)" ./cmd/semvu
 
 .PHONY: test
 test: ## Run all tests with the race detector in random order
@@ -84,7 +84,7 @@ go-version-check: ## Check that .go-version matches the go line in go.mod
 	fi
 
 .PHONY: vuln
-vuln: ## Check for known vulnerabilities that svu's code can reach (needs network)
+vuln: ## Check for known vulnerabilities that semvu's code can reach (needs network)
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 .PHONY: check

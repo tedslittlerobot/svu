@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/git/gittest"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/git/gittest"
 )
 
-const reportLine = "Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/svu/issues.\n"
+const reportLine = "Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/semvu/issues.\n"
 
 func TestInput(t *testing.T) {
 	t.Parallel()
@@ -83,7 +83,7 @@ Hint: Did you mean "1.2.3-alpha-001"?
   ^
   MAJOR, MINOR and PATCH must be whole numbers, as in 1.2.3.
 
-Hint: To see what svu modify accepts, run svu modify --help.
+Hint: To see what semvu modify accepts, run semvu modify --help.
 `,
 		},
 		{
@@ -110,9 +110,9 @@ Hint: Did you mean "1.2.3"?
 			name:     "rejects more than one argument",
 			args:     []string{"1.2.3", "1.2.4"},
 			wantCode: ExitUsage,
-			wantStderr: `Error: svu modify was given 2 versions, but it takes at most one.
+			wantStderr: `Error: semvu modify was given 2 versions, but it takes at most one.
 
-Hint: Give a single version, as in svu modify 1.2.3.
+Hint: Give a single version, as in semvu modify 1.2.3.
 `,
 		},
 
@@ -168,9 +168,9 @@ Hint: Did you mean "v1.2.3"?
 			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: Standard input is empty.
 
-  With "-" as the argument, svu reads one version from standard input.
+  With "-" as the argument, semvu reads one version from standard input.
 
-Hint: Pipe a version into svu, as in echo 1.2.3 | svu modify -.
+Hint: Pipe a version into semvu, as in echo 1.2.3 | semvu modify -.
 `,
 		},
 		{
@@ -180,7 +180,7 @@ Hint: Pipe a version into svu, as in echo 1.2.3 | svu modify -.
 			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: Standard input has more than one line.
 
-  With "-" as the argument, svu reads one version from standard input.
+  With "-" as the argument, semvu reads one version from standard input.
 `,
 		},
 		{
@@ -189,7 +189,7 @@ Hint: Pipe a version into svu, as in echo 1.2.3 | svu modify -.
 			wantCode: ExitUsage,
 			wantStderr: `Error: --directory can't be used when a version is given.
 
-  svu modify only reads git tags when no version is given.
+  semvu modify only reads git tags when no version is given.
 
 Hint: Remove --directory, or remove the version.
 `,
@@ -201,7 +201,7 @@ Hint: Remove --directory, or remove the version.
 			wantCode: ExitUsage,
 			wantStderr: `Error: --directory can't be used when a version is given.
 
-  svu modify only reads git tags when no version is given.
+  semvu modify only reads git tags when no version is given.
 
 Hint: Remove --directory, or remove the version.
 `,
@@ -243,12 +243,12 @@ Hint: Remove --directory, or remove the version.
 				return failingTags(git.ErrNotRepository)
 			},
 			wantCode: ExitRepository,
-			wantStderr: `Error: svu has no valid input.
+			wantStderr: `Error: semvu has no valid input.
 
-  No version was given, so svu reads the latest version from git tags,
+  No version was given, so semvu reads the latest version from git tags,
   but the current directory is not in a git repository.
 
-Hint: Give a version, as in svu modify 1.2.3, or run svu inside a git repository.
+Hint: Give a version, as in semvu modify 1.2.3, or run semvu inside a git repository.
 `,
 		},
 		{
@@ -258,12 +258,12 @@ Hint: Give a version, as in svu modify 1.2.3, or run svu inside a git repository
 				return failingTags(git.ErrNotRepository)
 			},
 			wantCode: ExitRepository,
-			wantStderr: `Error: svu has no valid input.
+			wantStderr: `Error: semvu has no valid input.
 
-  No version was given, so svu reads the latest version from git tags,
+  No version was given, so semvu reads the latest version from git tags,
   but "elsewhere" is not in a git repository.
 
-Hint: Give a version, as in svu modify 1.2.3, or set --directory to a git repository.
+Hint: Give a version, as in semvu modify 1.2.3, or set --directory to a git repository.
 `,
 		},
 		{
@@ -278,7 +278,7 @@ Hint: Give a version, as in svu modify 1.2.3, or set --directory to a git reposi
 
   It has no tags on the checked-out commit's history.
 
-Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.
+Hint: Give a version, as in semvu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.
 `,
 		},
 		{
@@ -294,7 +294,7 @@ Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.
 
   None of its tags on the checked-out commit's history is a valid version, such as v1.2.3 or v1.2.3-rc-001.
 
-Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.
+Hint: Give a version, as in semvu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.
 `,
 		},
 		{
@@ -327,11 +327,11 @@ Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.
 				return failingTags(git.ErrNotInstalled)
 			},
 			wantCode: ExitGit,
-			wantStderr: `Error: svu could not find git.
+			wantStderr: `Error: semvu could not find git.
 
-  No version was given, so svu needs git to read the latest version from the tags.
+  No version was given, so semvu needs git to read the latest version from the tags.
 
-Hint: Install git, or give a version, as in svu modify 1.2.3.
+Hint: Install git, or give a version, as in semvu modify 1.2.3.
 `,
 		},
 		{
@@ -352,7 +352,7 @@ Hint: Install git, or give a version, as in svu modify 1.2.3.
 				return failingTags(errors.New("checking directory: permission denied"))
 			},
 			wantCode:   ExitInternal,
-			wantStderr: "Error: svu could not read the git tags in \"elsewhere\".\n\n" + reportLine,
+			wantStderr: "Error: semvu could not read the git tags in \"elsewhere\".\n\n" + reportLine,
 		},
 	}
 
@@ -398,15 +398,15 @@ func TestInputFromRealGitRepository(t *testing.T) {
 			want: result{code: ExitNoMatchingTag, stderr: fmt.Sprintf(
 				"Error: The git repository at %q has no tags that are valid versions.\n\n"+
 					"  It has no tags on the checked-out commit's history.\n\n"+
-					"Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.\n", empty)},
+					"Hint: Give a version, as in semvu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.\n", empty)},
 		},
 		{
 			name: "reports a directory that is not in a repository",
 			args: []string{"--directory", notRepo},
-			want: result{code: ExitRepository, stderr: fmt.Sprintf("Error: svu has no valid input.\n\n"+
-				"  No version was given, so svu reads the latest version from git tags,\n"+
+			want: result{code: ExitRepository, stderr: fmt.Sprintf("Error: semvu has no valid input.\n\n"+
+				"  No version was given, so semvu reads the latest version from git tags,\n"+
 				"  but %q is not in a git repository.\n\n"+
-				"Hint: Give a version, as in svu modify 1.2.3, or set --directory to a git repository.\n", notRepo)},
+				"Hint: Give a version, as in semvu modify 1.2.3, or set --directory to a git repository.\n", notRepo)},
 		},
 	}
 
@@ -456,11 +456,11 @@ func TestInputOnlyReadsStdinWhenAsked(t *testing.T) {
 }
 
 // untouchableReader fails the test if it is read. It stands in for a pipe
-// that never closes, which would make svu hang if it read it.
+// that never closes, which would make semvu hang if it read it.
 type untouchableReader struct{ t *testing.T }
 
 func (r untouchableReader) Read([]byte) (int, error) {
-	r.t.Error("svu read standard input, want it not to")
+	r.t.Error("semvu read standard input, want it not to")
 
 	return 0, io.EOF
 }
@@ -490,7 +490,7 @@ func TestInputReportsUnreadableStdin(t *testing.T) {
 
 	assertResult(t, got, result{
 		code:   ExitInternal,
-		stderr: "Error: svu could not read standard input.\n\n" + reportLine,
+		stderr: "Error: semvu could not read standard input.\n\n" + reportLine,
 	})
 }
 
@@ -505,8 +505,8 @@ func TestOutputReportsWriteFailure(t *testing.T) {
 		Err: &stderr,
 	}, environment{info: testInfo, getenv: func(string) string { return "" }})
 
-	want := "Error: svu could not write its output.\n\n" +
-		"  The output stream was closed before svu finished writing.\n\n" + reportLine
+	want := "Error: semvu could not write its output.\n\n" +
+		"  The output stream was closed before semvu finished writing.\n\n" + reportLine
 
 	if code != ExitInternal {
 		t.Errorf("exit code = %d, want %d", code, ExitInternal)

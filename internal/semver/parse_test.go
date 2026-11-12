@@ -215,7 +215,7 @@ func FuzzParse(f *testing.F) {
 		wantValid := specPattern.MatchString(s) && !strings.HasSuffix(s, "-000")
 
 		if err != nil {
-			// The pattern doesn't limit the size of numbers; svu limits them
+			// The pattern doesn't limit the size of numbers; semvu limits them
 			// to uint64.
 			var perr *ParseError
 

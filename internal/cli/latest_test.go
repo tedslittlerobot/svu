@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/git/gittest"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/git/gittest"
 )
 
 func TestLatest(t *testing.T) {
@@ -66,7 +66,7 @@ func TestLatestErrors(t *testing.T) {
 			name: "rejects arguments",
 			code: ExitUsage,
 			args: []string{"latest", "1.2.3"},
-			want: "Error: svu latest takes no arguments, but was given \"1.2.3\".\n\nHint: Run svu latest on its own.\n",
+			want: "Error: semvu latest takes no arguments, but was given \"1.2.3\".\n\nHint: Run semvu latest on its own.\n",
 		},
 		{
 			name: "reports a repository with no tags",
@@ -113,8 +113,8 @@ func TestLatestErrors(t *testing.T) {
 			args: []string{"latest"},
 			tags: func(*testing.T) tagReader { return failingTags(git.ErrNotRepository) },
 			want: "Error: The current directory is not in a git repository.\n\n" +
-				"  svu reads the latest version from the repository's git tags.\n\n" +
-				"Hint: Run svu inside a git repository, or set --directory to one.\n",
+				"  semvu reads the latest version from the repository's git tags.\n\n" +
+				"Hint: Run semvu inside a git repository, or set --directory to one.\n",
 		},
 		{
 			name: "reports --directory outside a repository",
@@ -122,7 +122,7 @@ func TestLatestErrors(t *testing.T) {
 			args: []string{"latest", "--directory", "elsewhere"},
 			tags: func(*testing.T) tagReader { return failingTags(git.ErrNotRepository) },
 			want: "Error: \"elsewhere\" is not in a git repository.\n\n" +
-				"  svu reads the latest version from the repository's git tags.\n\n" +
+				"  semvu reads the latest version from the repository's git tags.\n\n" +
 				"Hint: Set --directory to a directory in a git repository.\n",
 		},
 		{
@@ -139,8 +139,8 @@ func TestLatestErrors(t *testing.T) {
 			code: ExitGit,
 			args: []string{"latest"},
 			tags: func(*testing.T) tagReader { return failingTags(git.ErrNotInstalled) },
-			want: "Error: svu could not find git.\n\n" +
-				"  svu needs git to read the latest version from the tags.\n\n" +
+			want: "Error: semvu could not find git.\n\n" +
+				"  semvu needs git to read the latest version from the tags.\n\n" +
 				"Hint: Install git.\n",
 		},
 	}

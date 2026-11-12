@@ -25,13 +25,13 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # svu checks its own release tag, built from the tagged commit: the tag
-      # must be a valid svu version, and the latest on its history.
-      - name: Build svu
-        run: go build -o "$RUNNER_TEMP/svu" ./cmd/svu
+      # semvu checks its own release tag, built from the tagged commit: the tag
+      # must be a valid semvu version, and the latest on its history.
+      - name: Build semvu
+        run: go build -o "$RUNNER_TEMP/semvu" ./cmd/semvu
 
       - name: Check the tag is a valid, newer version
-        run: scripts/check-release-tag.sh "$GITHUB_REF_NAME" "$RUNNER_TEMP/svu"
+        run: scripts/check-release-tag.sh "$GITHUB_REF_NAME" "$RUNNER_TEMP/semvu"
 
   release:
     name: Publish
@@ -63,7 +63,7 @@ jobs:
 
       # Sign a record of how each artefact was built, so users can check a
       # download came from this workflow:
-      #   gh attestation verify <file> --repo tedslittlerobot/svu
+      #   gh attestation verify <file> --repo tedslittlerobot/semvu
       # checksums.txt lists every archive and package, so this covers them all.
       - uses: actions/attest-build-provenance@v4
         with:

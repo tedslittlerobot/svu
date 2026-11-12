@@ -9,9 +9,9 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/tedslittlerobot/svu/internal/commits"
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/commits"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
 // messageReader returns the commit messages since the tag since, or every
@@ -21,7 +21,7 @@ type messageReader func(ctx context.Context, dir, since string) ([]string, error
 // autoFlag is the version modifier that works out the bump from commits.
 const autoFlag = "auto"
 
-// autoVersion works out the next version for svu modify --auto: it reads the
+// autoVersion works out the next version for semvu modify --auto: it reads the
 // latest tag that q matches, and bumps it as the Conventional Commits since
 // then need. If explain isn't nil, it writes how it decided there. It also
 // returns the text the latest version came from, for its "v".

@@ -1,16 +1,16 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
-project_name: svu
+project_name: semvu
 
 before:
   hooks:
     - go mod verify
 
 builds:
-  - id: svu
-    main: ./cmd/svu
-    binary: svu
+  - id: semvu
+    main: ./cmd/semvu
+    binary: semvu
     env:
       - CGO_ENABLED=0
     goos:
@@ -32,13 +32,13 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/tedslittlerobot/svu/internal/buildinfo.version={{ .Version }}
-      - -X github.com/tedslittlerobot/svu/internal/buildinfo.commit={{ .FullCommit }}
-      - -X github.com/tedslittlerobot/svu/internal/buildinfo.date={{ .CommitDate }}
+      - -X github.com/tedslittlerobot/semvu/internal/buildinfo.version={{ .Version }}
+      - -X github.com/tedslittlerobot/semvu/internal/buildinfo.commit={{ .FullCommit }}
+      - -X github.com/tedslittlerobot/semvu/internal/buildinfo.date={{ .CommitDate }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
-  - id: svu
+  - id: semvu
     formats:
       - tar.gz
     name_template: >-
@@ -49,12 +49,12 @@ archives:
 
 # Native packages for the major Linux distribution families.
 nfpms:
-  - id: svu
-    package_name: svu
+  - id: semvu
+    package_name: semvu
     file_name_template: "{{ .ConventionalFileName }}"
-    homepage: https://github.com/tedslittlerobot/svu
+    homepage: https://github.com/tedslittlerobot/semvu
     maintainer: Stefan Horner
-    description: svu (Semantic Version Utilities) works with semantic versions.
+    description: semvu (Semantic Version Utilities) works with semantic versions.
     license: MIT
     formats:
       - deb       # Debian, Ubuntu
@@ -64,7 +64,7 @@ nfpms:
     bindir: /usr/bin
     contents:
       - src: LICENSE
-        dst: /usr/share/licenses/svu/LICENSE
+        dst: /usr/share/licenses/semvu/LICENSE
 
 checksum:
   name_template: checksums.txt
@@ -85,5 +85,5 @@ changelog:
 release:
   github:
     owner: tedslittlerobot
-    name: svu
+    name: semvu
   prerelease: auto

@@ -8,45 +8,45 @@ import (
 )
 
 //nolint:misspell // The help names the --color alias.
-const rootHelp = `svu (Semantic Version Utilities) works with semantic versions.
+const rootHelp = `semvu (Semantic Version Utilities) works with semantic versions.
 
-svu uses a strict subset of SemVer 2.0.0: MAJOR.MINOR.PATCH, optionally
+semvu uses a strict subset of SemVer 2.0.0: MAJOR.MINOR.PATCH, optionally
 followed by a stage (alpha, beta or rc) and a three-digit index, as in
 1.2.3-rc-001.
 
 Usage:
-  svu <command>
+  semvu <command>
 
 Examples:
-  svu modify 1.2.3 --minor     # 1.3.0
-  svu m --patch --rc           # the latest git tag's next patch, as an rc
-  svu latest --released        # the latest released version in git tags
-  svu help modify              # how to modify a version
+  semvu modify 1.2.3 --minor     # 1.3.0
+  semvu m --patch --rc           # the latest git tag's next patch, as an rc
+  semvu latest --released        # the latest released version in git tags
+  semvu help modify              # how to modify a version
 
 Commands:
   completion  Generate the autocompletion script for the specified shell
-  help        Show help for svu or one of its commands
+  help        Show help for semvu or one of its commands
   latest, l   Print the latest version in a repository's git tags
   modify, m   Modify a version, such as bumping it or moving it to a new stage
   validate    Check that a version is valid, by exit status
-  version     Print detailed build information for svu
+  version     Print detailed build information for semvu
 
 Flags:
   -h, --help         Show this help
-  -v, --version      Print svu's version
+  -v, --version      Print semvu's version
       --colour when  Use colour in help and errors: auto (the default), always or never (alias --color)
 
-Run svu help <command> for help with a command.
+Run semvu help <command> for help with a command.
 `
 
 //nolint:misspell // The help names the --color alias.
 const modifyHelp = `Modify a version and print the result.
 
-svu modify reads one version:
+semvu modify reads one version:
 
   - from the version argument, or from standard input if the argument is "-";
   - with no argument, from the latest git tag that is a valid version, found
-    the same way as svu latest finds it (see svu help latest).
+    the same way as semvu latest finds it (see semvu help latest).
 
 It applies any modifiers, then prints the result on standard output. A
 version modifier on its own removes any stage. Add a stage modifier, as in
@@ -62,34 +62,34 @@ already out while a pre-release is in progress.
 --auto works out the bump from the Conventional Commits since the latest tag:
 a breaking change bumps MAJOR (MINOR before 1.0.0), feat bumps MINOR, and fix
 and perf bump PATCH. If the latest tag is a pre-release that already covers
-the bump, it carries on from it. If no commit needs a new version, svu modify
+the bump, it carries on from it. If no commit needs a new version, semvu modify
 fails with exit status 8. --explain says on stderr how the bump was chosen.
 
 --apply also tags the checked-out commit with the new version, exactly as
 it's printed (after any --tag-prefix). --apply-annotate makes an annotated
 tag, and opens your editor for its message. Neither pushes the tag. If the
-version is already tagged, nothing is tagged or printed, and svu modify fails
+version is already tagged, nothing is tagged or printed, and semvu modify fails
 with exit status 9.
 
 Usage:
-  svu modify [version] [flags]
+  semvu modify [version] [flags]
 
 Aliases:
   modify, m
 
 Examples:
-  svu modify 1.2.3 --minor            # 1.3.0
-  svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
-  svu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
-  svu modify 1.2.3-rc-001 --release   # 1.2.3
-  echo v1.2.3 | svu modify - --patch  # v1.2.4
-  svu modify v1.2.3 --without-v       # 1.2.3
-  svu m --patch                       # the latest git tag, bumped, as in v1.2.4
-  svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
-  svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
-  svu m --auto --explain              # the bump the commits since the latest tag need
-  svu m --auto --rc                   # the same, as a release candidate
-  svu m --auto --apply                # tag the checked-out commit with it
+  semvu modify 1.2.3 --minor            # 1.3.0
+  semvu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
+  semvu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
+  semvu modify 1.2.3-rc-001 --release   # 1.2.3
+  echo v1.2.3 | semvu modify - --patch  # v1.2.4
+  semvu modify v1.2.3 --without-v       # 1.2.3
+  semvu m --patch                       # the latest git tag, bumped, as in v1.2.4
+  semvu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
+  semvu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
+  semvu m --auto --explain              # the bump the commits since the latest tag need
+  semvu m --auto --rc                   # the same, as a release candidate
+  semvu m --auto --apply                # tag the checked-out commit with it
 
 Input:
       --directory path     Read tags from the git repository containing path
@@ -129,11 +129,11 @@ Global flags:
 //nolint:misspell // The help names the --color alias.
 const latestHelp = `Print the latest version in a repository's git tags.
 
-svu latest reads the tags of the git repository that contains the current
+semvu latest reads the tags of the git repository that contains the current
 directory, or --directory if given. Only tags on the checked-out commit's
 history count, unless --global is given. It skips any tag that isn't a valid
-version, ignores a leading "v", and prints the latest by svu's ordering.
-svu modify reads tags the same way when given no version.
+version, ignores a leading "v", and prints the latest by semvu's ordering.
+semvu modify reads tags the same way when given no version.
 
 With --tag-prefix, only tags starting with the prefix count, and the prefix
 is ignored. With --released, pre-releases are skipped too. With --initial,
@@ -147,19 +147,19 @@ With --at-head, only tags on the checked-out commit itself count. It fails
 whether it has already tagged a commit.
 
 Usage:
-  svu latest [flags]
+  semvu latest [flags]
 
 Aliases:
   latest, l
 
 Examples:
-  svu latest                         # v1.3.0-rc-002, from the tag v1.3.0-rc-002
-  svu latest --released              # v1.2.0
-  svu latest --without-v             # 1.3.0-rc-002
-  svu latest --global                # including tags on other branches
-  svu latest --tag-prefix api/       # v0.4.0, from the tag api/v0.4.0
-  svu latest --at-head               # fails if the checked-out commit has no version tag
-  svu l --directory path/to/repository
+  semvu latest                         # v1.3.0-rc-002, from the tag v1.3.0-rc-002
+  semvu latest --released              # v1.2.0
+  semvu latest --without-v             # 1.3.0-rc-002
+  semvu latest --global                # including tags on other branches
+  semvu latest --tag-prefix api/       # v0.4.0, from the tag api/v0.4.0
+  semvu latest --at-head               # fails if the checked-out commit has no version tag
+  semvu l --directory path/to/repository
 
 Input:
       --directory path     Read tags from the git repository containing path
@@ -185,20 +185,20 @@ Global flags:
 //nolint:misspell // The help names the --color alias.
 const validateHelp = `Check that a version is valid.
 
-svu validate prints nothing. It exits with status 0 if the version is valid,
+semvu validate prints nothing. It exits with status 0 if the version is valid,
 or 3 if it isn't, and then explains why on standard error. Give the version
 as the argument, or "-" to read it from standard input.
 
-A leading "v" is accepted, as everywhere in svu.
+A leading "v" is accepted, as everywhere in semvu.
 
 Usage:
-  svu validate <version> [flags]
+  semvu validate <version> [flags]
 
 Examples:
-  svu validate 1.2.3-rc-001
-  svu validate 1.2.3-alpha-1                 # exit status 3, and the reason
-  echo "$TAG" | svu validate -
-  svu validate "$TAG" 2>/dev/null && echo valid
+  semvu validate 1.2.3-rc-001
+  semvu validate 1.2.3-alpha-1                 # exit status 3, and the reason
+  echo "$TAG" | semvu validate -
+  semvu validate "$TAG" 2>/dev/null && echo valid
 
 Flags:
   -h, --help         Show this help
@@ -208,10 +208,10 @@ Global flags:
 `
 
 //nolint:misspell // The help names the --color alias.
-const versionHelp = `Print detailed build information for svu
+const versionHelp = `Print detailed build information for semvu
 
 Usage:
-  svu version [flags]
+  semvu version [flags]
 
 Flags:
   -h, --help         Show this help
@@ -300,12 +300,12 @@ func TestHelpInColour(t *testing.T) {
 			plain: rootHelp,
 			spans: []string{
 				"\x1b[1mUsage:\x1b[0m",                                  // Headings are bold.
-				"  \x1b[36msvu\x1b[0m \x1b[2m<command>\x1b[0m",          // Command names are cyan,
+				"  \x1b[36msemvu\x1b[0m \x1b[2m<command>\x1b[0m",        // Command names are cyan,
 				"  \x1b[36mmodify, m\x1b[0m   Modify",                   // aliases included.
 				"  \x1b[36m-h, --help\x1b[0m         Show",              // Flags are cyan.
 				"      \x1b[36m--colour\x1b[0m \x1b[2mwhen\x1b[0m  Use", // Placeholders are dim.
-				"svu modify 1.2.3 --minor     \x1b[2m# 1.3.0\x1b[0m",    // Example comments are dim.
-				"Run \x1b[36msvu help <command>\x1b[0m for help",
+				"semvu modify 1.2.3 --minor     \x1b[2m# 1.3.0\x1b[0m",  // Example comments are dim.
+				"Run \x1b[36msemvu help <command>\x1b[0m for help",
 			},
 		},
 		{
@@ -314,7 +314,7 @@ func TestHelpInColour(t *testing.T) {
 			plain: modifyHelp,
 			spans: []string{
 				"\x1b[1mStage modifiers (use at most one):\x1b[0m",
-				"  \x1b[36msvu modify\x1b[0m \x1b[2m[version] [flags]\x1b[0m",
+				"  \x1b[36msemvu modify\x1b[0m \x1b[2m[version] [flags]\x1b[0m",
 				"\x1b[1mAliases:\x1b[0m\n  \x1b[36mmodify, m\x1b[0m",
 				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m     Read",
 				"\n\x1b[36m--hotfix\x1b[0m patches the latest release",     // Flags in descriptions are cyan,
@@ -393,13 +393,13 @@ func TestCommandGroupsShowHelpOnStdout(t *testing.T) {
 		t.Fatalf("exit code = %d, stderr = %q, want %d and empty", got.code, got.stderr, ExitOK)
 	}
 
-	if want := "Generate the autocompletion script for svu"; !strings.HasPrefix(got.stdout, want) {
+	if want := "Generate the autocompletion script for semvu"; !strings.HasPrefix(got.stdout, want) {
 		t.Errorf("stdout = %q, want it to start with %q", got.stdout, want)
 	}
 
 	// A shell still gets its script on stdout.
 	if got := invoke(t, invocation{args: []string{"completion", "bash"}}); !strings.Contains(got.stdout, "bash completion") {
-		t.Errorf("svu completion bash stdout = %q, want a bash completion script", got.stdout[:min(len(got.stdout), 80)])
+		t.Errorf("semvu completion bash stdout = %q, want a bash completion script", got.stdout[:min(len(got.stdout), 80)])
 	}
 }
 
@@ -414,37 +414,37 @@ func TestUnknownCommands(t *testing.T) {
 		{
 			name: "rejects an unknown command",
 			args: []string{"frobnicate"},
-			want: "Error: \"frobnicate\" is not an svu command.\n\nHint: To list svu's commands, run svu --help.\n",
+			want: "Error: \"frobnicate\" is not an semvu command.\n\nHint: To list semvu's commands, run semvu --help.\n",
 		},
 		{
 			name: "suggests a command close to a typo",
 			args: []string{"modfy"},
-			want: "Error: \"modfy\" is not an svu command.\n\nHint: Did you mean svu modify?\n",
+			want: "Error: \"modfy\" is not an semvu command.\n\nHint: Did you mean semvu modify?\n",
 		},
 		{
 			name: "suggests modify for a bare version",
 			args: []string{"v1.2.3"},
-			want: "Error: \"v1.2.3\" is not an svu command.\n\nHint: To modify a version, run svu modify v1.2.3.\n",
+			want: "Error: \"v1.2.3\" is not an semvu command.\n\nHint: To modify a version, run semvu modify v1.2.3.\n",
 		},
 		{
 			name: "rejects an unknown shell for completion",
 			args: []string{"completion", "nope"},
-			want: "Error: \"nope\" is not a command of svu completion.\n\nHint: To list them, run svu help completion.\n",
+			want: "Error: \"nope\" is not a command of semvu completion.\n\nHint: To list them, run semvu help completion.\n",
 		},
 		{
 			name: "suggests a shell close to a typo",
 			args: []string{"completion", "bsah"},
-			want: "Error: \"bsah\" is not a command of svu completion.\n\nHint: Did you mean svu completion bash?\n",
+			want: "Error: \"bsah\" is not a command of semvu completion.\n\nHint: Did you mean semvu completion bash?\n",
 		},
 		{
 			name: "rejects help for an unknown command",
 			args: []string{"help", "frobnicate"},
-			want: "Error: \"frobnicate\" is not an svu command.\n\nHint: To list svu's commands, run svu --help.\n",
+			want: "Error: \"frobnicate\" is not an semvu command.\n\nHint: To list semvu's commands, run semvu --help.\n",
 		},
 		{
 			name: "rejects help for an unknown subcommand",
 			args: []string{"help", "modify", "extra"},
-			want: "Error: \"modify extra\" is not an svu command.\n\nHint: To list svu's commands, run svu --help.\n",
+			want: "Error: \"modify extra\" is not an semvu command.\n\nHint: To list semvu's commands, run semvu --help.\n",
 		},
 	}
 
@@ -539,7 +539,7 @@ func TestExamplesUseRealFlags(t *testing.T) {
 	for _, c := range commands {
 		for line := range strings.SplitSeq(c.Example, "\n") {
 			code, _, _ := strings.Cut(line, "#")
-			_, code, _ = strings.Cut(code, "svu ") // Skip anything piped in, as in "echo 1.2.3 |".
+			_, code, _ = strings.Cut(code, "semvu ") // Skip anything piped in, as in "echo 1.2.3 |".
 
 			args := strings.Fields(code)
 			if len(args) == 0 {

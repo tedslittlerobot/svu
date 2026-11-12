@@ -8,16 +8,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
 const modifyLong = `Modify a version and print the result.
 
-svu modify reads one version:
+semvu modify reads one version:
 
   - from the version argument, or from standard input if the argument is "-";
   - with no argument, from the latest git tag that is a valid version, found
-    the same way as svu latest finds it (see svu help latest).
+    the same way as semvu latest finds it (see semvu help latest).
 
 It applies any modifiers, then prints the result on standard output. A
 version modifier on its own removes any stage. Add a stage modifier, as in
@@ -33,27 +33,27 @@ already out while a pre-release is in progress.
 --auto works out the bump from the Conventional Commits since the latest tag:
 a breaking change bumps MAJOR (MINOR before 1.0.0), feat bumps MINOR, and fix
 and perf bump PATCH. If the latest tag is a pre-release that already covers
-the bump, it carries on from it. If no commit needs a new version, svu modify
+the bump, it carries on from it. If no commit needs a new version, semvu modify
 fails with exit status 8. --explain says on stderr how the bump was chosen.
 
 --apply also tags the checked-out commit with the new version, exactly as
 it's printed (after any --tag-prefix). --apply-annotate makes an annotated
 tag, and opens your editor for its message. Neither pushes the tag. If the
-version is already tagged, nothing is tagged or printed, and svu modify fails
+version is already tagged, nothing is tagged or printed, and semvu modify fails
 with exit status 9.`
 
-const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
-  svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
-  svu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
-  svu modify 1.2.3-rc-001 --release   # 1.2.3
-  echo v1.2.3 | svu modify - --patch  # v1.2.4
-  svu modify v1.2.3 --without-v       # 1.2.3
-  svu m --patch                       # the latest git tag, bumped, as in v1.2.4
-  svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
-  svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
-  svu m --auto --explain              # the bump the commits since the latest tag need
-  svu m --auto --rc                   # the same, as a release candidate
-  svu m --auto --apply                # tag the checked-out commit with it`
+const modifyExample = `  semvu modify 1.2.3 --minor            # 1.3.0
+  semvu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
+  semvu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
+  semvu modify 1.2.3-rc-001 --release   # 1.2.3
+  echo v1.2.3 | semvu modify - --patch  # v1.2.4
+  semvu modify v1.2.3 --without-v       # 1.2.3
+  semvu m --patch                       # the latest git tag, bumped, as in v1.2.4
+  semvu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
+  semvu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
+  semvu m --auto --explain              # the bump the commits since the latest tag need
+  semvu m --auto --rc                   # the same, as a release candidate
+  semvu m --auto --apply                # tag the checked-out commit with it`
 
 func newModifyCommand(env environment) *cobra.Command {
 	var (
@@ -152,7 +152,7 @@ func newModifyCommand(env environment) *cobra.Command {
 	return cmd
 }
 
-// runAuto works out the version for svu modify --auto: the bump comes from
+// runAuto works out the version for semvu modify --auto: the bump comes from
 // the Conventional Commits since the latest tag. It also returns the text the
 // version came from, as readVersion does.
 func runAuto(
@@ -185,7 +185,7 @@ func runAuto(
 	return v, source, nil
 }
 
-// atMostOneVersion checks that svu modify was given no more than one version.
+// atMostOneVersion checks that semvu modify was given no more than one version.
 func atMostOneVersion(_ *cobra.Command, args []string) error {
 	if len(args) <= 1 {
 		return nil
@@ -193,8 +193,8 @@ func atMostOneVersion(_ *cobra.Command, args []string) error {
 
 	return &userError{
 		code:     ExitUsage,
-		headline: fmt.Sprintf("svu modify was given %d versions, but it takes at most one.", len(args)),
-		hint:     "Give a single version, as in `svu modify 1.2.3`.",
+		headline: fmt.Sprintf("semvu modify was given %d versions, but it takes at most one.", len(args)),
+		hint:     "Give a single version, as in `semvu modify 1.2.3`.",
 	}
 }
 
@@ -204,8 +204,8 @@ func writeResult(w io.Writer, output string) error {
 	if _, err := fmt.Fprintln(w, output); err != nil {
 		return &userError{
 			code:     ExitInternal,
-			headline: "svu could not write its output.",
-			detail:   "The output stream was closed before svu finished writing.",
+			headline: "semvu could not write its output.",
+			detail:   "The output stream was closed before semvu finished writing.",
 			hint:     reportHint,
 			err:      err,
 		}
@@ -241,7 +241,7 @@ func (f vFlags) validate() error {
 	return &userError{
 		code:     ExitUsage,
 		headline: "--with-v and --without-v can't be used together.",
-		detail: `Without either, svu keeps the "v" of the version it read: from the argument,` +
+		detail: `Without either, semvu keeps the "v" of the version it read: from the argument,` +
 			"\nstandard input or the tag.",
 		hint: "Remove one of them.",
 	}

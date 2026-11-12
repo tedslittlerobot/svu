@@ -53,4 +53,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/tedslittlerobot/svu
+        - github.com/tedslittlerobot/semvu

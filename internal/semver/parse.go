@@ -75,7 +75,7 @@ func (r Rule) String() string {
 	return "rule " + strconv.Itoa(int(r))
 }
 
-// ParseError reports why a string is not a valid svu version.
+// ParseError reports why a string is not a valid semvu version.
 type ParseError struct {
 	// Input is the string that failed to parse, exactly as given.
 	Input string
@@ -100,7 +100,7 @@ var stagesByName = map[string]Stage{
 	"rc":    RC,
 }
 
-// Parse parses s as an svu version (§Format). A leading "v" is accepted and
+// Parse parses s as an semvu version (§Format). A leading "v" is accepted and
 // discarded. If s is invalid, the error is a *ParseError describing the first
 // problem found.
 func Parse(s string) (Version, error) {

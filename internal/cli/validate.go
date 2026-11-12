@@ -8,16 +8,16 @@ import (
 
 const validateLong = `Check that a version is valid.
 
-svu validate prints nothing. It exits with status 0 if the version is valid,
+semvu validate prints nothing. It exits with status 0 if the version is valid,
 or 3 if it isn't, and then explains why on standard error. Give the version
 as the argument, or "-" to read it from standard input.
 
-A leading "v" is accepted, as everywhere in svu.`
+A leading "v" is accepted, as everywhere in semvu.`
 
-const validateExample = `  svu validate 1.2.3-rc-001
-  svu validate 1.2.3-alpha-1                 # exit status 3, and the reason
-  echo "$TAG" | svu validate -
-  svu validate "$TAG" 2>/dev/null && echo valid`
+const validateExample = `  semvu validate 1.2.3-rc-001
+  semvu validate 1.2.3-alpha-1                 # exit status 3, and the reason
+  echo "$TAG" | semvu validate -
+  semvu validate "$TAG" 2>/dev/null && echo valid`
 
 func newValidateCommand() *cobra.Command {
 	return &cobra.Command{
@@ -49,7 +49,7 @@ func newValidateCommand() *cobra.Command {
 	}
 }
 
-// exactlyOneVersion checks that svu validate was given a version.
+// exactlyOneVersion checks that semvu validate was given a version.
 func exactlyOneVersion(_ *cobra.Command, args []string) error {
 	switch len(args) {
 	case 1:
@@ -57,14 +57,14 @@ func exactlyOneVersion(_ *cobra.Command, args []string) error {
 	case 0:
 		return &userError{
 			code:     ExitUsage,
-			headline: "svu validate needs a version.",
-			hint:     "Give one, as in `svu validate 1.2.3`, or `-` to read it from standard input.",
+			headline: "semvu validate needs a version.",
+			hint:     "Give one, as in `semvu validate 1.2.3`, or `-` to read it from standard input.",
 		}
 	default:
 		return &userError{
 			code:     ExitUsage,
-			headline: fmt.Sprintf("svu validate was given %d versions, but it takes one.", len(args)),
-			hint:     "Check one version at a time, as in `svu validate 1.2.3`.",
+			headline: fmt.Sprintf("semvu validate was given %d versions, but it takes one.", len(args)),
+			hint:     "Check one version at a time, as in `semvu validate 1.2.3`.",
 		}
 	}
 }

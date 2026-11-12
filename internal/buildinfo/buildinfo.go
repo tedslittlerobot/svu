@@ -1,4 +1,4 @@
-// Package buildinfo reports version metadata for the running svu binary.
+// Package buildinfo reports version metadata for the running semvu binary.
 //
 // Release builds inject values at link time (see .goreleaser.yaml). Builds
 // made with plain `go build` or `go install` fall back to the metadata the Go
@@ -14,7 +14,7 @@ import (
 
 // Link-time overrides, set with:
 //
-//	-ldflags "-X github.com/tedslittlerobot/svu/internal/buildinfo.version=1.2.3"
+//	-ldflags "-X github.com/tedslittlerobot/semvu/internal/buildinfo.version=1.2.3"
 //
 // They are unexported so that nothing else in the program can change them.
 var (
@@ -79,7 +79,7 @@ func resolve(ver, rev, built string, read func() (*debug.BuildInfo, bool)) Info 
 
 // String renders the build information on a single line.
 func (i Info) String() string {
-	return fmt.Sprintf("svu %s (commit %s, built %s, %s, %s)",
+	return fmt.Sprintf("semvu %s (commit %s, built %s, %s, %s)",
 		i.Version, i.Commit, i.Date, i.GoVersion, i.Platform)
 }
 

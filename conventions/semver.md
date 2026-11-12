@@ -1,8 +1,8 @@
-# svu SemVer conventions
+# semvu SemVer conventions
 
-svu accepts a **strict subset** of [Semantic Versioning 2.0.0][semver]. Every
-version svu accepts is a valid SemVer version once any leading `v` is removed.
-The reverse is not true: many valid SemVer versions are rejected by svu.
+semvu accepts a **strict subset** of [Semantic Versioning 2.0.0][semver]. Every
+version semvu accepts is a valid SemVer version once any leading `v` is removed.
+The reverse is not true: many valid SemVer versions are rejected by semvu.
 
 In this document, **must**, **must not** and **may** are used as defined in
 [RFC 2119][rfc2119].
@@ -53,7 +53,7 @@ Stages mark how far along a version is. Their order is fixed:
 | 3 | `rc` | Release candidate |
 | 4 | *(none)* | Release version |
 
-Stage names are deliberately in alphabetical order. That keeps svu's ordering
+Stage names are deliberately in alphabetical order. That keeps semvu's ordering
 the same as plain SemVer ordering (see [Precedence](#precedence)). Any new stage
 **must** fit into the alphabetical order where it belongs.
 
@@ -93,13 +93,13 @@ The `v` prefix is ignored. `v1.2.3` and `1.2.3` are equal.
 ```
 
 > [!NOTE]
-> **For any two svu versions, svu's ordering is the same as SemVer's.**
+> **For any two semvu versions, semvu's ordering is the same as SemVer's.**
 > In SemVer, a suffix like `-alpha-001` is a single alphanumeric pre-release
-> identifier, and these are compared in ASCII order (SemVer §11.4). svu's stage
+> identifier, and these are compared in ASCII order (SemVer §11.4). semvu's stage
 > names sort alphabetically and its indexes have a fixed width, so ASCII order
-> and svu order always agree.
+> and semvu order always agree.
 >
-> This means other SemVer tools sort svu versions correctly, including Go
+> This means other SemVer tools sort semvu versions correctly, including Go
 > modules, `sort -V` and package registries. Keep it that way: don't add a stage
 > that would break the alphabetical order, or change the width of the index.
 
@@ -140,8 +140,8 @@ The `v` prefix is ignored. `v1.2.3` and `1.2.3` are equal.
 ## Out of scope
 
 This document only defines which versions are valid, how they're ordered and
-how stages progress. How svu prints versions, including when it adds a `v`
-prefix, is set out in [svu's output conventions](output.md).
+how stages progress. How semvu prints versions, including when it adds a `v`
+prefix, is set out in [semvu's output conventions](output.md).
 
 [semver]: https://semver.org/spec/v2.0.0.html
 [rfc2119]: https://www.rfc-editor.org/rfc/rfc2119

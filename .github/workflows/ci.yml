@@ -78,7 +78,7 @@ jobs:
     name: Vulnerability check
     runs-on: ubuntu-latest
     steps:
-      # Fails only if svu's code can reach a known vulnerability, in its
+      # Fails only if semvu's code can reach a known vulnerability, in its
       # dependencies or in the Go standard library it is built with.
       - uses: golang/govulncheck-action@v1
         with:

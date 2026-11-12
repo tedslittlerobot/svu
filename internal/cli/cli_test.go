@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/buildinfo"
-	"github.com/tedslittlerobot/svu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/buildinfo"
+	"github.com/tedslittlerobot/semvu/internal/git"
 )
 
 // testInfo is fixed build information so command output is deterministic.
@@ -22,26 +22,26 @@ var testInfo = buildinfo.Info{
 	Platform:  "linux/amd64",
 }
 
-// result captures everything observable about one svu invocation.
+// result captures everything observable about one semvu invocation.
 type result struct {
 	code   int
 	stdout string
 	stderr string
 }
 
-// invocation describes one in-process run of svu.
+// invocation describes one in-process run of semvu.
 type invocation struct {
 	args []string
-	// stdin is what svu reads from standard input. nil means empty.
+	// stdin is what semvu reads from standard input. nil means empty.
 	stdin io.Reader
-	// tags stands in for git. nil fails the test if svu reads git tags.
+	// tags stands in for git. nil fails the test if semvu reads git tags.
 	tags tagReader
-	// messages stands in for git's commit log. nil fails the test if svu
+	// messages stands in for git's commit log. nil fails the test if semvu
 	// reads it.
 	messages messageReader
-	// createTag stands in for git tag. nil fails the test if svu tags.
+	// createTag stands in for git tag. nil fails the test if semvu tags.
 	createTag tagCreator
-	// env is the environment variables svu sees. nil means none.
+	// env is the environment variables semvu sees. nil means none.
 	env map[string]string
 }
 
@@ -49,7 +49,7 @@ func (inv invocation) getenv() func(string) string {
 	return func(key string) string { return inv.env[key] }
 }
 
-// run invokes svu in-process with the given arguments, empty stdin and no
+// run invokes semvu in-process with the given arguments, empty stdin and no
 // access to git, using testInfo as the build information.
 func run(t *testing.T, args ...string) result {
 	t.Helper()
@@ -57,7 +57,7 @@ func run(t *testing.T, args ...string) result {
 	return invoke(t, invocation{args: args})
 }
 
-// invoke runs svu in-process as described by inv.
+// invoke runs semvu in-process as described by inv.
 func invoke(t *testing.T, inv invocation) result {
 	t.Helper()
 
@@ -67,7 +67,7 @@ func invoke(t *testing.T, inv invocation) result {
 
 	if inv.tags == nil {
 		inv.tags = func(context.Context, string, git.TagOptions) ([]string, error) {
-			t.Error("svu read git tags, want it not to")
+			t.Error("semvu read git tags, want it not to")
 
 			return nil, errors.New("unexpected call to read git tags")
 		}
@@ -75,7 +75,7 @@ func invoke(t *testing.T, inv invocation) result {
 
 	if inv.messages == nil {
 		inv.messages = func(context.Context, string, string) ([]string, error) {
-			t.Error("svu read commit messages, want it not to")
+			t.Error("semvu read commit messages, want it not to")
 
 			return nil, errors.New("unexpected call to read commit messages")
 		}
@@ -83,7 +83,7 @@ func invoke(t *testing.T, inv invocation) result {
 
 	if inv.createTag == nil {
 		inv.createTag = func(context.Context, string, string, *git.Editor) error {
-			t.Error("svu made a tag, want it not to")
+			t.Error("semvu made a tag, want it not to")
 
 			return errors.New("unexpected call to make a tag")
 		}

@@ -1,4 +1,4 @@
-// Package cli is svu's command-line interface: it parses arguments, dispatches
+// Package cli is semvu's command-line interface: it parses arguments, dispatches
 // to subcommands, and turns their results into output and exit codes.
 //
 // Commands here should stay thin. They translate between the terminal and the
@@ -16,14 +16,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svu/internal/buildinfo"
-	"github.com/tedslittlerobot/svu/internal/colour"
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/buildinfo"
+	"github.com/tedslittlerobot/semvu/internal/colour"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
 // Process exit codes. Each kind of failure has its own, so scripts can tell
-// them apart. They are part of svu's interface: never renumber them.
+// them apart. They are part of semvu's interface: never renumber them.
 const (
 	// ExitOK means the command succeeded.
 	ExitOK = 0
@@ -38,17 +38,17 @@ const (
 	// ExitModification means the version can't be modified as asked, such as
 	// moving to an earlier stage.
 	ExitModification = 4
-	// ExitRepository means there is no git repository where svu looked.
+	// ExitRepository means there is no git repository where semvu looked.
 	ExitRepository = 5
 	// ExitNoMatchingTag means the repository has no tag that is a version of
 	// the kind asked for.
 	ExitNoMatchingTag = 6
 	// ExitGit means git is not installed, or failed.
 	ExitGit = 7
-	// ExitNothingToRelease means svu modify --auto found no commits since
+	// ExitNothingToRelease means semvu modify --auto found no commits since
 	// the latest tag that need a new version.
 	ExitNothingToRelease = 8
-	// ExitTagExists means svu modify --apply was asked to make a tag that
+	// ExitTagExists means semvu modify --apply was asked to make a tag that
 	// already exists.
 	ExitTagExists = 9
 )
@@ -60,20 +60,20 @@ type Streams struct {
 	Err io.Writer
 }
 
-// environment is what svu needs from the world outside its streams. Tests
+// environment is what semvu needs from the world outside its streams. Tests
 // replace it to make runs deterministic.
 type environment struct {
 	info     buildinfo.Info
 	readTags tagReader
-	// readMessages reads commit messages, for svu modify --auto.
+	// readMessages reads commit messages, for semvu modify --auto.
 	readMessages messageReader
-	// createTag tags a commit, for svu modify --apply.
+	// createTag tags a commit, for semvu modify --apply.
 	createTag tagCreator
 	// getenv returns an environment variable, or "" if it is unset.
 	getenv func(string) string
 }
 
-// Execute runs svu with the given arguments (excluding the program name) and
+// Execute runs semvu with the given arguments (excluding the program name) and
 // returns the process exit code.
 func Execute(ctx context.Context, args []string, streams Streams) int {
 	return execute(ctx, args, streams, environment{
@@ -108,35 +108,35 @@ func execute(ctx context.Context, args []string, streams Streams, env environmen
 	return ExitOK
 }
 
-const rootLong = `svu (Semantic Version Utilities) works with semantic versions.
+const rootLong = `semvu (Semantic Version Utilities) works with semantic versions.
 
-svu uses a strict subset of SemVer 2.0.0: MAJOR.MINOR.PATCH, optionally
+semvu uses a strict subset of SemVer 2.0.0: MAJOR.MINOR.PATCH, optionally
 followed by a stage (alpha, beta or rc) and a three-digit index, as in
 1.2.3-rc-001.`
 
-const rootExample = `  svu modify 1.2.3 --minor     # 1.3.0
-  svu m --patch --rc           # the latest git tag's next patch, as an rc
-  svu latest --released        # the latest released version in git tags
-  svu help modify              # how to modify a version`
+const rootExample = `  semvu modify 1.2.3 --minor     # 1.3.0
+  semvu m --patch --rc           # the latest git tag's next patch, as an rc
+  semvu latest --released        # the latest released version in git tags
+  semvu help modify              # how to modify a version`
 
-// newRootCommand builds svu's command tree. colourMode receives the value of
+// newRootCommand builds semvu's command tree. colourMode receives the value of
 // --colour once flags are parsed.
 func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *cobra.Command {
 	// Help is coloured for the stream it goes to, as conventions/output.md
 	// describes. --help and -h write it to stderr, because they interrupt
-	// another command. svu help, and a command group run on its own, write it
+	// another command. semvu help, and a command group run on its own, write it
 	// to stdout, because there help is the main output.
 	help := func(w io.Writer, cmd *cobra.Command) {
 		renderHelp(w, cmd, colour.New(colour.Enabled(colourMode.mode, env.getenv, w)))
 	}
 
 	root := &cobra.Command{
-		Use:     "svu",
-		Short:   "svu (Semantic Version Utilities) works with semantic versions",
+		Use:     "semvu",
+		Short:   "semvu (Semantic Version Utilities) works with semantic versions",
 		Long:    rootLong,
 		Example: rootExample,
 		Version: env.info.Version,
-		// svu runs a command. On its own it shows help; given anything else,
+		// semvu runs a command. On its own it shows help; given anything else,
 		// it says that isn't a command.
 		Args:              cobra.ArbitraryArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
@@ -147,7 +147,7 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 		SilenceUsage:  true,
 
 		// cobra only sets its default when it reports unknown commands
-		// itself, which svu doesn't let it do.
+		// itself, which semvu doesn't let it do.
 		SuggestionsMinimumDistance: 2,
 	}
 
@@ -158,7 +158,7 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 	flags := root.Flags()
 	flags.SortFlags = false
 	flags.BoolP("help", "h", false, "Show this help")
-	flags.BoolP("version", "v", false, "Print svu's version")
+	flags.BoolP("version", "v", false, "Print semvu's version")
 
 	root.SetGlobalNormalizationFunc(flagAliases)
 
@@ -184,8 +184,8 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 		newVersionCommand(env.info),
 	)
 
-	// cobra adds its completion command when svu runs. Add it now instead, so
-	// that it behaves like svu's own command groups: help on its own, and a
+	// cobra adds its completion command when semvu runs. Add it now instead, so
+	// that it behaves like semvu's own command groups: help on its own, and a
 	// usage error for an unknown shell, rather than help and success.
 	root.InitDefaultCompletionCmd()
 
@@ -224,7 +224,7 @@ func unknownCommandError(parent *cobra.Command, name string) *userError {
 		ue := &userError{
 			code:     ExitUsage,
 			headline: fmt.Sprintf("%q is not a command of %s.", name, parent.CommandPath()),
-			hint:     fmt.Sprintf("To list them, run `svu help %s`.", parent.Name()),
+			hint:     fmt.Sprintf("To list them, run `semvu help %s`.", parent.Name()),
 		}
 
 		if len(suggestions) > 0 {
@@ -234,15 +234,15 @@ func unknownCommandError(parent *cobra.Command, name string) *userError {
 		return ue
 	}
 
-	ue := &userError{code: ExitUsage, headline: fmt.Sprintf("%q is not an svu command.", name)}
+	ue := &userError{code: ExitUsage, headline: fmt.Sprintf("%q is not an semvu command.", name)}
 
 	switch {
 	case isVersion(name):
-		ue.hint = fmt.Sprintf("To modify a version, run `svu modify %s`.", name)
+		ue.hint = fmt.Sprintf("To modify a version, run `semvu modify %s`.", name)
 	case len(suggestions) > 0:
-		ue.hint = fmt.Sprintf("Did you mean `svu %s`?", suggestions[0])
+		ue.hint = fmt.Sprintf("Did you mean `semvu %s`?", suggestions[0])
 	default:
-		ue.hint = "To list svu's commands, run `svu --help`."
+		ue.hint = "To list semvu's commands, run `semvu --help`."
 	}
 
 	return ue

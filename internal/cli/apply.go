@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
 // tagCreator tags the checked-out commit in the repository containing dir.
@@ -16,7 +16,7 @@ import (
 // the user's editor. git.CreateTag is the real implementation.
 type tagCreator func(ctx context.Context, dir, name string, editor *git.Editor) error
 
-// applyFlags are svu modify's flags for tagging the new version.
+// applyFlags are semvu modify's flags for tagging the new version.
 type applyFlags struct {
 	apply    bool
 	annotate bool
@@ -99,14 +99,14 @@ func applyError(err error, q tagQuery, name string, annotate bool) *userError {
 		return &userError{
 			code:     ExitRepository,
 			headline: headline,
-			detail:   "--apply tags the new version, so svu needs a git repository.",
-			hint:     "Run svu inside a git repository, or leave out `--apply`.",
+			detail:   "--apply tags the new version, so semvu needs a git repository.",
+			hint:     "Run semvu inside a git repository, or leave out `--apply`.",
 			err:      err,
 		}
 	case errors.Is(err, git.ErrNotInstalled):
 		return &userError{
 			code:     ExitGit,
-			headline: "svu could not find git.",
+			headline: "semvu could not find git.",
 			detail:   "--apply needs git to tag the new version.",
 			hint:     "Install git, or leave out `--apply`.",
 			err:      err,

@@ -5,8 +5,8 @@ Guidance for working in this repository.
 ## Goal
 
 **The goal of this project is to make it easy to work with semantic versions.**
-For now, that means modifying a version (`svu modify`) and finding the latest
-one (`svu latest`).
+For now, that means modifying a version (`semvu modify`) and finding the latest
+one (`semvu latest`).
 
 Judge every feature, command, flag and design decision against this goal. Prefer
 whatever makes working with a version simpler, more predictable and harder to get
@@ -14,12 +14,14 @@ wrong. Push back on anything that doesn't serve it.
 
 ## Project
 
-`svu` (Semantic Version Utilities) is a Go command-line tool for working with
-semantic versions. Each job is a subcommand: `svu modify` (alias `svu m`) and
-`svu latest` (alias `svu l`). It is open source under the MIT licence and hosted at
-https://github.com/tedslittlerobot/svu.
+`semvu` (Semantic Version Utilities) is a Go command-line tool for working with
+semantic versions. Each job is a subcommand: `semvu modify` (alias `semvu m`)
+and `semvu latest` (alias `semvu l`). It is open source under the MIT licence
+and hosted at https://github.com/tedslittlerobot/semvu. The name is chosen to
+be free on Homebrew (homebrew-core's `svu` is a different tool), npm, crates.io
+and PyPI; check those before renaming anything user-facing.
 
-- Module path: `github.com/tedslittlerobot/svu`
+- Module path: `github.com/tedslittlerobot/semvu`
 - Go version: **always the latest Go release.** The `go` line in `go.mod` is
   the source of truth, and CI and release builds read it. `.go-version` holds
   the same version for [goenv](https://github.com/go-nv/goenv), the
@@ -37,14 +39,14 @@ https://github.com/tedslittlerobot/svu.
   weekly schedule.
 - CLI framework: [Cobra](https://github.com/spf13/cobra)
 - Spec: [`conventions/semver.md`](conventions/semver.md) defines the version
-  format svu accepts: a strict subset of
+  format semvu accepts: a strict subset of
   [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html): fixed stages
   (`alpha` < `beta` < `rc`), three-digit indexes, and no build metadata.
   It is the source of truth for parsing, validation, precedence and stage
   progression. Where it is silent, SemVer 2.0.0 applies.
   Cite the relevant section in comments, and turn its valid/invalid example
   tables into test cases.
-- Invariant: for svu versions, svu's ordering must match plain SemVer
+- Invariant: for semvu versions, semvu's ordering must match plain SemVer
   ordering. Stage names stay alphabetical and indexes stay fixed-width. Add a
   test that checks this.
 - Changing `conventions/semver.md` changes behaviour. Update the doc and the
@@ -59,10 +61,10 @@ make cover-check  # tests with coverage; fails below 95% total (CI runs this)
 make fuzz       # fuzz the version and commit parsers for 30s each (CI runs this)
 make lint       # golangci-lint run (config: .golangci.yml)
 make fmt        # golangci-lint fmt (gofmt + goimports)
-make build      # ./bin/svu with version info linked in
+make build      # ./bin/semvu with version info linked in
 make go-latest  # move go.mod and .go-version to the latest Go release (see Project)
 make go-version-check  # .go-version matches go.mod (part of make check)
-make vuln       # govulncheck: known vulnerabilities svu's code can reach (CI runs it too)
+make vuln       # govulncheck: known vulnerabilities semvu's code can reach (CI runs it too)
 make snapshot   # goreleaser release --snapshot --clean (validates release config)
 go test ./internal/cli -run TestVersionCommand   # run a single test
 ```
@@ -70,20 +72,20 @@ go test ./internal/cli -run TestVersionCommand   # run a single test
 ## Layout
 
 ```text
-cmd/svu/main.go       Process boundary only: os.Args, os streams, signals, os.Exit.
+cmd/semvu/main.go     Process boundary only: os.Args, os streams, signals, os.Exit.
 internal/cli/         One file per command (<name>.go + <name>_test.go).
                       cli.go holds Execute, the root command and Streams.
-                      modify.go is svu modify; modifiers.go and input.go support it.
-                      latest.go is svu latest. tags.go reads git tags for both.
-                      validate.go is svu validate. auto.go is svu modify --auto,
-                      and apply.go is svu modify --apply.
+                      modify.go is semvu modify; modifiers.go and input.go support it.
+                      latest.go is semvu latest. tags.go reads git tags for both.
+                      validate.go is semvu validate. auto.go is semvu modify --auto,
+                      and apply.go is semvu modify --apply.
 internal/buildinfo/   Version metadata from ldflags, falling back to debug.ReadBuildInfo.
 internal/semver/      Parsing, ordering, formatting and modifying versions.
 internal/commits/     Reads Conventional Commits messages and works out the bump.
 internal/git/         Reads tags and commit messages by running the git command.
 internal/colour/      Decides when stderr uses colour, and applies it.
-action.yml            The GitHub Action that installs svu (runs scripts/install-svu.sh).
-scripts/              Shell scripts for installing svu and checking release tags.
+action.yml            The GitHub Action that installs semvu (runs scripts/install-semvu.sh).
+scripts/              Shell scripts for installing semvu and checking release tags.
                       They must run under bash 3.2 (macOS) as well as bash 5.
 ```
 
@@ -160,11 +162,11 @@ and of every command's success and failure paths.
   variables, constants, packages, files), comments, string literals, test
   names, docs and commit messages. Write `colour`, `behaviour`, `initialise`,
   `normalise`, `licence` (noun) and `cancelled`.
-  - The only exception is a name svu doesn't control: a standard-library or
+  - The only exception is a name semvu doesn't control: a standard-library or
     third-party identifier (`context.Canceled`, `color.New`), a flag or
     environment variable other tools define (`NO_COLOR`), or an alias kept
     for compatibility (`--color`). Use it exactly as written there, and keep
-    svu's own wrappers and names British (`colourEnabled`, not
+    semvu's own wrappers and names British (`colourEnabled`, not
     `colorEnabled`).
   - `misspell` (UK locale) catches common American spellings in comments
     and strings, but it doesn't check identifiers and its word list is

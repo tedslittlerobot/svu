@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
 // tagReader returns the tag names of the git repository containing dir, where
@@ -99,7 +99,7 @@ func gitFlagWithVersionError(flag string) *userError {
 	return &userError{
 		code:     ExitUsage,
 		headline: flag + " can't be used when a version is given.",
-		detail:   "svu modify only reads git tags when no version is given.",
+		detail:   "semvu modify only reads git tags when no version is given.",
 		hint:     "Remove " + flag + ", or remove the version.",
 	}
 }
@@ -124,7 +124,7 @@ type tagQuery struct {
 	// initialText is --initial as typed, for its "v".
 	initialText string
 	// fallback is true when tags are read only because no version was given,
-	// as svu modify does. Errors then suggest giving a version instead.
+	// as semvu modify does. Errors then suggest giving a version instead.
 	fallback bool
 }
 
@@ -260,7 +260,7 @@ func noVersionTagsError(q tagQuery, count int) *userError {
 	case q.atHead:
 		hint = "The checked-out commit has no version tag yet. Tag it, or leave out `--at-head`."
 	case q.fallback:
-		hint = fmt.Sprintf("Give a version, as in `svu modify 0.1.0`, tag a release, as in %s, "+
+		hint = fmt.Sprintf("Give a version, as in `semvu modify 0.1.0`, tag a release, as in %s, "+
 			"or use `--initial 0.0.0`.", example)
 	}
 
@@ -295,15 +295,15 @@ func tagsError(err error, q tagQuery) *userError {
 	case errors.Is(err, git.ErrNotInstalled):
 		ue := &userError{
 			code:     ExitGit,
-			headline: "svu could not find git.",
-			detail:   "svu needs git to read the latest version from the tags.",
+			headline: "semvu could not find git.",
+			detail:   "semvu needs git to read the latest version from the tags.",
 			hint:     "Install git.",
 			err:      err,
 		}
 
 		if q.fallback {
-			ue.detail = "No version was given, so svu needs git to read the latest version from the tags."
-			ue.hint = "Install git, or give a version, as in `svu modify 1.2.3`."
+			ue.detail = "No version was given, so semvu needs git to read the latest version from the tags."
+			ue.hint = "Install git, or give a version, as in `semvu modify 1.2.3`."
 		}
 
 		return ue
@@ -317,7 +317,7 @@ func tagsError(err error, q tagQuery) *userError {
 	default:
 		return &userError{
 			code:     ExitInternal,
-			headline: "svu could not read the git tags in " + q.place() + ".",
+			headline: "semvu could not read the git tags in " + q.place() + ".",
 			hint:     reportHint,
 			err:      err,
 		}
@@ -326,15 +326,15 @@ func tagsError(err error, q tagQuery) *userError {
 
 func notRepositoryError(err error, q tagQuery) *userError {
 	if q.fallback {
-		hint := "Give a version, as in `svu modify 1.2.3`, or run svu inside a git repository."
+		hint := "Give a version, as in `semvu modify 1.2.3`, or run semvu inside a git repository."
 		if q.dir != "" {
-			hint = "Give a version, as in `svu modify 1.2.3`, or set `--directory` to a git repository."
+			hint = "Give a version, as in `semvu modify 1.2.3`, or set `--directory` to a git repository."
 		}
 
 		return &userError{
 			code:     ExitRepository,
-			headline: "svu has no valid input.",
-			detail: "No version was given, so svu reads the latest version from git tags,\n" +
+			headline: "semvu has no valid input.",
+			detail: "No version was given, so semvu reads the latest version from git tags,\n" +
 				"but " + q.place() + " is not in a git repository.",
 			hint: hint,
 			err:  err,
@@ -346,13 +346,13 @@ func notRepositoryError(err error, q tagQuery) *userError {
 
 	if q.dir == "" {
 		headline = "The current directory is not in a git repository."
-		hint = "Run svu inside a git repository, or set `--directory` to one."
+		hint = "Run semvu inside a git repository, or set `--directory` to one."
 	}
 
 	return &userError{
 		code:     ExitRepository,
 		headline: headline,
-		detail:   "svu reads the latest version from the repository's git tags.",
+		detail:   "semvu reads the latest version from the repository's git tags.",
 		hint:     hint,
 		err:      err,
 	}

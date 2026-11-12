@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/git/gittest"
+	"github.com/tedslittlerobot/semvu/internal/git/gittest"
 )
 
 func TestTags(t *testing.T) {
@@ -90,7 +90,7 @@ func TestTagsErrors(t *testing.T) {
 		},
 		{name: "reports a path that is a file", gitPath: "git", dir: file, want: ErrNotDirectory},
 		{
-			name: "reports git not being installed", gitPath: "svu-test-git-that-does-not-exist",
+			name: "reports git not being installed", gitPath: "semvu-test-git-that-does-not-exist",
 			dir: t.TempDir(), want: ErrNotInstalled,
 		},
 	}
@@ -286,7 +286,7 @@ func isolated(editor string) []string {
 	return []string{
 		"GIT_CONFIG_GLOBAL=/dev/null",
 		"GIT_CONFIG_NOSYSTEM=1",
-		"GIT_COMMITTER_NAME=svu tests",
+		"GIT_COMMITTER_NAME=semvu tests",
 		"GIT_COMMITTER_EMAIL=tests@example.com",
 		"GIT_EDITOR=" + editor,
 	}
@@ -404,7 +404,7 @@ func TestCreateTag(t *testing.T) {
 		}
 
 		editor := &Editor{In: strings.NewReader(""), Out: io.Discard}
-		if err := createTag(t.Context(), "svu-test-git-that-does-not-exist", t.TempDir(), "v1.0.0", editor, nil); !errors.Is(err, ErrNotInstalled) {
+		if err := createTag(t.Context(), "semvu-test-git-that-does-not-exist", t.TempDir(), "v1.0.0", editor, nil); !errors.Is(err, ErrNotInstalled) {
 			t.Errorf("createTag() without git error = %v, want ErrNotInstalled", err)
 		}
 

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/git/gittest"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/git/gittest"
 )
 
 func TestTagFlags(t *testing.T) {
@@ -68,7 +68,7 @@ func TestHotfixGivenAVersion(t *testing.T) {
 		code: ExitModification,
 		stderr: "Error: \"1.3.0-rc-001\" is a pre-release, so it can't be hotfixed.\n\n" +
 			"  --hotfix patches a released version.\n\n" +
-			"Hint: Give the release to fix, as in svu modify 1.2.3 --hotfix, or use --patch.\n",
+			"Hint: Give the release to fix, as in semvu modify 1.2.3 --hotfix, or use --patch.\n",
 	})
 }
 
@@ -135,7 +135,7 @@ func TestTagFlagErrors(t *testing.T) {
 			args: []string{"modify", "1.2.3", "--global"},
 			code: ExitUsage,
 			want: "Error: --global can't be used when a version is given.\n\n" +
-				"  svu modify only reads git tags when no version is given.\n\n" +
+				"  semvu modify only reads git tags when no version is given.\n\n" +
 				"Hint: Remove --global, or remove the version.\n",
 		},
 		{
@@ -143,7 +143,7 @@ func TestTagFlagErrors(t *testing.T) {
 			args: []string{"modify", "-", "--tag-prefix", "api/"},
 			code: ExitUsage,
 			want: "Error: --tag-prefix can't be used when a version is given.\n\n" +
-				"  svu modify only reads git tags when no version is given.\n\n" +
+				"  semvu modify only reads git tags when no version is given.\n\n" +
 				"Hint: Remove --tag-prefix, or remove the version.\n",
 		},
 		{
@@ -151,7 +151,7 @@ func TestTagFlagErrors(t *testing.T) {
 			args: []string{"modify", "1.2.3", "--initial", "0.0.0"},
 			code: ExitUsage,
 			want: "Error: --initial can't be used when a version is given.\n\n" +
-				"  svu modify only reads git tags when no version is given.\n\n" +
+				"  semvu modify only reads git tags when no version is given.\n\n" +
 				"Hint: Remove --initial, or remove the version.\n",
 		},
 		{

@@ -1,5 +1,5 @@
-name: Set up svu
-description: Install svu (Semantic Version Utilities) from a GitHub release, and put it on the PATH.
+name: Set up semvu
+description: Install semvu (Semantic Version Utilities) from a GitHub release, and put it on the PATH.
 author: tedslittlerobot
 
 branding:
@@ -8,7 +8,7 @@ branding:
 
 inputs:
   version:
-    description: The svu version to install, as in 0.1.0, or "latest" for the latest release.
+    description: The semvu version to install, as in 0.1.0, or "latest" for the latest release.
     required: false
     default: latest
   token:
@@ -18,17 +18,17 @@ inputs:
 
 outputs:
   version:
-    description: The svu version that was installed, as in 0.1.0.
+    description: The semvu version that was installed, as in 0.1.0.
     value: ${{ steps.install.outputs.version }}
 
 runs:
   using: composite
   steps:
     # The script downloads the release archive for the runner, checks it
-    # against the release's checksums, and adds svu to the PATH.
+    # against the release's checksums, and adds semvu to the PATH.
     - id: install
       shell: bash
       env:
-        SVU_VERSION: ${{ inputs.version }}
+        SEMVU_VERSION: ${{ inputs.version }}
         GH_TOKEN: ${{ inputs.token }}
-      run: '"$GITHUB_ACTION_PATH/scripts/install-svu.sh"'
+      run: '"$GITHUB_ACTION_PATH/scripts/install-semvu.sh"'

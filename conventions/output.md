@@ -1,13 +1,13 @@
-# svu output conventions
+# semvu output conventions
 
-svu is a tool for developers, and it's mostly run inside scripts, CI jobs and
+semvu is a tool for developers, and it's mostly run inside scripts, CI jobs and
 shell pipelines. Its output has two jobs:
 
 1. **Machines** need a command's main output, clean enough to capture without
    parsing.
 2. **People** need errors and help they can understand at a glance.
 
-svu uses stdout for the first job and stderr for the second, and never mixes
+semvu uses stdout for the first job and stderr for the second, and never mixes
 them.
 
 In this document, **must**, **must not**, **should** and **may** are used as
@@ -20,24 +20,24 @@ stdout **must** contain that and nothing else.
 
 | Command | Main output |
 |---|---|
-| `svu modify` | The modified version, valid under [svu's version rules](semver.md) |
-| `svu latest` | The latest version in the repository's git tags |
-| `svu validate` | Nothing: the exit status is the answer |
-| `svu --version` | svu's own version, bare, such as `1.4.0` |
-| `svu version` | svu's version with its build information, on one line |
-| `svu completion <shell>` | The completion script, as in `source <(svu completion bash)` |
-| `svu help [command]` | Help, so that `svu help \| less` works |
-| `svu` or `svu completion`, with no command | Help, the same as `svu help` |
+| `semvu modify` | The modified version, valid under [semvu's version rules](semver.md) |
+| `semvu latest` | The latest version in the repository's git tags |
+| `semvu validate` | Nothing: the exit status is the answer |
+| `semvu --version` | semvu's own version, bare, such as `1.4.0` |
+| `semvu version` | semvu's version with its build information, on one line |
+| `semvu completion <shell>` | The completion script, as in `source <(semvu completion bash)` |
+| `semvu help [command]` | Help, so that `semvu help \| less` works |
+| `semvu` or `semvu completion`, with no command | Help, the same as `semvu help` |
 
 Help asked for with the `--help` or `-h` flag is not a main output: the flag
 interrupts some other command. It goes to stderr. Help that a command prints
-because it was asked for, by `svu help` or by running a command group on its
+because it was asked for, by `semvu help` or by running a command group on its
 own, goes to stdout.
 
 - On success, stdout **must** contain the main output followed by a single
-  newline (`\n`). For `svu modify` and `svu latest`, that is exactly one
+  newline (`\n`). For `semvu modify` and `semvu latest`, that is exactly one
   version.
-- A version is printed with a lowercase `v` if svu read it with one: from the
+- A version is printed with a lowercase `v` if semvu read it with one: from the
   argument, standard input, the tag (after any `--tag-prefix`) or
   `--initial`. `--with-v` always adds one and `--without-v` always leaves it
   out; they can't be used together.
@@ -47,16 +47,16 @@ own, goes to stdout.
   The one exception is help, whose output is for people: it follows the
   [colour rules](#when-colour-is-used) for stdout, so it is plain whenever
   stdout isn't a terminal.
-- On failure, stdout **must** be empty. svu never prints a partial or
+- On failure, stdout **must** be empty. semvu never prints a partial or
   best-guess result before failing. A command with a side effect, such as
-  `svu modify --apply`, does it before printing, so the output means it
+  `semvu modify --apply`, does it before printing, so the output means it
   happened.
 
 This means the following always gives either a valid version or a non-zero
 exit status with an empty variable:
 
 ```sh
-next="$(svu modify …)" || exit 1
+next="$(semvu modify …)" || exit 1
 ```
 
 ## stderr: everything else
@@ -66,9 +66,9 @@ That includes:
 
 - errors and warnings
 - help and usage text from `--help` or `-h`
-- explanations a flag asks for, such as `svu modify --auto --explain`. These
+- explanations a flag asks for, such as `semvu modify --auto --explain`. These
   are plain sentences with no label, and are only written when asked for
-- the editor that `svu modify --apply-annotate` opens through git, which uses
+- the editor that `semvu modify --apply-annotate` opens through git, which uses
   the terminal through stdin and stderr, so that stdout still holds only the
   version
 - any diagnostic or explanatory message
@@ -76,7 +76,7 @@ That includes:
 ## Exit status
 
 Every kind of failure has its own exit status, so scripts can tell them apart
-without reading stderr. The numbers are part of svu's interface and **must
+without reading stderr. The numbers are part of semvu's interface and **must
 not** change.
 
 | Status | Meaning | Examples |
@@ -89,8 +89,8 @@ not** change.
 | `5` | No repository | Not in a git repository; `--directory` doesn't exist or isn't a directory |
 | `6` | No matching tag | No tag is a valid version, or none is a release when only releases are wanted |
 | `7` | git failed | git isn't installed, or reported an error |
-| `8` | Nothing to release | `svu modify --auto` found no commits since the latest tag that need a new version |
-| `9` | Tag already exists | `svu modify --apply` was asked to tag a version that is already tagged |
+| `8` | Nothing to release | `semvu modify --auto` found no commits since the latest tag that need a new version |
+| `9` | Tag already exists | `semvu modify --apply` was asked to tag a version that is already tagged |
 
 A new kind of failure gets a new number. A failure that fits an existing kind
 uses its number.
@@ -104,7 +104,7 @@ Every message on stderr is written for a person to read.
 - Messages **must** be in clear, correctly punctuated **British English**:
   "colour", "behaviour", "recognised", "initialise", "licence" (noun).
 - Every sentence **must** start with a capital letter and end with a full stop.
-- Use plain, direct words. Say what's wrong; don't describe what svu was doing
+- Use plain, direct words. Say what's wrong; don't describe what semvu was doing
   when it went wrong.
 - Never blame the user, apologise, or use exclamation marks.
 - Values the user gave **must** be quoted with straight double quotes, for
@@ -116,7 +116,7 @@ Every message on stderr is written for a person to read.
 ### Errors
 
 An error has a **headline**. It should also have **detail** and a **hint**
-whenever svu can offer them:
+whenever semvu can offer them:
 
 ```text
 Error: "1.2.3-alpha-1" is not a valid version.
@@ -132,8 +132,8 @@ Hint: Did you mean "1.2.3-alpha-001"?
 |---|---|
 | Headline | **Must** start with `Error: ` and be one sentence saying what went wrong, naming the input involved. |
 | Pointer | **Should** be shown when the error is at a known position in one input. Show the input and a `^` under the problem. |
-| Detail | **Should** explain the rule that was broken, in terms of [svu's version rules](semver.md). Indented by two spaces. |
-| Hint | **Should** be given when svu can suggest a fix. Starts with `Hint: `. When svu can work out the corrected value, the hint should include it. |
+| Detail | **Should** explain the rule that was broken, in terms of [semvu's version rules](semver.md). Indented by two spaces. |
+| Hint | **Should** be given when semvu can suggest a fix. Starts with `Hint: `. When semvu can work out the corrected value, the hint should include it. |
 
 Keep it short. One headline, a few lines of detail at most, and at most one
 hint. If more than one thing is wrong, report the first problem clearly rather
@@ -143,11 +143,11 @@ An unexpected failure that the user can't fix (a bug, or an I/O failure)
 still gets a proper headline, and asks for a report:
 
 ```text
-Error: svu could not write its output.
+Error: semvu could not write its output.
 
-  The output stream was closed before svu finished writing.
+  The output stream was closed before semvu finished writing.
 
-Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/svu/issues.
+Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/semvu/issues.
 ```
 
 ### Warnings
@@ -164,7 +164,7 @@ has to make complete sense as plain text.
 
 ### When colour is used
 
-svu decides whether to use colour on a stream in this order. The first rule
+semvu decides whether to use colour on a stream in this order. The first rule
 that applies wins:
 
 1. `--colour=always` or `--colour=never`, if given. `--color` is accepted as an
@@ -202,19 +202,19 @@ unknown commands. No message reaches stderr unstyled when colour is on.
 
 - Use only the 16 basic ANSI colours, plus bold and dim, so that the user's
   terminal theme decides the actual shades. No 256-colour or truecolour codes.
-- Reset styling at the end of every styled span. svu **must** never leave the
+- Reset styling at the end of every styled span. semvu **must** never leave the
   terminal in a styled state, even when it is interrupted.
 
 ## Implementation notes
 
-- **Go errors vs messages.** Go error values inside svu follow normal Go style:
+- **Go errors vs messages.** Go error values inside semvu follow normal Go style:
   lower case, no full stop, wrapped with `%w`. They are never printed as they
   are. The `internal/cli` layer is the only place that turns errors into the
   user-facing messages described here. Domain packages return typed errors
   that carry what the CLI needs, such as the input, the position and the rule
   that was broken.
 - **Marking suggestions.** In a hint, suggested commands, flags and values go
-  in backticks, as in ``run `svu --help` ``. They're shown green with colour
+  in backticks, as in ``run `semvu --help` ``. They're shown green with colour
   on. The backticks are removed either way, so the plain text reads normally.
   Quoted values in a hint are green too.
 - **One writer per stream.** Commands write their main output with

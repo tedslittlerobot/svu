@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/colour"
+	"github.com/tedslittlerobot/semvu/internal/colour"
 )
 
 func TestUserErrorKeepsTheCause(t *testing.T) {
@@ -66,34 +66,34 @@ func TestFlagErrors(t *testing.T) {
 		{
 			name: "rejects an unknown flag",
 			args: []string{"modify", "--frobnicate"},
-			want: "Error: \"--frobnicate\" is not a flag of svu modify.\n\n" +
-				"Hint: To list the flags of svu modify, run svu modify --help.\n",
+			want: "Error: \"--frobnicate\" is not a flag of semvu modify.\n\n" +
+				"Hint: To list the flags of semvu modify, run semvu modify --help.\n",
 		},
 		{
 			name: "rejects an unknown short flag",
 			args: []string{"modify", "-x"},
-			want: "Error: \"-x\" is not a flag of svu modify.\n\n" +
-				"Hint: To list the flags of svu modify, run svu modify --help.\n",
+			want: "Error: \"-x\" is not a flag of semvu modify.\n\n" +
+				"Hint: To list the flags of semvu modify, run semvu modify --help.\n",
 		},
 		{
 			name: "points a flag given to the wrong command at the right one",
 			args: []string{"1.2.3", "--patch"},
-			want: "Error: \"--patch\" is not a flag of svu.\n\nHint: Did you mean svu modify --patch?\n",
+			want: "Error: \"--patch\" is not a flag of semvu.\n\nHint: Did you mean semvu modify --patch?\n",
 		},
 		{
 			name: "finds the right command for an output flag",
 			args: []string{"--with-v"},
-			want: "Error: \"--with-v\" is not a flag of svu.\n\nHint: Did you mean svu latest --with-v?\n",
+			want: "Error: \"--with-v\" is not a flag of semvu.\n\nHint: Did you mean semvu latest --with-v?\n",
 		},
 		{
 			name: "suggests a flag of the same command that the name is close to",
 			args: []string{"latest", "--release"},
-			want: "Error: \"--release\" is not a flag of svu latest.\n\nHint: Did you mean --released?\n",
+			want: "Error: \"--release\" is not a flag of semvu latest.\n\nHint: Did you mean --released?\n",
 		},
 		{
 			name: "suggests a flag that the name is the start of",
 			args: []string{"modify", "--tag", "api/"},
-			want: "Error: \"--tag\" is not a flag of svu modify.\n\nHint: Did you mean --tag-prefix?\n",
+			want: "Error: \"--tag\" is not a flag of semvu modify.\n\nHint: Did you mean --tag-prefix?\n",
 		},
 		{
 			name: "rejects a flag with no value",
@@ -116,12 +116,12 @@ func TestFlagErrors(t *testing.T) {
 			name: "rejects bad flag syntax",
 			args: []string{"modify", "---patch"},
 			want: "Error: \"---patch\" is not a valid flag.\n\n" +
-				"Hint: To list the flags of svu modify, run svu modify --help.\n",
+				"Hint: To list the flags of semvu modify, run semvu modify --help.\n",
 		},
 		{
 			name: "writes cobra's own errors as sentences",
 			args: []string{"completion", "bash", "extra"},
-			want: "Error: Unknown command \"extra\" for \"svu completion bash\".\n",
+			want: "Error: Unknown command \"extra\" for \"semvu completion bash\".\n",
 		},
 	}
 
@@ -179,16 +179,16 @@ func TestErrorsInColour(t *testing.T) {
 			code: ExitUsage,
 			args: []string{"--frobnicate", "--colour=always"},
 			want: boldRed + "Error:" + reset + reset + " " +
-				boldRed + `"--frobnicate"` + reset + reset + red + " is not a flag of svu." + reset + "\n\n" +
-				boldCyan + "Hint:" + reset + reset + " To list the flags of svu, run " + green + "svu --help" + reset + ".\n",
+				boldRed + `"--frobnicate"` + reset + reset + red + " is not a flag of semvu." + reset + "\n\n" +
+				boldCyan + "Hint:" + reset + reset + " To list the flags of semvu, run " + green + "semvu --help" + reset + ".\n",
 		},
 		{
 			name: "colours an error from an environment that forces colour",
 			code: ExitUsage,
 			args: []string{"nope"},
 			want: boldRed + "Error:" + reset + reset + " " +
-				boldRed + `"nope"` + reset + reset + red + " is not an svu command." + reset + "\n\n" +
-				boldCyan + "Hint:" + reset + reset + " To list svu's commands, run " + green + "svu --help" + reset + ".\n",
+				boldRed + `"nope"` + reset + reset + red + " is not an semvu command." + reset + "\n\n" +
+				boldCyan + "Hint:" + reset + reset + " To list semvu's commands, run " + green + "semvu --help" + reset + ".\n",
 		},
 	}
 
@@ -209,7 +209,7 @@ func TestRenderStylesURLsDim(t *testing.T) {
 
 	render(&b, &userError{headline: "Something failed.", hint: reportHint}, colour.New(true))
 
-	want := "\x1b[2mhttps://github.com/tedslittlerobot/svu/issues\x1b[0m."
+	want := "\x1b[2mhttps://github.com/tedslittlerobot/semvu/issues\x1b[0m."
 	if !strings.Contains(b.String(), want) {
 		t.Errorf("render() wrote %q, want it to contain %q", b.String(), want)
 	}
@@ -226,9 +226,9 @@ func TestTokenise(t *testing.T) {
 		{name: "keeps plain text whole", msg: "plain", want: []token{{tokenText, "plain"}}},
 		{
 			name: "finds code, quotes and URLs",
-			msg:  "run `svu --help`, see \"a \\\"b\\\"\" at https://example.com/x.",
+			msg:  "run `semvu --help`, see \"a \\\"b\\\"\" at https://example.com/x.",
 			want: []token{
-				{tokenText, "run "}, {tokenCode, "svu --help"}, {tokenText, ", see "},
+				{tokenText, "run "}, {tokenCode, "semvu --help"}, {tokenText, ", see "},
 				{tokenQuoted, `"a \"b\""`}, {tokenText, " at "}, {tokenURL, "https://example.com/x"}, {tokenText, "."},
 			},
 		},

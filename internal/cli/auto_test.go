@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/tedslittlerobot/svu/internal/git"
-	"github.com/tedslittlerobot/svu/internal/git/gittest"
+	"github.com/tedslittlerobot/semvu/internal/git"
+	"github.com/tedslittlerobot/semvu/internal/git/gittest"
 )
 
 // fixedMessages returns a messageReader that returns messages, and checks
@@ -252,9 +252,9 @@ func TestAutoErrors(t *testing.T) {
 				return nil, git.ErrNotInstalled
 			},
 			code: ExitGit,
-			want: "Error: svu could not find git.\n\n" +
-				"  No version was given, so svu needs git to read the latest version from the tags.\n\n" +
-				"Hint: Install git, or give a version, as in svu modify 1.2.3.\n",
+			want: "Error: semvu could not find git.\n\n" +
+				"  No version was given, so semvu needs git to read the latest version from the tags.\n\n" +
+				"Hint: Install git, or give a version, as in semvu modify 1.2.3.\n",
 		},
 	}
 

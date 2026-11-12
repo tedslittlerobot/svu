@@ -8,14 +8,14 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tedslittlerobot/svu/internal/semver"
+	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
-// stdinArgument is the argument that tells svu to read the version from
+// stdinArgument is the argument that tells semvu to read the version from
 // standard input.
 const stdinArgument = "-"
 
-// readVersion works out which version svu starts from:
+// readVersion works out which version semvu starts from:
 //
 //  1. the version argument, or standard input if the argument is "-";
 //  2. with no argument, the latest git tag that q matches.
@@ -59,7 +59,7 @@ func readStdin(stdin io.Reader) (string, error) {
 	if err != nil {
 		return "", &userError{
 			code:     ExitInternal,
-			headline: "svu could not read standard input.",
+			headline: "semvu could not read standard input.",
 			hint:     reportHint,
 			err:      err,
 		}
@@ -72,14 +72,14 @@ func readStdin(stdin io.Reader) (string, error) {
 		return "", &userError{
 			code:     ExitInvalidVersion,
 			headline: "Standard input is empty.",
-			detail:   `With "-" as the argument, svu reads one version from standard input.`,
-			hint:     "Pipe a version into svu, as in `echo 1.2.3 | svu modify -`.",
+			detail:   `With "-" as the argument, semvu reads one version from standard input.`,
+			hint:     "Pipe a version into semvu, as in `echo 1.2.3 | semvu modify -`.",
 		}
 	case strings.ContainsAny(input, "\r\n"):
 		return "", &userError{
 			code:     ExitInvalidVersion,
 			headline: "Standard input has more than one line.",
-			detail:   `With "-" as the argument, svu reads one version from standard input.`,
+			detail:   `With "-" as the argument, semvu reads one version from standard input.`,
 		}
 	}
 
@@ -88,7 +88,7 @@ func readStdin(stdin io.Reader) (string, error) {
 
 // parseVersion parses a version the user gave. where says where it came
 // from, for messages: "" for the version argument, or a phrase such as
-// " on standard input". modifyHints is true for svu modify's version
+// " on standard input". modifyHints is true for semvu modify's version
 // argument, where an invalid word is probably a mistyped modifier.
 func parseVersion(input, where string, modifyHints bool) (semver.Version, error) {
 	v, err := semver.Parse(input)
@@ -98,7 +98,7 @@ func parseVersion(input, where string, modifyHints bool) (semver.Version, error)
 
 	var perr *semver.ParseError
 	if !errors.As(err, &perr) {
-		return semver.Version{}, &userError{code: ExitInternal, headline: "svu could not read the version.", hint: reportHint, err: err}
+		return semver.Version{}, &userError{code: ExitInternal, headline: "semvu could not read the version.", hint: reportHint, err: err}
 	}
 
 	return semver.Version{}, parseError(perr, where, modifyHints)
@@ -144,11 +144,11 @@ func parseError(perr *semver.ParseError, where string, modifyHints bool) *userEr
 	case perr.Suggestion != "":
 		ue.hint = fmt.Sprintf("Did you mean %q?", perr.Suggestion)
 	case !modifyHints:
-		// No hint: the input isn't svu modify's version argument.
+		// No hint: the input isn't semvu modify's version argument.
 	case slices.Contains(modifierNames(), perr.Input):
 		ue.hint = fmt.Sprintf("Did you mean `--%s`?", perr.Input)
 	case isWord(perr.Input):
-		ue.hint = "To see what svu modify accepts, run `svu modify --help`."
+		ue.hint = "To see what semvu modify accepts, run `semvu modify --help`."
 	}
 
 	return ue
