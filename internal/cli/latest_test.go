@@ -23,6 +23,8 @@ func TestLatest(t *testing.T) {
 		{name: "prints the latest version, pre-releases included", args: []string{"latest"}, tags: tags, want: "2.0.0-alpha-001\n"},
 		{name: "answers to its alias", args: []string{"l"}, tags: tags, want: "2.0.0-alpha-001\n"},
 		{name: "prints the latest release with --release", args: []string{"latest", "--release"}, tags: tags, want: "1.10.0\n"},
+		{name: "adds a v prefix with --with-v-prefix", args: []string{"latest", "--with-v-prefix"}, tags: tags, want: "v2.0.0-alpha-001\n"},
+		{name: "accepts --vp with --release", args: []string{"l", "--release", "--vp"}, tags: tags, want: "v1.10.0\n"},
 		{
 			name:    "reads tags in the directory given by --directory",
 			args:    []string{"l", "--directory", "path/to/repository"},

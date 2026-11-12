@@ -106,6 +106,7 @@ Aliases:
 Examples:
   svu latest                         # 1.3.0-rc-002
   svu latest --release               # 1.2.0
+  svu latest --with-v-prefix         # v1.3.0-rc-002
   svu l --directory path/to/repository
 
 Input:
@@ -113,6 +114,9 @@ Input:
 
 Filter:
       --release         Skip pre-releases, and print the latest release
+
+Output:
+      --with-v-prefix   Print the version with a leading "v" (alias --vp)
 
 Other:
   -h, --help            Show this help

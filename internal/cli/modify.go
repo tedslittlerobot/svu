@@ -5,6 +5,8 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
+
+	"github.com/tedslittlerobot/svm/internal/semver"
 )
 
 const modifyLong = `Modify a version and print the result.
@@ -28,9 +30,9 @@ const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
 
 func newModifyCommand(env environment) *cobra.Command {
 	var (
-		opts    inputOptions
-		vPrefix bool
-		mods    *modifiers
+		opts   inputOptions
+		prefix vPrefix
+		mods   *modifiers
 	)
 
 	cmd := &cobra.Command{
@@ -59,12 +61,7 @@ func newModifyCommand(env environment) *cobra.Command {
 				return err
 			}
 
-			out := v.String()
-			if vPrefix {
-				out = "v" + out
-			}
-
-			return writeResult(cmd.OutOrStdout(), out)
+			return writeResult(cmd.OutOrStdout(), prefix.format(v))
 		},
 	}
 
@@ -76,8 +73,7 @@ func newModifyCommand(env environment) *cobra.Command {
 
 	mods = newModifiers(flags)
 
-	flags.BoolVar(&vPrefix, "with-v-prefix", false, `Print the version with a leading "v" (alias --vp)`)
-	setHelpGroup(flags, "with-v-prefix", groupOutput)
+	prefix.addFlag(cmd)
 
 	return cmd
 }
@@ -107,4 +103,23 @@ func writeResult(w io.Writer, output string) error {
 	}
 
 	return nil
+}
+
+// vPrefix is the --with-v-prefix flag, shared by every command that prints a
+// version.
+type vPrefix bool
+
+// addFlag adds --with-v-prefix, and its alias --vp, to cmd.
+func (p *vPrefix) addFlag(cmd *cobra.Command) {
+	cmd.Flags().BoolVar((*bool)(p), "with-v-prefix", false, `Print the version with a leading "v" (alias --vp)`)
+	setHelpGroup(cmd.Flags(), "with-v-prefix", groupOutput)
+}
+
+// format writes v as a command prints it: without a "v" unless asked for.
+func (p vPrefix) format(v semver.Version) string {
+	if p {
+		return "v" + v.String()
+	}
+
+	return v.String()
 }

@@ -15,10 +15,14 @@ With --release, pre-releases are skipped too.`
 
 const latestExample = `  svu latest                         # 1.3.0-rc-002
   svu latest --release               # 1.2.0
+  svu latest --with-v-prefix         # v1.3.0-rc-002
   svu l --directory path/to/repository`
 
 func newLatestCommand(env environment) *cobra.Command {
-	var q tagQuery
+	var (
+		q      tagQuery
+		prefix vPrefix
+	)
 
 	cmd := &cobra.Command{
 		Use:               "latest",
@@ -34,7 +38,7 @@ func newLatestCommand(env environment) *cobra.Command {
 				return err
 			}
 
-			return writeResult(cmd.OutOrStdout(), v.String())
+			return writeResult(cmd.OutOrStdout(), prefix.format(v))
 		},
 	}
 
@@ -45,6 +49,8 @@ func newLatestCommand(env environment) *cobra.Command {
 
 	flags.BoolVar(&q.releasesOnly, "release", false, "Skip pre-releases, and print the latest release")
 	setHelpGroup(flags, "release", groupFilter)
+
+	prefix.addFlag(cmd)
 
 	return cmd
 }

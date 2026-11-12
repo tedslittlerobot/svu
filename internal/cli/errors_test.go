@@ -83,7 +83,7 @@ func TestFlagErrors(t *testing.T) {
 		{
 			name: "finds the right command for an alias",
 			args: []string{"--vp"},
-			want: "Error: \"--vp\" is not a flag of svu.\n\nHint: Did you mean svu modify --vp?\n",
+			want: "Error: \"--vp\" is not a flag of svu.\n\nHint: Did you mean svu latest --vp?\n",
 		},
 		{
 			name: "rejects a flag with no value",
