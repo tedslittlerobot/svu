@@ -130,21 +130,37 @@ func Compare(a, b Version) int {
 // It is meant for lists such as git tag names, where only some entries are
 // versions and a leading "v" is common.
 func Latest(candidates []string) (Version, bool) {
+	return latest(candidates, func(Version) bool { return true })
+}
+
+// LatestRelease is like Latest, but only considers release versions: it skips
+// pre-releases as well as invalid candidates.
+func LatestRelease(candidates []string) (Version, bool) {
+	return latest(candidates, Version.IsRelease)
+}
+
+// IsRelease reports whether v is a release version, with no suffix
+// (§Release versions).
+func (v Version) IsRelease() bool {
+	return v.Stage == Release
+}
+
+func latest(candidates []string, keep func(Version) bool) (Version, bool) {
 	var (
-		latest Version
-		found  bool
+		best  Version
+		found bool
 	)
 
 	for _, c := range candidates {
 		v, err := Parse(c)
-		if err != nil {
+		if err != nil || !keep(v) {
 			continue
 		}
 
-		if !found || Compare(v, latest) > 0 {
-			latest, found = v, true
+		if !found || Compare(v, best) > 0 {
+			best, found = v, true
 		}
 	}
 
-	return latest, found
+	return best, found
 }

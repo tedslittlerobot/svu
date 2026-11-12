@@ -5,7 +5,8 @@ Guidance for working in this repository.
 ## Goal
 
 **The goal of this project is to make it easy to work with semantic versions.**
-For now, the only thing being built is modifying a version (`svu modify`).
+For now, that means modifying a version (`svu modify`) and finding the latest
+one (`svu latest`).
 
 Judge every feature, command, flag and design decision against this goal. Prefer
 whatever makes working with a version simpler, more predictable and harder to get
@@ -14,8 +15,8 @@ wrong. Push back on anything that doesn't serve it.
 ## Project
 
 `svu` (Semantic Version Utilities) is a Go command-line tool for working with
-semantic versions. Each job is a subcommand; today there is one, `svu modify`
-(alias `svu m`). It is open source under the MIT licence and hosted at
+semantic versions. Each job is a subcommand: `svu modify` (alias `svu m`) and
+`svu latest` (alias `svu l`). It is open source under the MIT licence and hosted at
 https://github.com/tedslittlerobot/svm (the repository and module path keep
 the project's earlier name).
 
@@ -55,6 +56,7 @@ cmd/svu/main.go       Process boundary only: os.Args, os streams, signals, os.Ex
 internal/cli/         One file per command (<name>.go + <name>_test.go).
                       cli.go holds Execute, the root command and Streams.
                       modify.go is svu modify; modifiers.go and input.go support it.
+                      latest.go is svu latest. tags.go reads git tags for both.
 internal/buildinfo/   Version metadata from ldflags, falling back to debug.ReadBuildInfo.
 internal/semver/      Parsing, ordering, formatting and modifying versions.
 internal/git/         Reads tags by running the git command.

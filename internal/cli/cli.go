@@ -79,6 +79,7 @@ followed by a stage (alpha, beta or rc) and a three-digit index, as in
 
 const rootExample = `  svu modify 1.2.3 --minor     # 1.3.0
   svu m --patch --rc           # the latest git tag's next patch, as an rc
+  svu latest --release         # the latest released version in git tags
   svu help modify              # how to modify a version`
 
 // newRootCommand builds svu's command tree. colourMode receives the value of
@@ -145,6 +146,7 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 	root.SetHelpCommand(newHelpCommand())
 
 	root.AddCommand(
+		newLatestCommand(env),
 		newModifyCommand(env),
 		newVersionCommand(env.info),
 	)

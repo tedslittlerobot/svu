@@ -72,9 +72,7 @@ func newModifyCommand(env environment) *cobra.Command {
 	flags := cmd.Flags()
 	flags.SortFlags = false
 
-	flags.StringVar(&opts.directory, "directory", "", "Read tags from the git repository containing `path`")
-	setHelpGroup(flags, "directory", groupInput)
-	_ = cmd.MarkFlagDirname("directory") // Only fails if the flag doesn't exist.
+	addDirectoryFlag(cmd, &opts.directory)
 
 	mods = newModifiers(flags)
 

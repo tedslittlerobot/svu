@@ -18,11 +18,13 @@ Usage:
 Examples:
   svu modify 1.2.3 --minor     # 1.3.0
   svu m --patch --rc           # the latest git tag's next patch, as an rc
+  svu latest --release         # the latest released version in git tags
   svu help modify              # how to modify a version
 
 Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Show help for svu or one of its commands
+  latest, l   Print the latest version in a repository's git tags
   modify, m   Modify a version, such as bumping it or moving it to a new stage
   version     Print detailed build information for svu
 
@@ -86,6 +88,40 @@ Global flags:
 `
 
 //nolint:misspell // The help names the --color alias.
+const latestHelp = `Print the latest version in a repository's git tags.
+
+svu latest reads the tags of the git repository that contains the current
+directory, or --directory if given. It skips any tag that isn't a valid
+version, ignores a leading "v", and prints the latest by svu's ordering.
+It reads exactly the tags that svu modify reads when given no version.
+
+With --release, pre-releases are skipped too.
+
+Usage:
+  svu latest [flags]
+
+Aliases:
+  latest, l
+
+Examples:
+  svu latest                         # 1.3.0-rc-002
+  svu latest --release               # 1.2.0
+  svu l --directory path/to/repository
+
+Input:
+      --directory path  Read tags from the git repository containing path
+
+Filter:
+      --release         Skip pre-releases, and print the latest release
+
+Other:
+  -h, --help            Show this help
+
+Global flags:
+      --colour when     Use colour on stderr: auto (the default), always or never (alias --color)
+`
+
+//nolint:misspell // The help names the --color alias.
 const versionHelp = `Print detailed build information for svu
 
 Usage:
@@ -127,6 +163,8 @@ func TestHelp(t *testing.T) {
 			want: modifyHelp,
 		},
 		{name: "shows help for the version command", args: []string{"version", "--help"}, want: versionHelp},
+		{name: "shows help for the latest command", args: []string{"latest", "--help"}, want: latestHelp},
+		{name: "shows help for help l", args: []string{"help", "l"}, want: latestHelp},
 		{name: "shows help for help version", args: []string{"help", "version"}, want: versionHelp},
 		{
 			name: "leaves out colour when the environment turns it off",

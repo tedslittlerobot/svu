@@ -252,6 +252,57 @@ func TestLatest(t *testing.T) {
 	}
 }
 
+func TestLatestRelease(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		candidates []string
+		want       string
+		wantFound  bool
+	}{
+		{name: "finds nothing in an empty list", candidates: nil},
+		{name: "finds nothing when every version is a pre-release", candidates: []string{"v1.0.0-rc-001", "v0.9.0-beta-002", "nightly"}},
+		{
+			name:       "skips a later pre-release",
+			candidates: []string{"v1.2.3", "v1.3.0-alpha-001", "v1.2.4-rc-009"},
+			want:       "1.2.3",
+			wantFound:  true,
+		},
+		{
+			name:       "picks the highest release",
+			candidates: []string{"v1.9.0", "v1.10.0", "v1.10.1-rc-001", "junk"},
+			want:       "1.10.0",
+			wantFound:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, found := LatestRelease(tt.candidates)
+			if found != tt.wantFound {
+				t.Fatalf("LatestRelease(%q) found = %t, want %t", tt.candidates, found, tt.wantFound)
+			}
+
+			if found && got.String() != tt.want {
+				t.Errorf("LatestRelease(%q) = %s, want %s", tt.candidates, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsRelease(t *testing.T) {
+	t.Parallel()
+
+	for s, want := range map[string]bool{"1.2.3": true, "0.0.0": true, "1.2.3-alpha-001": false, "1.2.3-rc-999": false} {
+		if got := mustParse(t, s).IsRelease(); got != want {
+			t.Errorf("Parse(%q).IsRelease() = %t, want %t", s, got, want)
+		}
+	}
+}
+
 func mustParse(t *testing.T, s string) Version {
 	t.Helper()
 
@@ -283,6 +334,15 @@ func ExampleParse_invalid() {
 	fmt.Println(err)
 	// Output:
 	// parsing version "1.2.3-alpha-1": index not three digits from 001 to 999 at byte 12
+}
+
+func ExampleLatestRelease() {
+	tags := []string{"v1.9.0", "v1.10.0-rc-002", "nightly"}
+
+	v, ok := LatestRelease(tags)
+	fmt.Println(v, ok)
+	// Output:
+	// 1.9.0 true
 }
 
 func ExampleLatest() {

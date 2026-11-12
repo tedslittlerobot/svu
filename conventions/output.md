@@ -21,6 +21,7 @@ stdout **must** contain that and nothing else.
 | Command | Main output |
 |---|---|
 | `svu modify` | The modified version, valid under [svu's version rules](semver.md) |
+| `svu latest` | The latest version in the repository's git tags |
 | `svu --version` | svu's own version, bare, such as `1.4.0` |
 | `svu version` | svu's version with its build information, on one line |
 | `svu completion <shell>` | The completion script, as in `source <(svu completion bash)` |
@@ -29,7 +30,8 @@ Help is never a main output, not even for `svu help`. It always goes to
 stderr, so capturing a command's output can never capture help by mistake.
 
 - On success, stdout **must** contain the main output followed by a single
-  newline (`\n`). For `svu modify`, that is exactly one version.
+  newline (`\n`). For `svu modify` and `svu latest`, that is exactly one
+  version.
 - stdout **must not** contain anything else: no labels, prompts, progress
   messages, warnings, blank lines or trailing whitespace.
 - stdout **must not** ever contain ANSI escape codes, even when it is a

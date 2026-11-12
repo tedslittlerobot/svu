@@ -8,13 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tedslittlerobot/svm/internal/git"
 	"github.com/tedslittlerobot/svm/internal/semver"
 )
-
-// tagReader returns the tag names of the git repository containing dir, where
-// "" means the current directory. git.Tags is the real implementation.
-type tagReader func(ctx context.Context, dir string) ([]string, error)
 
 // inputOptions are the flags that affect where svu reads its version from.
 type inputOptions struct {
@@ -43,7 +38,7 @@ func readVersion(
 ) (semver.Version, error) {
 	switch {
 	case len(args) == 0:
-		return latestTag(ctx, opts.directory, readTags)
+		return latestTag(ctx, readTags, tagQuery{dir: opts.directory, fallback: true})
 	case opts.directorySet:
 		return semver.Version{}, &userError{
 			headline: "--directory can't be used when a version is given.",
@@ -161,84 +156,4 @@ func parseError(perr *semver.ParseError, fromStdin bool) *userError {
 // mistyped command or flag would be.
 func isWord(s string) bool {
 	return strings.Trim(s, "abcdefghijklmnopqrstuvwxyz-") == ""
-}
-
-// latestTag returns the latest git tag in dir that is a valid version.
-func latestTag(ctx context.Context, dir string, readTags tagReader) (semver.Version, error) {
-	tags, err := readTags(ctx, dir)
-	if err != nil {
-		return semver.Version{}, tagsError(err, dir)
-	}
-
-	if v, ok := semver.Latest(tags); ok {
-		return v, nil
-	}
-
-	headline := "The git repository has no tags that are valid versions."
-	if dir != "" {
-		headline = fmt.Sprintf("The git repository at %q has no tags that are valid versions.", dir)
-	}
-
-	detail := "None of its tags is a valid version, such as v1.2.3 or v1.2.3-rc-001."
-	if len(tags) == 0 {
-		detail = "It has no tags."
-	}
-
-	return semver.Version{}, &userError{
-		headline: headline,
-		detail:   detail,
-		hint:     "Give a version, as in `svu modify 0.1.0`, or tag a release, as in `git tag v0.1.0`.",
-	}
-}
-
-func tagsError(err error, dir string) *userError {
-	place := "the current directory"
-	if dir != "" {
-		place = fmt.Sprintf("%q", dir)
-	}
-
-	var cmdErr *git.CommandError
-
-	switch {
-	case errors.Is(err, git.ErrNotRepository):
-		hint := "Give a version, as in `svu modify 1.2.3`, or run svu inside a git repository."
-		if dir != "" {
-			hint = "Give a version, as in `svu modify 1.2.3`, or set `--directory` to a git repository."
-		}
-
-		return &userError{
-			headline: "svu has no valid input.",
-			detail: "No version was given, so svu reads the latest version from git tags,\n" +
-				"but " + place + " is not in a git repository.",
-			hint: hint,
-			err:  err,
-		}
-	case errors.Is(err, git.ErrDirectoryNotFound):
-		return &userError{
-			headline: place + " does not exist.",
-			detail:   "--directory must be a directory in a git repository.",
-			err:      err,
-		}
-	case errors.Is(err, git.ErrNotDirectory):
-		return &userError{
-			headline: place + " is not a directory.",
-			detail:   "--directory must be a directory in a git repository.",
-			err:      err,
-		}
-	case errors.Is(err, git.ErrNotInstalled):
-		return &userError{
-			headline: "svu could not find git.",
-			detail:   "No version was given, so svu needs git to read the latest version from the tags.",
-			hint:     "Install git, or give a version, as in `svu modify 1.2.3`.",
-			err:      err,
-		}
-	case errors.As(err, &cmdErr) && cmdErr.Stderr != "":
-		return &userError{
-			headline: "git could not list the tags in " + place + ".",
-			detail:   cmdErr.Stderr,
-			err:      err,
-		}
-	default:
-		return &userError{headline: "svu could not read the git tags in " + place + ".", hint: reportHint, err: err}
-	}
 }

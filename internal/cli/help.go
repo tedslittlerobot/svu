@@ -20,12 +20,13 @@ const helpGroupAnnotation = "svu_help_group"
 // last.
 const (
 	groupInput   = "Input"
+	groupFilter  = "Filter"
 	groupVersion = "Version modifiers (use at most one)"
 	groupStage   = "Stage modifiers (use at most one)"
 	groupOutput  = "Output"
 )
 
-var helpGroups = []string{groupInput, groupVersion, groupStage, groupOutput}
+var helpGroups = []string{groupInput, groupFilter, groupVersion, groupStage, groupOutput}
 
 // setHelpGroup puts a flag in a help group. The flag must exist.
 func setHelpGroup(flags *pflag.FlagSet, name, group string) {

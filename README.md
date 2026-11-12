@@ -67,8 +67,25 @@ go install github.com/tedslittlerobot/svm/cmd/svu@latest
 
 ```sh
 svu help             # list commands (also svu --help, or just svu)
+svu latest           # print the latest version in the git tags
 svu help modify      # help for one command (also svu modify --help)
 ```
+
+### svu latest
+
+`svu latest` (or `svu l`) prints the latest version in the git tags of the
+repository that contains the current directory, or `--directory`. Tags that
+aren't valid versions are skipped and any `v` prefix is dropped: the same
+tags, filtering and ordering that `svu modify` uses when given no version.
+
+```sh
+svu latest                     # → e.g. 1.3.0-rc-002
+svu latest --release           # skip pre-releases → e.g. 1.2.0
+svu l --directory ../app       # ...of the repository at ../app
+```
+
+It's an error if there is no repository, no valid tag, or, with `--release`,
+no released version.
 
 ### svu modify
 
@@ -144,7 +161,7 @@ svu completion --help
 svu is built for scripts:
 
 - **stdout** only ever holds a command's main output and a newline, with no
-  colour: the modified version for `svu modify`, or svu's own version for
+  colour: the version for `svu modify` and `svu latest`, or svu's own version for
   `svu --version` and `svu version`. On failure it is empty.
 - **stderr** gets everything else, including errors, warnings and help, in
   colour when it is a terminal.
