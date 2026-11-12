@@ -81,7 +81,7 @@ func readStdin(stdin io.Reader) (string, error) {
 		return "", &userError{
 			headline: "Standard input is empty.",
 			detail:   `With "-" as the argument, svu reads one version from standard input.`,
-			hint:     "Pipe a version into svu, as in echo 1.2.3 | svu modify -.",
+			hint:     "Pipe a version into svu, as in `echo 1.2.3 | svu modify -`.",
 		}
 	case strings.ContainsAny(input, "\r\n"):
 		return "", &userError{
@@ -149,9 +149,9 @@ func parseError(perr *semver.ParseError, fromStdin bool) *userError {
 	case fromStdin:
 		// No hint: the input isn't something typed on the command line.
 	case slices.Contains(modifierNames(), perr.Input):
-		ue.hint = fmt.Sprintf("Did you mean --%s?", perr.Input)
+		ue.hint = fmt.Sprintf("Did you mean `--%s`?", perr.Input)
 	case isWord(perr.Input):
-		ue.hint = "To see what svu modify accepts, run svu modify --help."
+		ue.hint = "To see what svu modify accepts, run `svu modify --help`."
 	}
 
 	return ue
@@ -187,7 +187,7 @@ func latestTag(ctx context.Context, dir string, readTags tagReader) (semver.Vers
 	return semver.Version{}, &userError{
 		headline: headline,
 		detail:   detail,
-		hint:     "Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.",
+		hint:     "Give a version, as in `svu modify 0.1.0`, or tag a release, as in `git tag v0.1.0`.",
 	}
 }
 
@@ -201,9 +201,9 @@ func tagsError(err error, dir string) *userError {
 
 	switch {
 	case errors.Is(err, git.ErrNotRepository):
-		hint := "Give a version, as in svu modify 1.2.3, or run svu inside a git repository."
+		hint := "Give a version, as in `svu modify 1.2.3`, or run svu inside a git repository."
 		if dir != "" {
-			hint = "Give a version, as in svu modify 1.2.3, or set --directory to a git repository."
+			hint = "Give a version, as in `svu modify 1.2.3`, or set `--directory` to a git repository."
 		}
 
 		return &userError{
@@ -229,7 +229,7 @@ func tagsError(err error, dir string) *userError {
 		return &userError{
 			headline: "svu could not find git.",
 			detail:   "No version was given, so svu needs git to read the latest version from the tags.",
-			hint:     "Install git, or give a version, as in svu modify 1.2.3.",
+			hint:     "Install git, or give a version, as in `svu modify 1.2.3`.",
 			err:      err,
 		}
 	case errors.As(err, &cmdErr) && cmdErr.Stderr != "":

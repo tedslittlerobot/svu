@@ -9,7 +9,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -56,11 +55,15 @@ func Execute(ctx context.Context, args []string, streams Streams) int {
 }
 
 func execute(ctx context.Context, args []string, streams Streams, env environment) int {
-	root := newRootCommand(streams, env)
+	var colourMode colourFlag
+
+	root := newRootCommand(streams, env, &colourMode)
 	root.SetArgs(args)
 
 	if err := root.ExecuteContext(ctx); err != nil {
-		render(streams.Err, err)
+		// If --colour itself failed to parse, the mode is still auto.
+		on := colour.Enabled(colourMode.mode, env.getenv, streams.Err)
+		render(streams.Err, err, colour.New(on))
 
 		return ExitFailure
 	}
@@ -78,9 +81,9 @@ const rootExample = `  svu modify 1.2.3 --minor     # 1.3.0
   svu m --patch --rc           # the latest git tag's next patch, as an rc
   svu help modify              # how to modify a version`
 
-func newRootCommand(streams Streams, env environment) *cobra.Command {
-	var colourMode colourFlag
-
+// newRootCommand builds svu's command tree. colourMode receives the value of
+// --colour once flags are parsed.
+func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *cobra.Command {
 	root := &cobra.Command{
 		Use:     "svu",
 		Short:   "svu (Semantic Version Utilities) works with semantic versions",
@@ -109,7 +112,7 @@ func newRootCommand(streams Streams, env environment) *cobra.Command {
 		SuggestionsMinimumDistance: 2,
 	}
 
-	root.PersistentFlags().Var(&colourMode, "colour",
+	root.PersistentFlags().Var(colourMode, "colour",
 		"Use colour on stderr: auto (the default), always or never (alias --color)") //nolint:misspell // --color is the alias output.md requires.
 
 	// Defined here, rather than by cobra, to control their wording.
@@ -123,7 +126,9 @@ func newRootCommand(streams Streams, env environment) *cobra.Command {
 	root.SetIn(streams.In)
 	root.SetOut(streams.Out)
 	root.SetErr(streams.Err)
-	root.SetVersionTemplate("{{.Name}} {{.Version}}\n")
+	// The version is --version's main output, so it goes to stdout bare.
+	root.SetVersionTemplate("{{.Version}}\n")
+	root.SetFlagErrorFunc(flagError)
 
 	// Help goes to stderr, coloured as conventions/output.md describes, for
 	// --help, -h and svu help alike.
@@ -156,11 +161,11 @@ func unknownCommandError(root *cobra.Command, name string) *userError {
 
 	switch {
 	case isVersion(name):
-		ue.hint = fmt.Sprintf("To modify a version, run svu modify %s.", name)
+		ue.hint = fmt.Sprintf("To modify a version, run `svu modify %s`.", name)
 	case len(suggestions) > 0:
-		ue.hint = fmt.Sprintf("Did you mean svu %s?", suggestions[0])
+		ue.hint = fmt.Sprintf("Did you mean `svu %s`?", suggestions[0])
 	default:
-		ue.hint = "To list svu's commands, run svu --help."
+		ue.hint = "To list svu's commands, run `svu --help`."
 	}
 
 	return ue
@@ -170,6 +175,18 @@ func isVersion(s string) bool {
 	_, err := semver.Parse(s)
 
 	return err == nil
+}
+
+// noArgs checks that a command was given no arguments.
+func noArgs(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+
+	return &userError{
+		headline: fmt.Sprintf("%s takes no arguments, but was given %q.", cmd.CommandPath(), args[0]),
+		hint:     fmt.Sprintf("Run `%s` on its own.", cmd.CommandPath()),
+	}
 }
 
 // flagAliases maps alternative flag names to their canonical names.
@@ -199,7 +216,7 @@ func (f *colourFlag) Type() string { return "when" }
 func (f *colourFlag) Set(s string) error {
 	mode, err := colour.ParseMode(s)
 	if err != nil {
-		return errors.New("must be auto, always or never")
+		return valueRuleError("must be auto, always or never")
 	}
 
 	f.mode = mode

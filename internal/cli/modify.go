@@ -92,14 +92,14 @@ func atMostOneVersion(_ *cobra.Command, args []string) error {
 
 	return &userError{
 		headline: fmt.Sprintf("svu modify was given %d versions, but it takes at most one.", len(args)),
-		hint:     "Give a single version, as in svu modify 1.2.3.",
+		hint:     "Give a single version, as in `svu modify 1.2.3`.",
 	}
 }
 
-// writeResult writes the result to stdout, as conventions/output.md requires:
-// one version and a newline.
-func writeResult(w io.Writer, version string) error {
-	if _, err := fmt.Fprintln(w, version); err != nil {
+// writeResult writes a command's main output to stdout, followed by a
+// newline. conventions/output.md says it is the only thing on stdout.
+func writeResult(w io.Writer, output string) error {
+	if _, err := fmt.Fprintln(w, output); err != nil {
 		return &userError{
 			headline: "svu could not write its output.",
 			detail:   "The output stream was closed before svu finished writing.",

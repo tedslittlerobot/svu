@@ -22,7 +22,7 @@ func TestVersionCommand(t *testing.T) {
 			name:       "rejects positional arguments",
 			args:       []string{"version", "extra"},
 			wantCode:   ExitFailure,
-			wantStderr: `svu: unknown command "extra" for "svu version"` + "\n",
+			wantStderr: "Error: svu version takes no arguments, but was given \"extra\".\n\nHint: Run svu version on its own.\n",
 		},
 	}
 

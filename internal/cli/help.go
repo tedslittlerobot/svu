@@ -42,7 +42,7 @@ func renderHelp(w io.Writer, cmd *cobra.Command, s colour.Styler) {
 		description = cmd.Short
 	}
 
-	b.WriteString(strings.TrimSpace(description) + "\n")
+	b.WriteString(styleFlags(s, strings.TrimSpace(description)) + "\n")
 
 	writeUsage(&b, cmd, s)
 	writeExamples(&b, cmd, s)
@@ -66,10 +66,10 @@ func writeUsage(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
 	// A command with subcommands is only used through them, even if it runs
 	// something on its own.
 	if cmd.HasAvailableSubCommands() {
-		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + " <command>\n")
+		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + " " + s.Dim("<command>") + "\n")
 	} else {
-		rest := strings.TrimPrefix(cmd.UseLine(), cmd.CommandPath())
-		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + rest + "\n")
+		rest := strings.TrimPrefix(cmd.UseLine(), cmd.CommandPath()+" ")
+		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + " " + s.Dim(rest) + "\n")
 	}
 
 	if len(cmd.Aliases) > 0 {
@@ -123,7 +123,7 @@ func writeCommands(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
 	heading(b, s, "Commands")
 
 	for _, c := range commands {
-		b.WriteString("  " + s.Cyan(names(c)) + strings.Repeat(" ", width-len(names(c))) + "  " + c.Short + "\n")
+		b.WriteString("  " + s.Cyan(names(c)) + strings.Repeat(" ", width-len(names(c))) + "  " + styleFlags(s, c.Short) + "\n")
 	}
 }
 
@@ -205,7 +205,7 @@ func writeFlagGroup(b *strings.Builder, s colour.Styler, title string, lines []f
 			b.WriteString(" " + s.Dim(l.placeholder))
 		}
 
-		b.WriteString(strings.Repeat(" ", width-l.width()) + "  " + l.usage + "\n")
+		b.WriteString(strings.Repeat(" ", width-l.width()) + "  " + styleFlags(s, l.usage) + "\n")
 	}
 }
 
@@ -256,4 +256,42 @@ func newHelpCommand() *cobra.Command {
 			return target.Help()
 		},
 	}
+}
+
+// styleFlags colours any flag named in prose, such as "--directory" or
+// "(alias --vp)", the way help colours flags. A flag starts a word.
+func styleFlags(s colour.Styler, text string) string {
+	var b strings.Builder
+
+	for i := 0; i < len(text); {
+		if !startsFlag(text, i) {
+			b.WriteByte(text[i])
+			i++
+
+			continue
+		}
+
+		end := i
+		for end < len(text) && (text[end] == '-' || isLower(text[end])) {
+			end++
+		}
+
+		b.WriteString(s.Cyan(text[i:end]))
+		i = end
+	}
+
+	return b.String()
+}
+
+// startsFlag reports whether a flag such as "--minor" starts at text[i].
+func startsFlag(text string, i int) bool {
+	if i > 0 && !strings.ContainsRune(" (\n", rune(text[i-1])) {
+		return false
+	}
+
+	return strings.HasPrefix(text[i:], "--") && i+2 < len(text) && isLower(text[i+2])
+}
+
+func isLower(c byte) bool {
+	return c >= 'a' && c <= 'z'
 }

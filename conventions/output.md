@@ -3,8 +3,9 @@
 svu is a tool for developers, and it's mostly run inside scripts, CI jobs and
 shell pipelines. Its output has two jobs:
 
-1. **Machines** need a clean result they can capture without parsing.
-2. **People** need errors they can understand and fix at a glance.
+1. **Machines** need a command's main output, clean enough to capture without
+   parsing.
+2. **People** need errors and help they can understand at a glance.
 
 svu uses stdout for the first job and stderr for the second, and never mixes
 them.
@@ -12,13 +13,23 @@ them.
 In this document, **must**, **must not**, **should** and **may** are used as
 defined in [RFC 2119][rfc2119].
 
-## stdout: the result, and nothing else
+## stdout: a command's main output, and nothing else
 
-stdout is only for the result of a command, and for svu that result is a
-version that is valid under [svu's version rules](semver.md).
+Every command has one **main output**: the thing it exists to produce.
+stdout **must** contain that and nothing else.
 
-- On success, stdout **must** contain exactly one version, followed by a single
-  newline (`\n`).
+| Command | Main output |
+|---|---|
+| `svu modify` | The modified version, valid under [svu's version rules](semver.md) |
+| `svu --version` | svu's own version, bare, such as `1.4.0` |
+| `svu version` | svu's version with its build information, on one line |
+| `svu completion <shell>` | The completion script, as in `source <(svu completion bash)` |
+
+Help is never a main output, not even for `svu help`. It always goes to
+stderr, so capturing a command's output can never capture help by mistake.
+
+- On success, stdout **must** contain the main output followed by a single
+  newline (`\n`). For `svu modify`, that is exactly one version.
 - stdout **must not** contain anything else: no labels, prompts, progress
   messages, warnings, blank lines or trailing whitespace.
 - stdout **must not** ever contain ANSI escape codes, even when it is a
@@ -33,25 +44,13 @@ exit status with an empty variable:
 next="$(svu modify …)" || exit 1
 ```
 
-### Exceptions
-
-These commands have outputs that other programs read, so they write to stdout:
-
-| Output | Why it goes to stdout |
-|---|---|
-| `svu --version` | It prints svu's own version as a bare version, such as `1.4.0`, so it fits the rule above. |
-| `svu completion <shell>` | Shells read completion scripts from stdout, as in `source <(svu completion bash)`. |
-
-Nothing else is an exception. Help text, usage and the detailed output of
-`svu version` all go to stderr.
-
 ## stderr: everything else
 
-stderr **must** be used for all output that isn't the result. That includes:
+stderr **must** be used for all output that isn't a command's main output.
+That includes:
 
 - errors and warnings
 - help and usage text, from `svu help`, `--help` or `-h`
-- detailed build information (`svu version`)
 - any diagnostic or explanatory message
 
 ## Writing messages
@@ -140,19 +139,24 @@ applies wins:
 Errors are mainly shown in **red**. Other colours are only for emphasis or to
 make particular parts stand out.
 
+Every error and every help page is styled, including errors about flags and
+unknown commands. No message reaches stderr unstyled when colour is on.
+
 | Element | Style |
 |---|---|
-| `Error:` label and headline | Bold red |
-| `^` pointer and the problem part of the input | Red |
-| Quoted user input in the headline | Bold, keeping the colour around it |
-| `Warning:` label and headline | Bold yellow |
+| `Error:` label | Bold red |
+| Error headline | Red |
+| Quoted user input in the headline | Bold red |
+| `^` pointer, and the input from the problem onwards | Red |
+| `Warning:` label | Bold yellow |
+| Warning headline | Yellow |
 | `Hint:` label | Bold cyan |
-| Suggested values in a hint | Green |
+| Commands, flags and values suggested in a hint | Green |
 | Detail text | Default colour |
 | Secondary information (paths, URLs) | Dim |
 | Help section headings | Bold |
-| Command and flag names in help | Cyan |
-| Placeholders and example comments in help | Dim |
+| Command and flag names in help, including flags named in descriptions | Cyan |
+| Placeholders, usage arguments and example comments in help | Dim |
 
 - Use only the 16 basic ANSI colours, plus bold and dim, so that the user's
   terminal theme decides the actual shades. No 256-colour or truecolour codes.
@@ -167,7 +171,12 @@ make particular parts stand out.
   user-facing messages described here. Domain packages return typed errors
   that carry what the CLI needs, such as the input, the position and the rule
   that was broken.
-- **One writer per stream.** Commands write results with `cmd.OutOrStdout()`.
+- **Marking suggestions.** In a hint, suggested commands, flags and values go
+  in backticks, as in ``run `svu --help` ``. They're shown green with colour
+  on. The backticks are removed either way, so the plain text reads normally.
+  Quoted values in a hint are green too.
+- **One writer per stream.** Commands write their main output with
+  `cmd.OutOrStdout()`.
   They don't write errors themselves; they return them, and the CLI renders
   them to stderr.
 - **Tests.** Command tests assert stdout, stderr and the exit status exactly.

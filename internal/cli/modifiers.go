@@ -165,7 +165,7 @@ func (m *modifiers) modifyError(err error) *userError {
 	}
 }
 
-const newVersionHint = "add --major, --minor or --patch to start a new version"
+const newVersionHint = "add `--major`, `--minor` or `--patch` to start a new version"
 
 func (m *modifiers) stageError(err *semver.StageError) *userError {
 	v := err.Version.String()
@@ -175,14 +175,14 @@ func (m *modifiers) stageError(err *semver.StageError) *userError {
 		return &userError{
 			headline: fmt.Sprintf("%q has already been released.", v),
 			detail:   "--release removes the stage from a pre-release, such as 1.2.3-rc-001.",
-			hint:     "To start a new version, use --major, --minor or --patch.",
+			hint:     "To start a new version, use `--major`, `--minor` or `--patch`.",
 			err:      err,
 		}
 	case semver.ProblemReleaseIsFinal:
 		return &userError{
 			headline: fmt.Sprintf("%q has been released, so it can't go back to %s.", v, err.To),
 			detail:   "Once a version is released, it can't go back into any stage.",
-			hint:     fmt.Sprintf("Add --major, --minor or --patch to start a new version at %s, as in --patch --%s.", err.To, err.To),
+			hint:     fmt.Sprintf("Add `--major`, `--minor` or `--patch` to start a new version at %s, as in `--patch --%s`.", err.To, err.To),
 			err:      err,
 		}
 	case semver.ProblemBackwards:
@@ -213,7 +213,7 @@ func (m *modifiers) stageFlags(from semver.Stage, inclusive bool) []string {
 
 	for _, s := range m.stages {
 		if found || (inclusive && s.value == from) {
-			flags = append(flags, "--"+s.flag)
+			flags = append(flags, "`--"+s.flag+"`")
 		}
 
 		found = found || s.value == from

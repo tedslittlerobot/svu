@@ -168,7 +168,7 @@ func TestHelpInColour(t *testing.T) {
 			plain: rootHelp,
 			spans: []string{
 				"\x1b[1mUsage:\x1b[0m",                                  // Headings are bold.
-				"  \x1b[36msvu\x1b[0m <command>",                        // Command names are cyan,
+				"  \x1b[36msvu\x1b[0m \x1b[2m<command>\x1b[0m",          // Command names are cyan,
 				"  \x1b[36mmodify, m\x1b[0m   Modify",                   // aliases included.
 				"  \x1b[36m-h, --help\x1b[0m         Show",              // Flags are cyan.
 				"      \x1b[36m--colour\x1b[0m \x1b[2mwhen\x1b[0m  Use", // Placeholders are dim.
@@ -182,9 +182,12 @@ func TestHelpInColour(t *testing.T) {
 			plain: modifyHelp,
 			spans: []string{
 				"\x1b[1mStage modifiers (use at most one):\x1b[0m",
-				"  \x1b[36msvu modify\x1b[0m [version] [flags]",
+				"  \x1b[36msvu modify\x1b[0m \x1b[2m[version] [flags]\x1b[0m",
 				"\x1b[1mAliases:\x1b[0m\n  \x1b[36mmodify, m\x1b[0m",
 				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m  Read",
+				"or \x1b[36m--directory\x1b[0m if given.",                  // Flags in descriptions are cyan,
+				"(alias \x1b[36m--vp\x1b[0m)",                              // in flag descriptions too,
+				"as in\n\x1b[36m--minor\x1b[0m \x1b[36m--alpha\x1b[0m, to", // even at the start of a line.
 			},
 		},
 		{
@@ -281,7 +284,7 @@ func TestColourFlagRejectsUnknownModes(t *testing.T) {
 
 	assertResult(t, run(t, "modify", "1.2.3", "--colour=sometimes"), result{
 		code:   ExitFailure,
-		stderr: `svu: invalid argument "sometimes" for "--colour" flag: must be auto, always or never` + "\n",
+		stderr: "Error: \"sometimes\" is not a valid value for --colour.\n\n  --colour must be auto, always or never.\n",
 	})
 }
 
@@ -313,4 +316,22 @@ func stripANSI(s string) string {
 	b.WriteString(s)
 
 	return b.String()
+}
+
+func TestHelpCommandCompletesCommandNames(t *testing.T) {
+	t.Parallel()
+
+	// cobra's hidden __complete command is what shells call on Tab.
+	got := invoke(t, invocation{args: []string{"__complete", "help", ""}})
+
+	for _, want := range []string{"modify\tModify a version", "version\tPrint detailed build information"} {
+		if !strings.Contains(got.stdout, want) {
+			t.Errorf("completions = %q, want them to contain %q", got.stdout, want)
+		}
+	}
+
+	got = invoke(t, invocation{args: []string{"__complete", "help", "modify", ""}})
+	if strings.Contains(got.stdout, "modify\t") {
+		t.Errorf("completions after a command = %q, want no more command names", got.stdout)
+	}
 }

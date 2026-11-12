@@ -129,8 +129,8 @@ refuses to:
 ### Other commands
 
 ```sh
-svu --version    # print svu's own version
-svu version      # print full build information
+svu --version    # print svu's own version, as in 1.4.0
+svu version      # print svu's version with its build information
 ```
 
 Shell completion scripts are available for bash, zsh, fish and PowerShell:
@@ -143,9 +143,11 @@ svu completion --help
 
 svu is built for scripts:
 
-- **stdout** only ever holds the resulting version and a newline, with no
-  colour. On failure it is empty.
-- **stderr** gets everything else, including errors, warnings and help.
+- **stdout** only ever holds a command's main output and a newline, with no
+  colour: the modified version for `svu modify`, or svu's own version for
+  `svu --version` and `svu version`. On failure it is empty.
+- **stderr** gets everything else, including errors, warnings and help, in
+  colour when it is a terminal.
 - Colour is used on stderr only when it is a terminal. Set
   [`NO_COLOR`](https://no-color.org) or pass `--colour=never` to turn it off.
 

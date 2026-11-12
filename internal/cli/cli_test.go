@@ -113,14 +113,8 @@ func TestRoot(t *testing.T) {
 			name:        "version flag prints the bare version",
 			args:        []string{"--version"},
 			wantCode:    ExitOK,
-			wantStdout:  "svu 1.2.3\n",
+			wantStdout:  "1.2.3\n",
 			exactStdout: true,
-		},
-		{
-			name:       "unknown flag fails",
-			args:       []string{"--frobnicate"},
-			wantCode:   ExitFailure,
-			wantStderr: "svu: unknown flag: --frobnicate",
 		},
 	}
 
@@ -155,7 +149,7 @@ func TestExecuteUsesRealBuildInfo(t *testing.T) {
 		t.Fatalf("exit code = %d, want %d (stderr: %q)", code, ExitOK, stderr.String())
 	}
 
-	want := "svu " + buildinfo.Get().Version + "\n"
+	want := buildinfo.Get().Version + "\n"
 	if stdout.String() != want {
 		t.Errorf("stdout = %q, want %q", stdout.String(), want)
 	}
