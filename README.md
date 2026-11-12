@@ -450,20 +450,46 @@ Colour is used only when the stream is a terminal. Set
 
 ## Development
 
-You need Go (the version in `go.mod`, which is always the latest release), plus
-[golangci-lint](https://golangci-lint.run) v2 and, to build release artefacts
-locally, [GoReleaser](https://goreleaser.com) v2.
+You need:
+
+- **Go**, at the version in `.go-version`. svu always uses the latest Go
+  release.
+- [golangci-lint](https://golangci-lint.run) v2, built with that Go version.
+- [GoReleaser](https://goreleaser.com) v2, if you want to build release
+  artefacts locally.
+
+### Set up Go with goenv
+
+We recommend [goenv](https://github.com/go-nv/goenv) for managing Go. It reads
+`.go-version` and switches to that version whenever you're in this repository,
+so you're always on the version svu builds with, whatever else you have
+installed.
 
 ```sh
-make help       # list all targets
-make build      # build ./bin/svu
-make test       # run tests with the race detector, in random order
-make cover      # run tests and open a coverage report
-make lint       # run golangci-lint
-make vuln       # check for known vulnerabilities that svu's code can reach
-make go-latest  # move go.mod to the latest Go release
-make check      # tidy, format, lint and test: run this before pushing
-make snapshot   # build every release artefact into ./dist without publishing
+goenv install --skip-existing   # install the Go version in .go-version
+go version                      # check: it should match .go-version
+```
+
+When svu moves to a new Go release, pull and run the same `goenv install`
+again.
+
+Without goenv, install the version in `.go-version` some other way. Go's own
+toolchain switching (`GOTOOLCHAIN=auto`, the default) will also fetch it for
+you, as long as your installed Go is 1.21 or newer.
+
+### Make targets
+
+```sh
+make help              # list all targets
+make build             # build ./bin/svu
+make test              # run tests with the race detector, in random order
+make cover             # run tests and open a coverage report
+make lint              # run golangci-lint
+make vuln              # check for known vulnerabilities that svu's code can reach
+make go-latest         # move go.mod and .go-version to the latest Go release
+make go-version-check  # check .go-version matches go.mod
+make check             # tidy, format, lint and test: run this before pushing
+make snapshot          # build every release artefact into ./dist without publishing
 ```
 
 ### Project layout

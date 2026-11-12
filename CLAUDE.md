@@ -21,10 +21,14 @@ https://github.com/tedslittlerobot/svu.
 
 - Module path: `github.com/tedslittlerobot/svu`
 - Go version: **always the latest Go release.** The `go` line in `go.mod` is
-  the single source of truth: CI, release builds and goenv all read it. When
-  a new Go version is out, update in one commit:
-  1. `make go-latest` (runs `go get go@latest` and `go mod tidy`);
-  2. if you use goenv, `goenv install <version>`;
+  the source of truth, and CI and release builds read it. `.go-version` holds
+  the same version for [goenv](https://github.com/go-nv/goenv), the
+  recommended way to manage Go for this project. `make check` fails if the
+  two differ. When a new Go version is out, update in one commit:
+  1. `make go-latest` (runs `go get go@latest` and `go mod tidy`, and
+     rewrites `.go-version`);
+  2. `goenv install --skip-existing`, which installs the version named in
+     `.go-version`;
   3. bump golangci-lint in `.github/workflows/ci.yml` to a release built with
      that Go (`golangci-lint version` shows it), since older builds refuse
      newer Go;
@@ -54,7 +58,8 @@ make test       # go test -race -shuffle=on ./...
 make lint       # golangci-lint run (config: .golangci.yml)
 make fmt        # golangci-lint fmt (gofmt + goimports)
 make build      # ./bin/svu with version info linked in
-make go-latest  # move go.mod to the latest Go release (see Project)
+make go-latest  # move go.mod and .go-version to the latest Go release (see Project)
+make go-version-check  # .go-version matches go.mod (part of make check)
 make vuln       # govulncheck: known vulnerabilities svu's code can reach (CI runs it too)
 make snapshot   # goreleaser release --snapshot --clean (validates release config)
 go test ./internal/cli -run TestVersionCommand   # run a single test

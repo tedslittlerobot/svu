@@ -2,7 +2,8 @@ name: Go version
 
 # svu always builds with the latest Go release (see CLAUDE.md). This fails as
 # soon as go.mod falls behind, including on a quiet week with no other
-# changes, so that a new Go release is never missed.
+# changes, so that a new Go release is never missed. It also checks that
+# .go-version, which goenv reads, says the same as go.mod.
 
 on:
   pull_request:
@@ -26,6 +27,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      - name: Check .go-version matches go.mod
+        run: make go-version-check
 
       - name: Compare go.mod with the latest Go release
         run: |

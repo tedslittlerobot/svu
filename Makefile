@@ -15,7 +15,7 @@ LDFLAGS := -s -w \
 
 .PHONY: help
 help: ## Show this help
-	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-17s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: build
 build: ## Build the svu binary into ./bin
@@ -48,17 +48,28 @@ tidy: ## Tidy and verify module dependencies
 	go mod tidy
 	go mod verify
 
+GO_MOD_VERSION = $(shell sed -n 's/^go //p' go.mod)
+
 .PHONY: go-latest
-go-latest: ## Move go.mod to the latest Go release (needs network)
+go-latest: ## Move go.mod and .go-version to the latest Go release (needs network)
 	go get go@latest
 	go mod tidy
+	sed -n 's/^go //p' go.mod > .go-version
+	@echo "Now on Go $$(cat .go-version). With goenv, run: goenv install --skip-existing"
+
+.PHONY: go-version-check
+go-version-check: ## Check that .go-version matches the go line in go.mod
+	@if [ "$$(cat .go-version)" != "$(GO_MOD_VERSION)" ]; then \
+		echo ".go-version says $$(cat .go-version), but go.mod says $(GO_MOD_VERSION). Run make go-latest." >&2; \
+		exit 1; \
+	fi
 
 .PHONY: vuln
 vuln: ## Check for known vulnerabilities that svu's code can reach (needs network)
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 .PHONY: check
-check: tidy fmt lint test ## Tidy, format, lint and test; do this before pushing
+check: go-version-check tidy fmt lint test ## Tidy, format, lint and test; do this before pushing
 
 .PHONY: snapshot
 snapshot: ## Build release artefacts locally without publishing
