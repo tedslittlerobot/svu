@@ -75,7 +75,8 @@ internal/cli/         One file per command (<name>.go + <name>_test.go).
                       cli.go holds Execute, the root command and Streams.
                       modify.go is svu modify; modifiers.go and input.go support it.
                       latest.go is svu latest. tags.go reads git tags for both.
-                      validate.go is svu validate. auto.go is svu modify --auto.
+                      validate.go is svu validate. auto.go is svu modify --auto,
+                      and apply.go is svu modify --apply.
 internal/buildinfo/   Version metadata from ldflags, falling back to debug.ReadBuildInfo.
 internal/semver/      Parsing, ordering, formatting and modifying versions.
 internal/commits/     Reads Conventional Commits messages and works out the bump.

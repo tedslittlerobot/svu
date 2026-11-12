@@ -48,6 +48,9 @@ const (
 	// ExitNothingToRelease means svu modify --auto found no commits since
 	// the latest tag that need a new version.
 	ExitNothingToRelease = 8
+	// ExitTagExists means svu modify --apply was asked to make a tag that
+	// already exists.
+	ExitTagExists = 9
 )
 
 // Streams holds the I/O handles available to commands.
@@ -64,6 +67,8 @@ type environment struct {
 	readTags tagReader
 	// readMessages reads commit messages, for svu modify --auto.
 	readMessages messageReader
+	// createTag tags a commit, for svu modify --apply.
+	createTag tagCreator
 	// getenv returns an environment variable, or "" if it is unset.
 	getenv func(string) string
 }
@@ -75,6 +80,7 @@ func Execute(ctx context.Context, args []string, streams Streams) int {
 		info:         buildinfo.Get(),
 		readTags:     git.Tags,
 		readMessages: git.Messages,
+		createTag:    git.CreateTag,
 		getenv:       os.Getenv,
 	})
 }

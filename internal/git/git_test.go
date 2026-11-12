@@ -2,9 +2,12 @@ package git
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/tedslittlerobot/svu/internal/git/gittest"
@@ -275,4 +278,140 @@ func TestMessagesEdgeCases(t *testing.T) {
 	if _, err := Messages(t.Context(), repo, "v9.9.9"); !errors.As(err, &cmdErr) {
 		t.Errorf("Messages() since a missing tag error = %v, want a CommandError", err)
 	}
+}
+
+// isolated is the environment for git in CreateTag tests: no user
+// configuration, a fixed identity, and editor as the editor.
+func isolated(editor string) []string {
+	return []string{
+		"GIT_CONFIG_GLOBAL=/dev/null",
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_COMMITTER_NAME=svu tests",
+		"GIT_COMMITTER_EMAIL=tests@example.com",
+		"GIT_EDITOR=" + editor,
+	}
+}
+
+// fakeEditor writes a script that acts as the editor: it writes message to
+// the file git asks it to edit, and exits with status.
+func fakeEditor(t *testing.T, message string, status int) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "editor")
+	script := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' %q > \"$1\"\nexit %d\n", message, status)
+
+	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	return path
+}
+
+// tagOutput runs git in dir and returns its output, for checking tags.
+func tagOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+
+	out, err := run(t.Context(), "git", dir, args...)
+	if err != nil {
+		t.Fatalf("git %v: %v", args, err)
+	}
+
+	return strings.TrimSpace(out)
+}
+
+func TestCreateTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("makes a lightweight tag on HEAD", func(t *testing.T) {
+		t.Parallel()
+
+		dir := gittest.NewRepository(t)
+
+		if err := createTag(t.Context(), "git", dir, "v1.0.0", nil, isolated("false")); err != nil {
+			t.Fatalf("createTag() error = %v, want nil", err)
+		}
+
+		if got := tagOutput(t, dir, "cat-file", "-t", "refs/tags/v1.0.0"); got != "commit" {
+			t.Errorf("tag type = %q, want a lightweight tag on a commit", got)
+		}
+
+		if got, want := tagOutput(t, dir, "rev-parse", "v1.0.0^{commit}"), tagOutput(t, dir, "rev-parse", "HEAD"); got != want {
+			t.Errorf("tag points at %s, want HEAD %s", got, want)
+		}
+	})
+
+	t.Run("makes an annotated tag with a message from the editor", func(t *testing.T) {
+		t.Parallel()
+
+		dir := gittest.NewRepository(t)
+
+		var out strings.Builder
+
+		editor := &Editor{In: strings.NewReader(""), Out: &out}
+
+		if err := createTag(t.Context(), "git", dir, "v1.0.0", editor, isolated(fakeEditor(t, "First release", 0))); err != nil {
+			t.Fatalf("createTag() error = %v, want nil", err)
+		}
+
+		if got := tagOutput(t, dir, "cat-file", "-t", "refs/tags/v1.0.0"); got != "tag" {
+			t.Errorf("tag type = %q, want an annotated tag", got)
+		}
+
+		if got := tagOutput(t, dir, "tag", "--list", "--format=%(contents)", "v1.0.0"); got != "First release" {
+			t.Errorf("tag message = %q, want %q", got, "First release")
+		}
+	})
+
+	t.Run("reports a failed editor", func(t *testing.T) {
+		t.Parallel()
+
+		dir := gittest.NewRepository(t)
+		editor := &Editor{In: strings.NewReader(""), Out: io.Discard}
+
+		err := createTag(t.Context(), "git", dir, "v1.0.0", editor, isolated(fakeEditor(t, "x", 1)))
+
+		var cmdErr *CommandError
+		if !errors.As(err, &cmdErr) {
+			t.Errorf("createTag() error = %v, want a CommandError", err)
+		}
+	})
+
+	t.Run("refuses an existing tag before opening the editor", func(t *testing.T) {
+		t.Parallel()
+
+		dir := gittest.NewRepository(t, "v1.0.0")
+
+		// An editor that fails, to show it never ran: the error would differ.
+		editor := &Editor{In: strings.NewReader(""), Out: io.Discard}
+
+		for _, e := range []*Editor{nil, editor} {
+			err := createTag(t.Context(), "git", dir, "v1.0.0", e, isolated(fakeEditor(t, "x", 1)))
+			if !errors.Is(err, ErrTagExists) {
+				t.Errorf("createTag(editor %t) error = %v, want ErrTagExists", e != nil, err)
+			}
+		}
+	})
+
+	t.Run("reports errors from git", func(t *testing.T) {
+		t.Parallel()
+
+		if err := CreateTag(t.Context(), t.TempDir(), "v1.0.0", nil); !errors.Is(err, ErrNotRepository) {
+			t.Errorf("CreateTag() outside a repository error = %v, want ErrNotRepository", err)
+		}
+
+		if err := CreateTag(t.Context(), filepath.Join(t.TempDir(), "missing"), "v1.0.0", nil); !errors.Is(err, ErrDirectoryNotFound) {
+			t.Errorf("CreateTag() in a missing directory error = %v, want ErrDirectoryNotFound", err)
+		}
+
+		editor := &Editor{In: strings.NewReader(""), Out: io.Discard}
+		if err := createTag(t.Context(), "svu-test-git-that-does-not-exist", t.TempDir(), "v1.0.0", editor, nil); !errors.Is(err, ErrNotInstalled) {
+			t.Errorf("createTag() without git error = %v, want ErrNotInstalled", err)
+		}
+
+		// git refuses names that aren't valid refs.
+		var cmdErr *CommandError
+		if err := createTag(t.Context(), "git", gittest.NewRepository(t), "bad..name", nil, isolated("false")); !errors.As(err, &cmdErr) {
+			t.Errorf("createTag() with a bad name error = %v, want a CommandError", err)
+		}
+	})
 }

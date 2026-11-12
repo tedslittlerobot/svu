@@ -39,6 +39,8 @@ type invocation struct {
 	// messages stands in for git's commit log. nil fails the test if svu
 	// reads it.
 	messages messageReader
+	// createTag stands in for git tag. nil fails the test if svu tags.
+	createTag tagCreator
 	// env is the environment variables svu sees. nil means none.
 	env map[string]string
 }
@@ -79,13 +81,21 @@ func invoke(t *testing.T, inv invocation) result {
 		}
 	}
 
+	if inv.createTag == nil {
+		inv.createTag = func(context.Context, string, string, *git.Editor) error {
+			t.Error("svu made a tag, want it not to")
+
+			return errors.New("unexpected call to make a tag")
+		}
+	}
+
 	var stdout, stderr bytes.Buffer
 
 	code := execute(t.Context(), inv.args, Streams{
 		In:  inv.stdin,
 		Out: &stdout,
 		Err: &stderr,
-	}, environment{info: testInfo, readTags: inv.tags, readMessages: inv.messages, getenv: inv.getenv()})
+	}, environment{info: testInfo, readTags: inv.tags, readMessages: inv.messages, createTag: inv.createTag, getenv: inv.getenv()})
 
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
 }

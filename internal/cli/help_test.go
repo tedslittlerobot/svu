@@ -61,6 +61,12 @@ and perf bump PATCH. If the latest tag is a pre-release that already covers
 the bump, it carries on from it. If no commit needs a new version, svu modify
 fails with exit status 8. --explain says on stderr how the bump was chosen.
 
+--apply also tags the checked-out commit with the new version, named like the
+latest tag (with a "v" if it has one). --apply-annotate makes an annotated
+tag, and opens your editor for its message. Neither pushes the tag. If the
+version is already tagged, nothing is tagged or printed, and svu modify fails
+with exit status 9.
+
 Usage:
   svu modify [version] [flags]
 
@@ -78,6 +84,7 @@ Examples:
   svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
   svu m --auto --explain              # the bump the commits since the latest tag need
   svu m --auto --rc                   # the same, as a release candidate
+  svu m --auto --apply                # tag the checked-out commit with it
 
 Input:
       --directory path     Read tags from the git repository containing path
@@ -101,6 +108,10 @@ Stage modifiers (use at most one):
 Output:
       --with-v-prefix      Print the version with a leading "v" (alias --vp)
       --explain            With --auto, say on stderr how the bump was chosen
+
+Tagging:
+      --apply              Tag the checked-out commit with the new version, as git tag does
+      --apply-annotate     Make an annotated tag, writing its message in your editor, as git tag --annotate does
 
 Other:
   -h, --help               Show this help

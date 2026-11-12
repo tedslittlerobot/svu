@@ -24,9 +24,10 @@ const (
 	groupVersion = "Version modifiers (use at most one)"
 	groupStage   = "Stage modifiers (use at most one)"
 	groupOutput  = "Output"
+	groupTagging = "Tagging"
 )
 
-var helpGroups = []string{groupInput, groupFilter, groupVersion, groupStage, groupOutput}
+var helpGroups = []string{groupInput, groupFilter, groupVersion, groupStage, groupOutput, groupTagging}
 
 // setHelpGroup puts a flag in a help group. The flag must exist.
 func setHelpGroup(flags *pflag.FlagSet, name, group string) {

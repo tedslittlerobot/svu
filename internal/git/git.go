@@ -1,4 +1,4 @@
-// Package git reads information from git repositories by running the git
+// Package git reads from and tags git repositories by running the git
 // command.
 //
 // It is an adapter: it knows how to ask git for things, but nothing about
@@ -10,14 +10,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-// Errors returned by Tags. Use errors.Is to check for them.
+// Errors returned by this package. Use errors.Is to check for them.
 var (
+	// ErrTagExists means CreateTag was asked for a tag that already exists.
+	ErrTagExists = errors.New("tag already exists")
 	// ErrNotInstalled means the git command could not be found.
 	ErrNotInstalled = errors.New("git is not installed")
 	// ErrNotRepository means the directory is not inside a git repository.
@@ -172,8 +175,88 @@ func checkDirectory(dir string) error {
 	return nil
 }
 
+// Editor is the terminal that git runs the user's editor in, to write an
+// annotated tag's message.
+type Editor struct {
+	// In is the editor's input, usually the terminal.
+	In io.Reader
+	// Out is the editor's output, usually the terminal. It should not be
+	// where a command's main output goes.
+	Out io.Writer
+}
+
+// CreateTag tags the checked-out commit with name, in the repository that
+// contains dir. With a nil editor, it makes a lightweight tag, as git tag
+// does. Otherwise it makes an annotated tag, as git tag --annotate does, and
+// git opens the user's editor through editor for the message.
+//
+// It returns an error wrapping ErrTagExists, without opening the editor, if
+// the tag already exists.
+func CreateTag(ctx context.Context, dir, name string, editor *Editor) error {
+	return createTag(ctx, "git", dir, name, editor, nil)
+}
+
+// createTag is CreateTag with the git executable and extra environment
+// variables for git injected, so tests can choose the editor.
+func createTag(ctx context.Context, gitPath, dir, name string, editor *Editor, env []string) error {
+	if dir != "" {
+		if err := checkDirectory(dir); err != nil {
+			return err
+		}
+	}
+
+	// Check first, so that nobody writes a message for a tag that can't be
+	// made. rev-parse exits with an error, and no message, if there is none.
+	_, err := runWithEnv(ctx, gitPath, dir, env, "rev-parse", "--quiet", "--verify", "refs/tags/"+name)
+
+	var cmdErr *CommandError
+
+	switch {
+	case err == nil:
+		return fmt.Errorf("%w: %s", ErrTagExists, name)
+	case !errors.As(err, &cmdErr) || cmdErr.Stderr != "":
+		return err
+	}
+
+	if editor == nil {
+		_, err := runWithEnv(ctx, gitPath, dir, env, "tag", name)
+		if errors.As(err, &cmdErr) && strings.Contains(cmdErr.Stderr, "already exists") {
+			return fmt.Errorf("%w: %s", ErrTagExists, name)
+		}
+
+		return err
+	}
+
+	args := []string{"tag", "--annotate", name}
+
+	// The editor needs the terminal, so git's streams are the editor's.
+	cmd := exec.CommandContext(ctx, gitPath, args...) //nolint:gosec // G204: gitPath is "git" or a test double, and args are fixed by this package.
+	cmd.Dir = dir
+	cmd.Stdin = editor.In
+	cmd.Stdout = editor.Out
+	cmd.Stderr = editor.Out
+	cmd.Env = append(cmd.Environ(), env...)
+
+	err = cmd.Run()
+
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, exec.ErrNotFound):
+		return ErrNotInstalled
+	default:
+		// git's explanation went to the terminal, with the editor.
+		return &CommandError{Args: args, Err: err}
+	}
+}
+
 // run runs git with args in dir and returns its standard output.
 func run(ctx context.Context, gitPath, dir string, args ...string) (string, error) {
+	return runWithEnv(ctx, gitPath, dir, nil, args...)
+}
+
+// runWithEnv is run, with extra environment variables for git.
+func runWithEnv(ctx context.Context, gitPath, dir string, env []string, args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 
 	cmd := exec.CommandContext(ctx, gitPath, args...) //nolint:gosec // G204: gitPath is "git" or a test double, and args are fixed by this package.
@@ -182,7 +265,7 @@ func run(ctx context.Context, gitPath, dir string, args ...string) (string, erro
 	cmd.Stderr = &stderr
 	// Untranslated messages, so that errors can be recognised below, and no
 	// prompting for credentials.
-	cmd.Env = append(cmd.Environ(), "LC_ALL=C", "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = append(append(cmd.Environ(), "LC_ALL=C", "GIT_TERMINAL_PROMPT=0"), env...)
 
 	err := cmd.Run()
 

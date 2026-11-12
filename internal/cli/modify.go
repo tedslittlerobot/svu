@@ -29,7 +29,13 @@ already out while a pre-release is in progress.
 a breaking change bumps MAJOR (MINOR before 1.0.0), feat bumps MINOR, and fix
 and perf bump PATCH. If the latest tag is a pre-release that already covers
 the bump, it carries on from it. If no commit needs a new version, svu modify
-fails with exit status 8. --explain says on stderr how the bump was chosen.`
+fails with exit status 8. --explain says on stderr how the bump was chosen.
+
+--apply also tags the checked-out commit with the new version, named like the
+latest tag (with a "v" if it has one). --apply-annotate makes an annotated
+tag, and opens your editor for its message. Neither pushes the tag. If the
+version is already tagged, nothing is tagged or printed, and svu modify fails
+with exit status 9.`
 
 const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
   svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
@@ -40,13 +46,15 @@ const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
   svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
   svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
   svu m --auto --explain              # the bump the commits since the latest tag need
-  svu m --auto --rc                   # the same, as a release candidate`
+  svu m --auto --rc                   # the same, as a release candidate
+  svu m --auto --apply                # tag the checked-out commit with it`
 
 func newModifyCommand(env environment) *cobra.Command {
 	var (
 		tags    tagFlags
 		prefix  vPrefix
 		explain bool
+		apply   applyFlags
 		mods    *modifiers
 	)
 
@@ -78,11 +86,7 @@ func newModifyCommand(env environment) *cobra.Command {
 				return err
 			}
 
-			if mods.auto() {
-				return runAuto(cmd, args, env, q, mods, explain, prefix)
-			}
-
-			if explain {
+			if explain && !mods.auto() {
 				return &userError{
 					code:     ExitUsage,
 					headline: "--explain only works with --auto.",
@@ -91,13 +95,23 @@ func newModifyCommand(env environment) *cobra.Command {
 				}
 			}
 
-			v, err := readVersion(cmd.Context(), args, cmd.InOrStdin(), q, env.readTags)
+			var v semver.Version
+
+			if mods.auto() {
+				v, err = runAuto(cmd, args, env, q, mods, explain)
+			} else {
+				v, err = readVersion(cmd.Context(), args, cmd.InOrStdin(), q, env.readTags)
+				if err == nil {
+					v, err = mods.apply(v)
+				}
+			}
+
 			if err != nil {
 				return err
 			}
 
-			v, err = mods.apply(v)
-			if err != nil {
+			// Tag before printing: on failure, stdout must stay empty.
+			if err := apply.tag(cmd, env, q, v, prefix); err != nil {
 				return err
 			}
 
@@ -118,16 +132,18 @@ func newModifyCommand(env environment) *cobra.Command {
 	flags.BoolVar(&explain, "explain", false, "With --auto, say on stderr how the bump was chosen")
 	setHelpGroup(flags, "explain", groupOutput)
 
+	apply.add(cmd)
+
 	return cmd
 }
 
-// runAuto runs svu modify --auto: the bump comes from the Conventional
-// Commits since the latest tag.
+// runAuto works out the version for svu modify --auto: the bump comes from
+// the Conventional Commits since the latest tag.
 func runAuto(
-	cmd *cobra.Command, args []string, env environment, q tagQuery, mods *modifiers, explain bool, prefix vPrefix,
-) error {
+	cmd *cobra.Command, args []string, env environment, q tagQuery, mods *modifiers, explain bool,
+) (semver.Version, error) {
 	if len(args) > 0 {
-		return &userError{
+		return semver.Version{}, &userError{
 			code:     ExitUsage,
 			headline: "--auto can't be used when a version is given.",
 			detail:   "--auto works out the bump from the commits since the latest tag, so it reads the tags itself.",
@@ -144,13 +160,13 @@ func runAuto(
 	if err != nil {
 		var ue *userError
 		if errors.As(err, &ue) {
-			return ue
+			return semver.Version{}, ue
 		}
 
-		return mods.modifyError(err)
+		return semver.Version{}, mods.modifyError(err)
 	}
 
-	return writeResult(cmd.OutOrStdout(), prefix.format(v))
+	return v, nil
 }
 
 // atMostOneVersion checks that svu modify was given no more than one version.

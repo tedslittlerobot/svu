@@ -357,6 +357,34 @@ svu modify --auto --explain       # the same, saying why on stderr:
   can't be used with a version. `--initial` works too, to count every commit
   in a repository with no tags yet.
 
+#### Tagging the new version
+
+`--apply` tags the checked-out commit with the new version, as `git tag` does.
+`--apply-annotate` makes an annotated tag instead, as `git tag --annotate`
+does: git opens your editor for the tag's message.
+
+```sh
+svu modify --patch --apply              # prints 1.2.4, and tags v1.2.4
+svu modify --auto --rc --apply-annotate # opens your editor, then tags v1.3.0-rc-001
+git push origin v1.2.4                  # svu never pushes
+```
+
+- **The tag is named like your latest tag.** It gets a `v` if the latest tag
+  has one, or if you pass `--with-v-prefix`, so a repository of `v1.2.3`-style
+  tags gets `v1.2.4` even if you forget. With `--tag-prefix api/`, it's
+  `api/v1.2.4`.
+- **It never tags a version twice.** If the version is already tagged, in
+  either style, svu tags nothing, prints nothing, and exits with status `9`.
+- **It works with every way of choosing the version**, including a version
+  given as an argument, which is tagged in the current directory's
+  repository.
+- **stdout still holds only the version.** The editor uses the terminal
+  through stdin and stderr, so `next="$(svu m --patch --apply-annotate)"`
+  works.
+- If the editor fails, or you leave the message empty, git doesn't make the
+  tag. svu exits with status `7`. git picks the editor from `GIT_EDITOR`, the
+  `core.editor` setting, `VISUAL` or `EDITOR`.
+
 Stages only move forward, as set out in
 [`conventions/semver.md`](conventions/semver.md#stage-progression). svu
 refuses to:
@@ -373,6 +401,8 @@ Other flags:
 |---|---|
 | `--with-v-prefix`, `--vp` | Print a leading `v` |
 | `--explain` | With `--auto`, say on stderr how the bump was chosen |
+| `--apply` | Also [tag the checked-out commit](#tagging-the-new-version) with the new version |
+| `--apply-annotate` | The same, as an annotated tag, writing its message in your editor |
 
 With no version given, it also takes [the tag flags](#which-tags-svu-reads).
 They can't be used with a version, because there are no tags to read.
@@ -410,9 +440,9 @@ Every command accepts `--colour auto|always|never` (alias `--color`).
 ```sh
 svu latest --vp                    # v1.2.3          what's out now
 
-git tag "$(svu m --minor --rc --vp)"      # tags v1.3.0-rc-001
-git tag "$(svu m --rc --vp)"              # tags v1.3.0-rc-002
-git tag "$(svu m --release --vp)"         # tags v1.3.0
+svu m --minor --rc --apply         # tags v1.3.0-rc-001
+svu m --rc --apply                 # tags v1.3.0-rc-002
+svu m --release --apply            # tags v1.3.0
 ```
 
 Each `svu m` reads the tag created by the line before, so every step builds on
@@ -427,8 +457,7 @@ svu latest --at-head > /dev/null 2>&1 || status=$?
 if [ "$status" -eq 0 ]; then echo "Already tagged."; exit 0; fi
 if [ "$status" -ne 6 ]; then exit "$status"; fi   # 6: no version tag yet
 
-next="$(svu modify --patch --with-v-prefix)" || exit 1
-git tag -a "$next" -m "$next"
+next="$(svu modify --patch --with-v-prefix --apply)" || exit 1
 git push origin "$next"
 ```
 
@@ -450,11 +479,10 @@ fi
 ```sh
 # Exit status 8 means no commit since the latest tag needs a release.
 status=0
-next="$(svu modify --auto --vp)" || status=$?
+next="$(svu modify --auto --vp --apply)" || status=$?
 if [ "$status" -eq 8 ]; then echo "Nothing to release."; exit 0; fi
 if [ "$status" -ne 0 ]; then exit "$status"; fi
 
-git tag -a "$next" -m "$next"
 git push origin "$next"
 ```
 
@@ -463,13 +491,21 @@ git push origin "$next"
 ```sh
 svu latest --vp                    # v1.3.0-rc-002    the rc in progress
 svu latest --released --vp         # v1.2.3           what's out now
-git tag "$(svu m --hotfix --vp)"   # tags v1.2.4
+
+git switch -c hotfix/1.2 v1.2.3    # fix what's out, without the rc's changes
+git commit -am "fix: …"            # the fix itself
+svu m --hotfix --apply             # tags v1.2.4
 ```
+
+Branch from the release first: `--apply` tags the checked-out commit, so on
+`main` the hotfix would include the rc's unreleased work. To work out the
+number without branching, as in a planning step, `svu m --hotfix --global`
+gives `1.2.4` from anywhere.
 
 ### Start versioning a new repository
 
 ```sh
-git tag "$(svu m --initial 0.0.0 --minor --vp)"   # tags v0.1.0 when there are no tags yet
+svu m --initial 0.0.0 --minor --vp --apply   # tags v0.1.0 when there are no tags yet
 ```
 
 With tags present, `--initial` is ignored, so the same line works on every
@@ -478,8 +514,7 @@ run.
 ### Version one package in a monorepo
 
 ```sh
-next="$(svu m --tag-prefix api/ --minor --vp)"   # api/v1.4.0 → v1.5.0
-git tag "api/$next"
+svu m --tag-prefix api/ --minor --apply   # api/v1.4.0 → tags api/v1.5.0
 ```
 
 ### Work on a maintenance branch
@@ -487,7 +522,7 @@ git tag "api/$next"
 ```sh
 git switch support/1.x
 svu latest                         # 1.2.5    this branch's latest, not main's 2.0.0
-git tag "$(svu m --patch --vp)"    # tags v1.2.6
+svu m --patch --apply              # tags v1.2.6
 ```
 
 ### Version a project in another directory
@@ -518,6 +553,7 @@ svu is built to be captured with `$(…)`:
 | `6` | No tag that is a version of the kind asked for |
 | `7` | git isn't installed, or failed |
 | `8` | Nothing to release: `svu modify --auto` found no commits that need a new version |
+| `9` | The tag already exists: `svu modify --apply` was asked to tag a version that's already tagged |
 
 So this either gives a valid version, or stops the script with an empty
 variable:
@@ -620,8 +656,7 @@ suite, then builds and publishes everything with GoReleaser. svu can work out
 the tag:
 
 ```sh
-next="$(svu modify --minor --with-v-prefix)"   # for example v0.2.0
-git tag -a "$next" -m "$next"
+next="$(svu modify --minor --with-v-prefix --apply-annotate)"   # opens your editor; tags v0.2.0, say
 git push origin "$next"
 ```
 

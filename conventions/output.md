@@ -46,7 +46,9 @@ own, goes to stdout.
   [colour rules](#when-colour-is-used) for stdout, so it is plain whenever
   stdout isn't a terminal.
 - On failure, stdout **must** be empty. svu never prints a partial or
-  best-guess result before failing.
+  best-guess result before failing. A command with a side effect, such as
+  `svu modify --apply`, does it before printing, so the output means it
+  happened.
 
 This means the following always gives either a valid version or a non-zero
 exit status with an empty variable:
@@ -64,6 +66,9 @@ That includes:
 - help and usage text from `--help` or `-h`
 - explanations a flag asks for, such as `svu modify --auto --explain`. These
   are plain sentences with no label, and are only written when asked for
+- the editor that `svu modify --apply-annotate` opens through git, which uses
+  the terminal through stdin and stderr, so that stdout still holds only the
+  version
 - any diagnostic or explanatory message
 
 ## Exit status
@@ -83,6 +88,7 @@ not** change.
 | `6` | No matching tag | No tag is a valid version, or none is a release when only releases are wanted |
 | `7` | git failed | git isn't installed, or reported an error |
 | `8` | Nothing to release | `svu modify --auto` found no commits since the latest tag that need a new version |
+| `9` | Tag already exists | `svu modify --apply` was asked to tag a version that is already tagged |
 
 A new kind of failure gets a new number. A failure that fits an existing kind
 uses its number.

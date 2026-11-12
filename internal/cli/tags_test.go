@@ -295,6 +295,10 @@ func TestExitCodes(t *testing.T) {
 			name: "nothing to release", args: []string{"modify", "--auto"},
 			tags: scopedTags(t, "", []string{"v1.0.0"}, nil), messages: noCommits, want: ExitNothingToRelease,
 		},
+		{
+			name: "tag exists", args: []string{"modify", "1.0.0", "--apply"},
+			tags: scopedTags(t, "", []string{"v1.0.0"}, nil), want: ExitTagExists,
+		},
 	}
 
 	seen := map[int]string{}
