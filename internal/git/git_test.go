@@ -87,7 +87,7 @@ func TestTagsErrors(t *testing.T) {
 		},
 		{name: "reports a path that is a file", gitPath: "git", dir: file, want: ErrNotDirectory},
 		{
-			name: "reports git not being installed", gitPath: "svm-test-git-that-does-not-exist",
+			name: "reports git not being installed", gitPath: "svu-test-git-that-does-not-exist",
 			dir: t.TempDir(), want: ErrNotInstalled,
 		},
 	}

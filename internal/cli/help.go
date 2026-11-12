@@ -14,7 +14,7 @@ import (
 
 // helpGroupAnnotation is the flag annotation that names a flag's group in
 // help.
-const helpGroupAnnotation = "svm_help_group"
+const helpGroupAnnotation = "svu_help_group"
 
 // Flag groups, in the order help shows them. Flags without a group are shown
 // last.
@@ -50,7 +50,7 @@ func renderHelp(w io.Writer, cmd *cobra.Command, s colour.Styler) {
 	writeFlags(&b, cmd, s)
 
 	if cmd.HasAvailableSubCommands() {
-		b.WriteString("\nRun " + s.Cyan(cmd.CommandPath()+" <command> --help") + " for help with a command.\n")
+		b.WriteString("\nRun " + s.Cyan(cmd.Root().Name()+" help <command>") + " for help with a command.\n")
 	}
 
 	_, _ = io.WriteString(w, b.String())
@@ -63,13 +63,18 @@ func heading(b *strings.Builder, s colour.Styler, title string) {
 func writeUsage(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
 	heading(b, s, "Usage")
 
-	if cmd.Runnable() {
+	// A command with subcommands is only used through them, even if it runs
+	// something on its own.
+	if cmd.HasAvailableSubCommands() {
+		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + " <command>\n")
+	} else {
 		rest := strings.TrimPrefix(cmd.UseLine(), cmd.CommandPath())
 		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + rest + "\n")
 	}
 
-	if cmd.HasAvailableSubCommands() {
-		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + " <command>\n")
+	if len(cmd.Aliases) > 0 {
+		heading(b, s, "Aliases")
+		b.WriteString("  " + s.Cyan(strings.Join(append([]string{cmd.Name()}, cmd.Aliases...), ", ")) + "\n")
 	}
 }
 
@@ -95,7 +100,9 @@ func writeCommands(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
 	var commands []*cobra.Command
 
 	for _, c := range cmd.Commands() {
-		if c.IsAvailableCommand() {
+		// cobra counts the help command as unavailable, but it's one of svu's
+		// commands like any other.
+		if c.IsAvailableCommand() || (c.Name() == "help" && !c.Hidden) {
 			commands = append(commands, c)
 		}
 	}
@@ -104,15 +111,19 @@ func writeCommands(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
 		return
 	}
 
+	names := func(c *cobra.Command) string {
+		return strings.Join(append([]string{c.Name()}, c.Aliases...), ", ")
+	}
+
 	width := 0
 	for _, c := range commands {
-		width = max(width, len(c.Name()))
+		width = max(width, len(names(c)))
 	}
 
 	heading(b, s, "Commands")
 
 	for _, c := range commands {
-		b.WriteString("  " + s.Cyan(c.Name()) + strings.Repeat(" ", width-len(c.Name())) + "  " + c.Short + "\n")
+		b.WriteString("  " + s.Cyan(names(c)) + strings.Repeat(" ", width-len(names(c))) + "  " + c.Short + "\n")
 	}
 }
 
@@ -212,4 +223,37 @@ func newFlagLine(f *pflag.Flag) flagLine {
 	}
 
 	return flagLine{names: names, placeholder: placeholder, usage: usage}
+}
+
+// newHelpCommand returns svu's help command. It replaces cobra's, which
+// reports an unknown topic on stdout.
+func newHelpCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "help [command]",
+		Short: "Show help for svu or one of its commands",
+		Args:  cobra.ArbitraryArgs,
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, _ string) ([]cobra.Completion, cobra.ShellCompDirective) {
+			var names []cobra.Completion
+
+			if len(args) == 0 {
+				for _, c := range cmd.Root().Commands() {
+					if c.IsAvailableCommand() {
+						names = append(names, cobra.CompletionWithDesc(c.Name(), c.Short))
+					}
+				}
+			}
+
+			return names, cobra.ShellCompDirectiveNoFileComp
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target, rest, err := cmd.Root().Find(args)
+			if err != nil || len(rest) > 0 {
+				return unknownCommandError(cmd.Root(), strings.Join(args, " "))
+			}
+
+			target.InitDefaultHelpFlag() // So that help lists --help.
+
+			return target.Help()
+		},
+	}
 }

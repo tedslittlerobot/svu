@@ -103,7 +103,7 @@ func TestInfoString(t *testing.T) {
 		Platform:  "linux/amd64",
 	}
 
-	const want = "svm 1.2.3 (commit abc123, built 2026-01-01T00:00:00Z, go1.26.4, linux/amd64)"
+	const want = "svu 1.2.3 (commit abc123, built 2026-01-01T00:00:00Z, go1.26.4, linux/amd64)"
 
 	if got := info.String(); got != want {
 		t.Errorf("String() = %q, want %q", got, want)

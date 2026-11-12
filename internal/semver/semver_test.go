@@ -88,7 +88,7 @@ func TestCompareIgnoresPrefix(t *testing.T) {
 }
 
 // TestCompareMatchesSemVer checks the invariant in §Precedence: for any two
-// svm versions, svm's ordering is the same as plain SemVer 2.0.0 ordering.
+// svu versions, svu's ordering is the same as plain SemVer 2.0.0 ordering.
 func TestCompareMatchesSemVer(t *testing.T) {
 	t.Parallel()
 
@@ -122,7 +122,7 @@ func TestCompareMatchesSemVer(t *testing.T) {
 
 // semverCompare is a reference implementation of SemVer 2.0.0 §11 precedence
 // for valid SemVer strings without build metadata. It knows nothing about
-// svm's stages, so it is an independent check on Compare.
+// svu's stages, so it is an independent check on Compare.
 func semverCompare(a, b string) int {
 	aCore, aPre, _ := strings.Cut(a, "-")
 	bCore, bPre, _ := strings.Cut(b, "-")

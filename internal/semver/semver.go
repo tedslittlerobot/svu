@@ -1,4 +1,4 @@
-// Package semver parses, compares and formats versions in svm's subset of
+// Package semver parses, compares and formats versions in svu's subset of
 // Semantic Versioning 2.0.0.
 //
 // The accepted format, ordering and stage rules are defined in
@@ -76,7 +76,7 @@ const (
 	MaxIndex = 999
 )
 
-// Version is a parsed svm version. A release version has Stage Release and
+// Version is a parsed svu version. A release version has Stage Release and
 // Index 0; a pre-release version has a pre-release Stage and an Index from
 // MinIndex to MaxIndex.
 //

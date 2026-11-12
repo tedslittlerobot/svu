@@ -20,21 +20,21 @@ var testInfo = buildinfo.Info{
 	Platform:  "linux/amd64",
 }
 
-// result captures everything observable about one svm invocation.
+// result captures everything observable about one svu invocation.
 type result struct {
 	code   int
 	stdout string
 	stderr string
 }
 
-// invocation describes one in-process run of svm.
+// invocation describes one in-process run of svu.
 type invocation struct {
 	args []string
-	// stdin is what svm reads from standard input. nil means empty.
+	// stdin is what svu reads from standard input. nil means empty.
 	stdin io.Reader
-	// tags stands in for git. nil fails the test if svm reads git tags.
+	// tags stands in for git. nil fails the test if svu reads git tags.
 	tags tagReader
-	// env is the environment variables svm sees. nil means none.
+	// env is the environment variables svu sees. nil means none.
 	env map[string]string
 }
 
@@ -42,7 +42,7 @@ func (inv invocation) getenv() func(string) string {
 	return func(key string) string { return inv.env[key] }
 }
 
-// run invokes svm in-process with the given arguments, empty stdin and no
+// run invokes svu in-process with the given arguments, empty stdin and no
 // access to git, using testInfo as the build information.
 func run(t *testing.T, args ...string) result {
 	t.Helper()
@@ -50,7 +50,7 @@ func run(t *testing.T, args ...string) result {
 	return invoke(t, invocation{args: args})
 }
 
-// invoke runs svm in-process as described by inv.
+// invoke runs svu in-process as described by inv.
 func invoke(t *testing.T, inv invocation) result {
 	t.Helper()
 
@@ -60,7 +60,7 @@ func invoke(t *testing.T, inv invocation) result {
 
 	if inv.tags == nil {
 		inv.tags = func(context.Context, string) ([]string, error) {
-			t.Error("svm read git tags, want it not to")
+			t.Error("svu read git tags, want it not to")
 
 			return nil, errors.New("unexpected call to read git tags")
 		}
@@ -110,41 +110,17 @@ func TestRoot(t *testing.T) {
 		exactStdout bool
 	}{
 		{
-			name:       "help flag prints help to stderr",
-			args:       []string{"--help"},
-			wantCode:   ExitOK,
-			wantStderr: "Usage:",
-		},
-		{
-			name:       "short help flag prints help to stderr",
-			args:       []string{"-h"},
-			wantCode:   ExitOK,
-			wantStderr: "Usage:",
-		},
-		{
 			name:        "version flag prints the bare version",
 			args:        []string{"--version"},
 			wantCode:    ExitOK,
-			wantStdout:  "svm 1.2.3\n",
+			wantStdout:  "svu 1.2.3\n",
 			exactStdout: true,
-		},
-		{
-			name:       "help describes where the version comes from",
-			args:       []string{"--help"},
-			wantCode:   ExitOK,
-			wantStderr: "from the latest git tag that is a valid version",
-		},
-		{
-			name:       "an unknown command is read as an invalid version",
-			args:       []string{"frobnicate"},
-			wantCode:   ExitFailure,
-			wantStderr: `Error: "frobnicate" is not a valid version.`,
 		},
 		{
 			name:       "unknown flag fails",
 			args:       []string{"--frobnicate"},
 			wantCode:   ExitFailure,
-			wantStderr: "svm: unknown flag: --frobnicate",
+			wantStderr: "svu: unknown flag: --frobnicate",
 		},
 	}
 
@@ -179,7 +155,7 @@ func TestExecuteUsesRealBuildInfo(t *testing.T) {
 		t.Fatalf("exit code = %d, want %d (stderr: %q)", code, ExitOK, stderr.String())
 	}
 
-	want := "svm " + buildinfo.Get().Version + "\n"
+	want := "svu " + buildinfo.Get().Version + "\n"
 	if stdout.String() != want {
 		t.Errorf("stdout = %q, want %q", stdout.String(), want)
 	}

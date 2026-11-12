@@ -1,4 +1,4 @@
-BINARY  := svm
+BINARY  := svu
 PKG     := github.com/tedslittlerobot/svm
 BIN_DIR := bin
 
@@ -18,12 +18,12 @@ help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: build
-build: ## Build the svm binary into ./bin
-	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY) ./cmd/svm
+build: ## Build the svu binary into ./bin
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY) ./cmd/svu
 
 .PHONY: install
-install: ## Install svm into $GOBIN
-	go install -trimpath -ldflags "$(LDFLAGS)" ./cmd/svm
+install: ## Install svu into $GOBIN
+	go install -trimpath -ldflags "$(LDFLAGS)" ./cmd/svu
 
 .PHONY: test
 test: ## Run all tests with the race detector in random order

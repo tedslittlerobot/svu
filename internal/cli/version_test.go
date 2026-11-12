@@ -16,13 +16,13 @@ func TestVersionCommand(t *testing.T) {
 			name:       "prints full build information",
 			args:       []string{"version"},
 			wantCode:   ExitOK,
-			wantStdout: "svm 1.2.3 (commit abc123, built 2026-01-01T00:00:00Z, go1.26.4, linux/amd64)\n",
+			wantStdout: "svu 1.2.3 (commit abc123, built 2026-01-01T00:00:00Z, go1.26.4, linux/amd64)\n",
 		},
 		{
 			name:       "rejects positional arguments",
 			args:       []string{"version", "extra"},
 			wantCode:   ExitFailure,
-			wantStderr: `svm: unknown command "extra" for "svm version"` + "\n",
+			wantStderr: `svu: unknown command "extra" for "svu version"` + "\n",
 		},
 	}
 

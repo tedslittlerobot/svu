@@ -4,30 +4,33 @@ Guidance for working in this repository.
 
 ## Goal
 
-**The goal of this project is to make it easy to modify a semantic version.**
+**The goal of this project is to make it easy to work with semantic versions.**
+For now, the only thing being built is modifying a version (`svu modify`).
 
 Judge every feature, command, flag and design decision against this goal. Prefer
-whatever makes modifying a version simpler, more predictable and harder to get
+whatever makes working with a version simpler, more predictable and harder to get
 wrong. Push back on anything that doesn't serve it.
 
 ## Project
 
-`svm` (SemVer Modifier) is a Go command-line tool that modifies semantic
-versions. It is open source under the MIT licence and hosted at
-https://github.com/tedslittlerobot/svm.
+`svu` (Semantic Version Utilities) is a Go command-line tool for working with
+semantic versions. Each job is a subcommand; today there is one, `svu modify`
+(alias `svu m`). It is open source under the MIT licence and hosted at
+https://github.com/tedslittlerobot/svm (the repository and module path keep
+the project's earlier name).
 
 - Module path: `github.com/tedslittlerobot/svm`
 - Go version: the one in `go.mod`
 - CLI framework: [Cobra](https://github.com/spf13/cobra)
 - Spec: [`conventions/semver.md`](conventions/semver.md) defines the version
-  format svm accepts: a strict subset of
+  format svu accepts: a strict subset of
   [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html): fixed stages
   (`alpha` < `beta` < `rc`), three-digit indexes, and no build metadata.
   It is the source of truth for parsing, validation, precedence and stage
   progression. Where it is silent, SemVer 2.0.0 applies.
   Cite the relevant section in comments, and turn its valid/invalid example
   tables into test cases.
-- Invariant: for svm versions, svm's ordering must match plain SemVer
+- Invariant: for svu versions, svu's ordering must match plain SemVer
   ordering. Stage names stay alphabetical and indexes stay fixed-width. Add a
   test that checks this.
 - Changing `conventions/semver.md` changes behaviour. Update the doc and the
@@ -40,7 +43,7 @@ make check      # tidy, format, lint, test: must pass before any commit
 make test       # go test -race -shuffle=on ./...
 make lint       # golangci-lint run (config: .golangci.yml)
 make fmt        # golangci-lint fmt (gofmt + goimports)
-make build      # ./bin/svm with version info linked in
+make build      # ./bin/svu with version info linked in
 make snapshot   # goreleaser release --snapshot --clean (validates release config)
 go test ./internal/cli -run TestVersionCommand   # run a single test
 ```
@@ -48,10 +51,14 @@ go test ./internal/cli -run TestVersionCommand   # run a single test
 ## Layout
 
 ```text
-cmd/svm/main.go       Process boundary only: os.Args, os streams, signals, os.Exit.
+cmd/svu/main.go       Process boundary only: os.Args, os streams, signals, os.Exit.
 internal/cli/         One file per command (<name>.go + <name>_test.go).
                       cli.go holds Execute, the root command and Streams.
+                      modify.go is svu modify; modifiers.go and input.go support it.
 internal/buildinfo/   Version metadata from ldflags, falling back to debug.ReadBuildInfo.
+internal/semver/      Parsing, ordering, formatting and modifying versions.
+internal/git/         Reads tags by running the git command.
+internal/colour/      Decides when stderr uses colour, and applies it.
 ```
 
 New domain logic goes in its own focused package under `internal/` (for
@@ -125,11 +132,11 @@ and of every command's success and failure paths.
   variables, constants, packages, files), comments, string literals, test
   names, docs and commit messages. Write `colour`, `behaviour`, `initialise`,
   `normalise`, `licence` (noun) and `cancelled`.
-  - The only exception is a name svm doesn't control: a standard-library or
+  - The only exception is a name svu doesn't control: a standard-library or
     third-party identifier (`context.Canceled`, `color.New`), a flag or
     environment variable other tools define (`NO_COLOR`), or an alias kept
     for compatibility (`--color`). Use it exactly as written there, and keep
-    svm's own wrappers and names British (`colourEnabled`, not
+    svu's own wrappers and names British (`colourEnabled`, not
     `colorEnabled`).
   - `misspell` (UK locale) catches common American spellings in comments
     and strings, but it doesn't check identifiers and its word list is

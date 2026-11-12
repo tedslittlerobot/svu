@@ -1,4 +1,4 @@
-// Package cli is svm's command-line interface: it parses arguments, dispatches
+// Package cli is svu's command-line interface: it parses arguments, dispatches
 // to subcommands, and turns their results into output and exit codes.
 //
 // Commands here should stay thin. They translate between the terminal and the
@@ -20,6 +20,7 @@ import (
 	"github.com/tedslittlerobot/svm/internal/buildinfo"
 	"github.com/tedslittlerobot/svm/internal/colour"
 	"github.com/tedslittlerobot/svm/internal/git"
+	"github.com/tedslittlerobot/svm/internal/semver"
 )
 
 // Process exit codes.
@@ -35,7 +36,7 @@ type Streams struct {
 	Err io.Writer
 }
 
-// environment is what svm needs from the world outside its streams. Tests
+// environment is what svu needs from the world outside its streams. Tests
 // replace it to make runs deterministic.
 type environment struct {
 	info     buildinfo.Info
@@ -44,7 +45,7 @@ type environment struct {
 	getenv func(string) string
 }
 
-// Execute runs svm with the given arguments (excluding the program name) and
+// Execute runs svu with the given arguments (excluding the program name) and
 // returns the process exit code.
 func Execute(ctx context.Context, args []string, streams Streams) int {
 	return execute(ctx, args, streams, environment{
@@ -67,93 +68,55 @@ func execute(ctx context.Context, args []string, streams Streams, env environmen
 	return ExitOK
 }
 
-const rootLong = `svm (SemVer Modifier) reads and modifies semantic version strings.
+const rootLong = `svu (Semantic Version Utilities) works with semantic versions.
 
-svm reads one version:
+svu uses a strict subset of SemVer 2.0.0: MAJOR.MINOR.PATCH, optionally
+followed by a stage (alpha, beta or rc) and a three-digit index, as in
+1.2.3-rc-001.`
 
-  - from the version argument, or from standard input if the argument is "-";
-  - with no argument, from the latest git tag that is a valid version, in the
-    repository that contains the current directory, or --directory if given.
-
-It applies any modifiers, then prints the result on standard output. A
-version modifier on its own removes any stage. Add a stage modifier, as in
---minor --alpha, to start that stage at 001. Stages never go backwards.`
-
-const rootExample = `  svm 1.2.3 --minor            # 1.3.0
-  svm 1.2.3 --minor --alpha    # 1.3.0-alpha-001
-  svm 1.2.3-rc-001 --rc        # 1.2.3-rc-002
-  svm 1.2.3-rc-001 --release   # 1.2.3
-  echo v1.2.3 | svm - --patch  # 1.2.4
-  svm --patch --with-v-prefix  # the latest git tag, bumped, as in v1.2.4
-  svm --directory path/to/repository`
+const rootExample = `  svu modify 1.2.3 --minor     # 1.3.0
+  svu m --patch --rc           # the latest git tag's next patch, as an rc
+  svu help modify              # how to modify a version`
 
 func newRootCommand(streams Streams, env environment) *cobra.Command {
-	var (
-		opts       inputOptions
-		vPrefix    bool
-		mods       *modifiers
-		colourMode colourFlag
-	)
+	var colourMode colourFlag
 
 	root := &cobra.Command{
-		Use:               "svm [version]",
-		Short:             "svm (SemVer Modifier) reads and modifies semantic versions",
-		Long:              rootLong,
-		Example:           rootExample,
-		Version:           env.info.Version,
-		Args:              atMostOneVersion,
+		Use:     "svu",
+		Short:   "svu (Semantic Version Utilities) works with semantic versions",
+		Long:    rootLong,
+		Example: rootExample,
+		Version: env.info.Version,
+		// svu runs a command. On its own it shows help; given anything else,
+		// it says that isn't a command. This replaces cobra's own message, so
+		// that it follows conventions/output.md.
+		Args:              cobra.ArbitraryArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts.directorySet = cmd.Flags().Changed("directory")
-
-			// Check the flags before reading any input, which may run git.
-			if err := mods.validate(); err != nil {
-				return err
+			if len(args) == 0 {
+				return cmd.Help()
 			}
 
-			v, err := readVersion(cmd.Context(), args, cmd.InOrStdin(), opts, env.readTags)
-			if err != nil {
-				return err
-			}
-
-			v, err = mods.apply(v)
-			if err != nil {
-				return err
-			}
-
-			out := v.String()
-			if vPrefix {
-				out = "v" + out
-			}
-
-			return writeResult(cmd.OutOrStdout(), out)
+			return unknownCommandError(cmd, args[0])
 		},
 
 		// Errors are reported once, by execute, rather than by cobra.
 		SilenceErrors: true,
 		SilenceUsage:  true,
+
+		// cobra only sets its default when it reports unknown commands
+		// itself, which svu doesn't let it do.
+		SuggestionsMinimumDistance: 2,
 	}
-
-	// Flags appear in help in the order they are defined here, by group.
-	flags := root.Flags()
-	flags.SortFlags = false
-
-	flags.StringVar(&opts.directory, "directory", "", "Read tags from the git repository containing `path`")
-	setHelpGroup(flags, "directory", groupInput)
-	_ = root.MarkFlagDirname("directory") // Only fails if the flag doesn't exist.
-
-	mods = newModifiers(flags)
-
-	flags.BoolVar(&vPrefix, "with-v-prefix", false, `Print the version with a leading "v" (alias --vp)`)
-	setHelpGroup(flags, "with-v-prefix", groupOutput)
 
 	root.PersistentFlags().Var(&colourMode, "colour",
 		"Use colour on stderr: auto (the default), always or never (alias --color)") //nolint:misspell // --color is the alias output.md requires.
-	setHelpGroup(root.PersistentFlags(), "colour", groupOutput)
 
 	// Defined here, rather than by cobra, to control their wording.
+	flags := root.Flags()
+	flags.SortFlags = false
 	flags.BoolP("help", "h", false, "Show this help")
-	flags.BoolP("version", "v", false, "Print svm's version")
+	flags.BoolP("version", "v", false, "Print svu's version")
 
 	root.SetGlobalNormalizationFunc(flagAliases)
 
@@ -162,9 +125,8 @@ func newRootCommand(streams Streams, env environment) *cobra.Command {
 	root.SetErr(streams.Err)
 	root.SetVersionTemplate("{{.Name}} {{.Version}}\n")
 
-	// Help goes to stderr, coloured as conventions/output.md describes. Only
-	// --help shows it: the hidden placeholder replaces cobra's "help"
-	// command, so "svm help" is read as a version like any other word.
+	// Help goes to stderr, coloured as conventions/output.md describes, for
+	// --help, -h and svu help alike.
 	help := func(cmd *cobra.Command) {
 		on := colour.Enabled(colourMode.mode, env.getenv, cmd.ErrOrStderr())
 		renderHelp(cmd.ErrOrStderr(), cmd, colour.New(on))
@@ -175,13 +137,39 @@ func newRootCommand(streams Streams, env environment) *cobra.Command {
 
 		return nil
 	})
-	root.SetHelpCommand(&cobra.Command{Use: "__help", Hidden: true})
+	root.SetHelpCommand(newHelpCommand())
 
 	root.AddCommand(
+		newModifyCommand(env),
 		newVersionCommand(env.info),
 	)
 
 	return root
+}
+
+// unknownCommandError reports that name isn't one of svu's commands, and
+// suggests what was probably meant.
+func unknownCommandError(root *cobra.Command, name string) *userError {
+	ue := &userError{headline: fmt.Sprintf("%q is not an svu command.", name)}
+
+	suggestions := root.SuggestionsFor(name)
+
+	switch {
+	case isVersion(name):
+		ue.hint = fmt.Sprintf("To modify a version, run svu modify %s.", name)
+	case len(suggestions) > 0:
+		ue.hint = fmt.Sprintf("Did you mean svu %s?", suggestions[0])
+	default:
+		ue.hint = "To list svu's commands, run svu --help."
+	}
+
+	return ue
+}
+
+func isVersion(s string) bool {
+	_, err := semver.Parse(s)
+
+	return err == nil
 }
 
 // flagAliases maps alternative flag names to their canonical names.
@@ -215,33 +203,6 @@ func (f *colourFlag) Set(s string) error {
 	}
 
 	f.mode = mode
-
-	return nil
-}
-
-// atMostOneVersion checks that svm was given no more than one version.
-func atMostOneVersion(_ *cobra.Command, args []string) error {
-	if len(args) <= 1 {
-		return nil
-	}
-
-	return &userError{
-		headline: fmt.Sprintf("svm was given %d versions, but it takes at most one.", len(args)),
-		hint:     "Give a single version, as in svm 1.2.3.",
-	}
-}
-
-// writeResult writes the result to stdout, as conventions/output.md requires:
-// one version and a newline.
-func writeResult(w io.Writer, version string) error {
-	if _, err := fmt.Fprintln(w, version); err != nil {
-		return &userError{
-			headline: "svm could not write its output.",
-			detail:   "The output stream was closed before svm finished writing.",
-			hint:     reportHint,
-			err:      err,
-		}
-	}
 
 	return nil
 }

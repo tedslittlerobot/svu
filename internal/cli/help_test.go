@@ -6,9 +6,38 @@ import (
 )
 
 //nolint:misspell // The help names the --color alias.
-const rootHelp = `svm (SemVer Modifier) reads and modifies semantic version strings.
+const rootHelp = `svu (Semantic Version Utilities) works with semantic versions.
 
-svm reads one version:
+svu uses a strict subset of SemVer 2.0.0: MAJOR.MINOR.PATCH, optionally
+followed by a stage (alpha, beta or rc) and a three-digit index, as in
+1.2.3-rc-001.
+
+Usage:
+  svu <command>
+
+Examples:
+  svu modify 1.2.3 --minor     # 1.3.0
+  svu m --patch --rc           # the latest git tag's next patch, as an rc
+  svu help modify              # how to modify a version
+
+Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Show help for svu or one of its commands
+  modify, m   Modify a version, such as bumping it or moving it to a new stage
+  version     Print detailed build information for svu
+
+Flags:
+  -h, --help         Show this help
+  -v, --version      Print svu's version
+      --colour when  Use colour on stderr: auto (the default), always or never (alias --color)
+
+Run svu help <command> for help with a command.
+`
+
+//nolint:misspell // The help names the --color alias.
+const modifyHelp = `Modify a version and print the result.
+
+svu modify reads one version:
 
   - from the version argument, or from standard input if the argument is "-";
   - with no argument, from the latest git tag that is a valid version, in the
@@ -19,21 +48,18 @@ version modifier on its own removes any stage. Add a stage modifier, as in
 --minor --alpha, to start that stage at 001. Stages never go backwards.
 
 Usage:
-  svm [version] [flags]
-  svm <command>
+  svu modify [version] [flags]
+
+Aliases:
+  modify, m
 
 Examples:
-  svm 1.2.3 --minor            # 1.3.0
-  svm 1.2.3 --minor --alpha    # 1.3.0-alpha-001
-  svm 1.2.3-rc-001 --rc        # 1.2.3-rc-002
-  svm 1.2.3-rc-001 --release   # 1.2.3
-  echo v1.2.3 | svm - --patch  # 1.2.4
-  svm --patch --with-v-prefix  # the latest git tag, bumped, as in v1.2.4
-  svm --directory path/to/repository
-
-Commands:
-  completion  Generate the autocompletion script for the specified shell
-  version     Print detailed build information for svm
+  svu modify 1.2.3 --minor            # 1.3.0
+  svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
+  svu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
+  svu modify 1.2.3-rc-001 --release   # 1.2.3
+  echo v1.2.3 | svu modify - --patch  # 1.2.4
+  svu m --patch --with-v-prefix       # the latest git tag, bumped, as in v1.2.4
 
 Input:
       --directory path  Read tags from the git repository containing path
@@ -51,20 +77,19 @@ Stage modifiers (use at most one):
 
 Output:
       --with-v-prefix   Print the version with a leading "v" (alias --vp)
-      --colour when     Use colour on stderr: auto (the default), always or never (alias --color)
 
 Other:
   -h, --help            Show this help
-  -v, --version         Print svm's version
 
-Run svm <command> --help for help with a command.
+Global flags:
+      --colour when     Use colour on stderr: auto (the default), always or never (alias --color)
 `
 
 //nolint:misspell // The help names the --color alias.
-const versionHelp = `Print detailed build information for svm
+const versionHelp = `Print detailed build information for svu
 
 Usage:
-  svm version [flags]
+  svu version [flags]
 
 Flags:
   -h, --help         Show this help
@@ -88,10 +113,21 @@ func TestHelp(t *testing.T) {
 		env  map[string]string
 		want string
 	}{
-		{name: "prints help for svm to stderr", args: []string{"--help"}, want: rootHelp},
-		{name: "prints help for -h", args: []string{"-h"}, want: rootHelp},
-		{name: "prints help instead of running", args: []string{"1.2.3", "--major", "--help"}, want: rootHelp},
-		{name: "prints help for a command", args: []string{"version", "--help"}, want: versionHelp},
+		{name: "shows general help with no command", args: nil, want: rootHelp},
+		{name: "shows general help for --help", args: []string{"--help"}, want: rootHelp},
+		{name: "shows general help for -h", args: []string{"-h"}, want: rootHelp},
+		{name: "shows general help for the help command", args: []string{"help"}, want: rootHelp},
+		{name: "shows modify help for modify --help", args: []string{"modify", "--help"}, want: modifyHelp},
+		{name: "shows modify help for the alias", args: []string{"m", "-h"}, want: modifyHelp},
+		{name: "shows modify help for help modify", args: []string{"help", "modify"}, want: modifyHelp},
+		{name: "shows modify help for help with the alias", args: []string{"help", "m"}, want: modifyHelp},
+		{
+			name: "shows help instead of modifying",
+			args: []string{"modify", "1.2.3", "--major", "--help"},
+			want: modifyHelp,
+		},
+		{name: "shows help for the version command", args: []string{"version", "--help"}, want: versionHelp},
+		{name: "shows help for help version", args: []string{"help", "version"}, want: versionHelp},
 		{
 			name: "leaves out colour when the environment turns it off",
 			args: []string{"--help"},
@@ -120,29 +156,57 @@ func TestHelpInColour(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		args []string
-		env  map[string]string
+		name  string
+		args  []string
+		env   map[string]string
+		plain string
+		spans []string
 	}{
-		{name: "uses colour with --colour=always", args: []string{"--help", "--colour=always"}},
-		{name: "accepts the American alias", args: []string{"--help", "--color", "always"}}, //nolint:misspell // --color is the alias output.md requires.
-		{name: "uses colour when the environment forces it", args: []string{"--help"}, env: map[string]string{forceColour: "1"}},
 		{
-			name: "lets --colour=always win over the environment",
-			args: []string{"--help", "--colour=always"},
-			env:  map[string]string{noColour: "1"},
+			name:  "colours general help with --colour=always",
+			args:  []string{"--help", "--colour=always"},
+			plain: rootHelp,
+			spans: []string{
+				"\x1b[1mUsage:\x1b[0m",                                  // Headings are bold.
+				"  \x1b[36msvu\x1b[0m <command>",                        // Command names are cyan,
+				"  \x1b[36mmodify, m\x1b[0m   Modify",                   // aliases included.
+				"  \x1b[36m-h, --help\x1b[0m         Show",              // Flags are cyan.
+				"      \x1b[36m--colour\x1b[0m \x1b[2mwhen\x1b[0m  Use", // Placeholders are dim.
+				"svu modify 1.2.3 --minor     \x1b[2m# 1.3.0\x1b[0m",    // Example comments are dim.
+				"Run \x1b[36msvu help <command>\x1b[0m for help",
+			},
 		},
-	}
-
-	// Spans the help must contain when coloured, from conventions/output.md.
-	wantSpans := []string{
-		"\x1b[1mUsage:\x1b[0m", // Headings are bold.
-		"\x1b[1mStage modifiers (use at most one):\x1b[0m",
-		"  \x1b[36msvm\x1b[0m [version] [flags]", // Command names are cyan.
-		"  \x1b[36mversion\x1b[0m     Print",
-		"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m  Read", // Flags are cyan, placeholders dim.
-		"  \x1b[36m-h, --help\x1b[0m            Show this help",
-		"svm 1.2.3 --minor            \x1b[2m# 1.3.0\x1b[0m", // Example comments are dim.
+		{
+			name:  "colours modify help",
+			args:  []string{"modify", "--help", "--colour=always"},
+			plain: modifyHelp,
+			spans: []string{
+				"\x1b[1mStage modifiers (use at most one):\x1b[0m",
+				"  \x1b[36msvu modify\x1b[0m [version] [flags]",
+				"\x1b[1mAliases:\x1b[0m\n  \x1b[36mmodify, m\x1b[0m",
+				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m  Read",
+			},
+		},
+		{
+			name:  "accepts the American alias",
+			args:  []string{"--help", "--color", "always"}, //nolint:misspell // --color is the alias output.md requires.
+			plain: rootHelp,
+			spans: []string{"\x1b[1mUsage:\x1b[0m"},
+		},
+		{
+			name:  "uses colour when the environment forces it",
+			args:  []string{"help", "modify"},
+			env:   map[string]string{forceColour: "1"},
+			plain: modifyHelp,
+			spans: []string{"\x1b[1mUsage:\x1b[0m"},
+		},
+		{
+			name:  "lets --colour=always win over the environment",
+			args:  []string{"--help", "--colour=always"},
+			env:   map[string]string{noColour: "1"},
+			plain: rootHelp,
+			spans: []string{"\x1b[1mUsage:\x1b[0m"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -155,45 +219,76 @@ func TestHelpInColour(t *testing.T) {
 				t.Fatalf("exit code = %d, stdout = %q, want %d and empty", got.code, got.stdout, ExitOK)
 			}
 
-			for _, span := range wantSpans {
+			for _, span := range tt.spans {
 				if !strings.Contains(got.stderr, span) {
 					t.Errorf("stderr does not contain %q", span)
 				}
 			}
 
-			if plain := stripANSI(got.stderr); plain != rootHelp {
-				t.Errorf("stderr without colour = %q, want %q", plain, rootHelp)
+			if plain := stripANSI(got.stderr); plain != tt.plain {
+				t.Errorf("stderr without colour = %q, want %q", plain, tt.plain)
 			}
 		})
 	}
 }
 
-func TestHelpCommandIsNotACommand(t *testing.T) {
+func TestUnknownCommands(t *testing.T) {
 	t.Parallel()
 
-	assertResult(t, run(t, "help"), result{code: ExitFailure, stderr: `Error: "help" is not a valid version.
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "rejects an unknown command",
+			args: []string{"frobnicate"},
+			want: "Error: \"frobnicate\" is not an svu command.\n\nHint: To list svu's commands, run svu --help.\n",
+		},
+		{
+			name: "suggests a command close to a typo",
+			args: []string{"modfy"},
+			want: "Error: \"modfy\" is not an svu command.\n\nHint: Did you mean svu modify?\n",
+		},
+		{
+			name: "suggests modify for a bare version",
+			args: []string{"v1.2.3"},
+			want: "Error: \"v1.2.3\" is not an svu command.\n\nHint: To modify a version, run svu modify v1.2.3.\n",
+		},
+		{
+			name: "rejects help for an unknown command",
+			args: []string{"help", "frobnicate"},
+			want: "Error: \"frobnicate\" is not an svu command.\n\nHint: To list svu's commands, run svu --help.\n",
+		},
+		{
+			name: "rejects help for an unknown subcommand",
+			args: []string{"help", "modify", "extra"},
+			want: "Error: \"modify extra\" is not an svu command.\n\nHint: To list svu's commands, run svu --help.\n",
+		},
+	}
 
-  help
-  ^
-  MAJOR, MINOR and PATCH must be whole numbers, as in 1.2.3.
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-Hint: To list svm's commands, run svm --help.
-`})
+			assertResult(t, run(t, tt.args...), result{code: ExitFailure, stderr: tt.want})
+		})
+	}
 }
 
 func TestColourFlagRejectsUnknownModes(t *testing.T) {
 	t.Parallel()
 
-	assertResult(t, run(t, "1.2.3", "--colour=sometimes"), result{
+	assertResult(t, run(t, "modify", "1.2.3", "--colour=sometimes"), result{
 		code:   ExitFailure,
-		stderr: `svm: invalid argument "sometimes" for "--colour" flag: must be auto, always or never` + "\n",
+		stderr: `svu: invalid argument "sometimes" for "--colour" flag: must be auto, always or never` + "\n",
 	})
 }
 
 func TestColourFlagDoesNotAffectStdout(t *testing.T) {
 	t.Parallel()
 
-	assertResult(t, run(t, "1.2.3", "--colour=always", "--patch"), result{stdout: "1.2.4\n"})
+	assertResult(t, run(t, "modify", "1.2.3", "--colour=always", "--patch"), result{stdout: "1.2.4\n"})
 }
 
 // stripANSI removes SGR escape sequences such as "\x1b[1m".

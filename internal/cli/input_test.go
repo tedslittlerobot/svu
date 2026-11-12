@@ -74,7 +74,7 @@ Hint: Did you mean "1.2.3-alpha-001"?
 `,
 		},
 		{
-			name:     "suggests help for an argument that looks like a command",
+			name:     "suggests help for an argument that looks like a word",
 			args:     []string{"frobnicate"},
 			wantCode: ExitFailure,
 			wantStderr: `Error: "frobnicate" is not a valid version.
@@ -83,7 +83,7 @@ Hint: Did you mean "1.2.3-alpha-001"?
   ^
   MAJOR, MINOR and PATCH must be whole numbers, as in 1.2.3.
 
-Hint: To list svm's commands, run svm --help.
+Hint: To see what svu modify accepts, run svu modify --help.
 `,
 		},
 		{
@@ -110,9 +110,9 @@ Hint: Did you mean "1.2.3"?
 			name:     "rejects more than one argument",
 			args:     []string{"1.2.3", "1.2.4"},
 			wantCode: ExitFailure,
-			wantStderr: `Error: svm was given 2 versions, but it takes at most one.
+			wantStderr: `Error: svu modify was given 2 versions, but it takes at most one.
 
-Hint: Give a single version, as in svm 1.2.3.
+Hint: Give a single version, as in svu modify 1.2.3.
 `,
 		},
 
@@ -168,9 +168,9 @@ Hint: Did you mean "v1.2.3"?
 			wantCode: ExitFailure,
 			wantStderr: `Error: Standard input is empty.
 
-  With "-" as the argument, svm reads one version from standard input.
+  With "-" as the argument, svu reads one version from standard input.
 
-Hint: Pipe a version into svm, as in echo 1.2.3 | svm -.
+Hint: Pipe a version into svu, as in echo 1.2.3 | svu modify -.
 `,
 		},
 		{
@@ -180,7 +180,7 @@ Hint: Pipe a version into svm, as in echo 1.2.3 | svm -.
 			wantCode: ExitFailure,
 			wantStderr: `Error: Standard input has more than one line.
 
-  With "-" as the argument, svm reads one version from standard input.
+  With "-" as the argument, svu reads one version from standard input.
 `,
 		},
 		{
@@ -189,7 +189,7 @@ Hint: Pipe a version into svm, as in echo 1.2.3 | svm -.
 			wantCode: ExitFailure,
 			wantStderr: `Error: --directory can't be used when a version is given.
 
-  svm only reads git tags when no version is given.
+  svu modify only reads git tags when no version is given.
 
 Hint: Remove --directory, or remove the version.
 `,
@@ -201,7 +201,7 @@ Hint: Remove --directory, or remove the version.
 			wantCode: ExitFailure,
 			wantStderr: `Error: --directory can't be used when a version is given.
 
-  svm only reads git tags when no version is given.
+  svu modify only reads git tags when no version is given.
 
 Hint: Remove --directory, or remove the version.
 `,
@@ -243,12 +243,12 @@ Hint: Remove --directory, or remove the version.
 				return failingTags(git.ErrNotRepository)
 			},
 			wantCode: ExitFailure,
-			wantStderr: `Error: svm has no valid input.
+			wantStderr: `Error: svu has no valid input.
 
-  No version was given, so svm reads the latest version from git tags,
+  No version was given, so svu reads the latest version from git tags,
   but the current directory is not in a git repository.
 
-Hint: Give a version, as in svm 1.2.3, or run svm inside a git repository.
+Hint: Give a version, as in svu modify 1.2.3, or run svu inside a git repository.
 `,
 		},
 		{
@@ -258,12 +258,12 @@ Hint: Give a version, as in svm 1.2.3, or run svm inside a git repository.
 				return failingTags(git.ErrNotRepository)
 			},
 			wantCode: ExitFailure,
-			wantStderr: `Error: svm has no valid input.
+			wantStderr: `Error: svu has no valid input.
 
-  No version was given, so svm reads the latest version from git tags,
+  No version was given, so svu reads the latest version from git tags,
   but "elsewhere" is not in a git repository.
 
-Hint: Give a version, as in svm 1.2.3, or set --directory to a git repository.
+Hint: Give a version, as in svu modify 1.2.3, or set --directory to a git repository.
 `,
 		},
 		{
@@ -278,7 +278,7 @@ Hint: Give a version, as in svm 1.2.3, or set --directory to a git repository.
 
   It has no tags.
 
-Hint: Give a version, as in svm 0.1.0, or tag a release, as in git tag v0.1.0.
+Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.
 `,
 		},
 		{
@@ -294,7 +294,7 @@ Hint: Give a version, as in svm 0.1.0, or tag a release, as in git tag v0.1.0.
 
   None of its tags is a valid version, such as v1.2.3 or v1.2.3-rc-001.
 
-Hint: Give a version, as in svm 0.1.0, or tag a release, as in git tag v0.1.0.
+Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.
 `,
 		},
 		{
@@ -327,11 +327,11 @@ Hint: Give a version, as in svm 0.1.0, or tag a release, as in git tag v0.1.0.
 				return failingTags(git.ErrNotInstalled)
 			},
 			wantCode: ExitFailure,
-			wantStderr: `Error: svm could not find git.
+			wantStderr: `Error: svu could not find git.
 
-  No version was given, so svm needs git to read the latest version from the tags.
+  No version was given, so svu needs git to read the latest version from the tags.
 
-Hint: Install git, or give a version, as in svm 1.2.3.
+Hint: Install git, or give a version, as in svu modify 1.2.3.
 `,
 		},
 		{
@@ -352,7 +352,7 @@ Hint: Install git, or give a version, as in svm 1.2.3.
 				return failingTags(errors.New("checking directory: permission denied"))
 			},
 			wantCode:   ExitFailure,
-			wantStderr: "Error: svm could not read the git tags in \"elsewhere\".\n\n" + reportLine,
+			wantStderr: "Error: svu could not read the git tags in \"elsewhere\".\n\n" + reportLine,
 		},
 	}
 
@@ -360,7 +360,7 @@ Hint: Install git, or give a version, as in svm 1.2.3.
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			inv := invocation{args: tt.args, stdin: strings.NewReader(tt.stdin)}
+			inv := invocation{args: modifyArgs(tt.args...), stdin: strings.NewReader(tt.stdin)}
 			if tt.tags != nil {
 				inv.tags = tt.tags(t)
 			}
@@ -398,15 +398,15 @@ func TestInputFromRealGitRepository(t *testing.T) {
 			want: result{code: ExitFailure, stderr: fmt.Sprintf(
 				"Error: The git repository at %q has no tags that are valid versions.\n\n"+
 					"  It has no tags.\n\n"+
-					"Hint: Give a version, as in svm 0.1.0, or tag a release, as in git tag v0.1.0.\n", empty)},
+					"Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.\n", empty)},
 		},
 		{
 			name: "reports a directory that is not in a repository",
 			args: []string{"--directory", notRepo},
-			want: result{code: ExitFailure, stderr: fmt.Sprintf("Error: svm has no valid input.\n\n"+
-				"  No version was given, so svm reads the latest version from git tags,\n"+
+			want: result{code: ExitFailure, stderr: fmt.Sprintf("Error: svu has no valid input.\n\n"+
+				"  No version was given, so svu reads the latest version from git tags,\n"+
 				"  but %q is not in a git repository.\n\n"+
-				"Hint: Give a version, as in svm 1.2.3, or set --directory to a git repository.\n", notRepo)},
+				"Hint: Give a version, as in svu modify 1.2.3, or set --directory to a git repository.\n", notRepo)},
 		},
 	}
 
@@ -414,7 +414,7 @@ func TestInputFromRealGitRepository(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := invoke(t, invocation{args: tt.args, tags: git.Tags})
+			got := invoke(t, invocation{args: modifyArgs(tt.args...), tags: git.Tags})
 			assertResult(t, got, tt.want)
 		})
 	}
@@ -445,7 +445,7 @@ func TestInputOnlyReadsStdinWhenAsked(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			inv := invocation{args: tt.args, stdin: untouchableReader{t}}
+			inv := invocation{args: modifyArgs(tt.args...), stdin: untouchableReader{t}}
 			if tt.tags != nil {
 				inv.tags = tt.tags(t)
 			}
@@ -456,11 +456,11 @@ func TestInputOnlyReadsStdinWhenAsked(t *testing.T) {
 }
 
 // untouchableReader fails the test if it is read. It stands in for a pipe
-// that never closes, which would make svm hang if it read it.
+// that never closes, which would make svu hang if it read it.
 type untouchableReader struct{ t *testing.T }
 
 func (r untouchableReader) Read([]byte) (int, error) {
-	r.t.Error("svm read standard input, want it not to")
+	r.t.Error("svu read standard input, want it not to")
 
 	return 0, io.EOF
 }
@@ -480,17 +480,17 @@ func TestInputReadsPipedFiles(t *testing.T) {
 
 	t.Cleanup(func() { _ = f.Close() })
 
-	assertResult(t, invoke(t, invocation{args: []string{"-"}, stdin: f}), result{stdout: "3.0.0\n"})
+	assertResult(t, invoke(t, invocation{args: modifyArgs("-"), stdin: f}), result{stdout: "3.0.0\n"})
 }
 
 func TestInputReportsUnreadableStdin(t *testing.T) {
 	t.Parallel()
 
-	got := invoke(t, invocation{args: []string{"-"}, stdin: errReader{}})
+	got := invoke(t, invocation{args: modifyArgs("-"), stdin: errReader{}})
 
 	assertResult(t, got, result{
 		code:   ExitFailure,
-		stderr: "Error: svm could not read standard input.\n\n" + reportLine,
+		stderr: "Error: svu could not read standard input.\n\n" + reportLine,
 	})
 }
 
@@ -499,14 +499,14 @@ func TestOutputReportsWriteFailure(t *testing.T) {
 
 	var stderr bytes.Buffer
 
-	code := execute(t.Context(), []string{"1.2.3"}, Streams{
+	code := execute(t.Context(), modifyArgs("1.2.3"), Streams{
 		In:  strings.NewReader(""),
 		Out: errWriter{},
 		Err: &stderr,
 	}, environment{info: testInfo})
 
-	want := "Error: svm could not write its output.\n\n" +
-		"  The output stream was closed before svm finished writing.\n\n" + reportLine
+	want := "Error: svu could not write its output.\n\n" +
+		"  The output stream was closed before svu finished writing.\n\n" + reportLine
 
 	if code != ExitFailure {
 		t.Errorf("exit code = %d, want %d", code, ExitFailure)
@@ -540,4 +540,9 @@ func assertResult(t *testing.T, got, want result) {
 	if got.stderr != want.stderr {
 		t.Errorf("stderr = %q, want %q", got.stderr, want.stderr)
 	}
+}
+
+// modifyArgs returns args for the modify command.
+func modifyArgs(args ...string) []string {
+	return append([]string{"modify"}, args...)
 }

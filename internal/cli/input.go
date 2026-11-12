@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/tedslittlerobot/svm/internal/git"
@@ -15,7 +16,7 @@ import (
 // "" means the current directory. git.Tags is the real implementation.
 type tagReader func(ctx context.Context, dir string) ([]string, error)
 
-// inputOptions are the flags that affect where svm reads its version from.
+// inputOptions are the flags that affect where svu reads its version from.
 type inputOptions struct {
 	// directory is the --directory flag.
 	directory string
@@ -23,11 +24,11 @@ type inputOptions struct {
 	directorySet bool
 }
 
-// stdinArgument is the argument that tells svm to read the version from
+// stdinArgument is the argument that tells svu to read the version from
 // standard input.
 const stdinArgument = "-"
 
-// readVersion works out which version svm starts from:
+// readVersion works out which version svu starts from:
 //
 //  1. the version argument, or standard input if the argument is "-";
 //  2. with no argument, the latest git tag that is a valid version, in the
@@ -46,7 +47,7 @@ func readVersion(
 	case opts.directorySet:
 		return semver.Version{}, &userError{
 			headline: "--directory can't be used when a version is given.",
-			detail:   "svm only reads git tags when no version is given.",
+			detail:   "svu modify only reads git tags when no version is given.",
 			hint:     "Remove --directory, or remove the version.",
 		}
 	case args[0] == stdinArgument:
@@ -67,7 +68,7 @@ func readStdin(stdin io.Reader) (string, error) {
 	b, err := io.ReadAll(stdin)
 	if err != nil {
 		return "", &userError{
-			headline: "svm could not read standard input.",
+			headline: "svu could not read standard input.",
 			hint:     reportHint,
 			err:      err,
 		}
@@ -79,13 +80,13 @@ func readStdin(stdin io.Reader) (string, error) {
 	case input == "":
 		return "", &userError{
 			headline: "Standard input is empty.",
-			detail:   `With "-" as the argument, svm reads one version from standard input.`,
-			hint:     "Pipe a version into svm, as in echo 1.2.3 | svm -.",
+			detail:   `With "-" as the argument, svu reads one version from standard input.`,
+			hint:     "Pipe a version into svu, as in echo 1.2.3 | svu modify -.",
 		}
 	case strings.ContainsAny(input, "\r\n"):
 		return "", &userError{
 			headline: "Standard input has more than one line.",
-			detail:   `With "-" as the argument, svm reads one version from standard input.`,
+			detail:   `With "-" as the argument, svu reads one version from standard input.`,
 		}
 	}
 
@@ -101,7 +102,7 @@ func parseVersion(input string, fromStdin bool) (semver.Version, error) {
 
 	var perr *semver.ParseError
 	if !errors.As(err, &perr) {
-		return semver.Version{}, &userError{headline: "svm could not read the version.", hint: reportHint, err: err}
+		return semver.Version{}, &userError{headline: "svu could not read the version.", hint: reportHint, err: err}
 	}
 
 	return semver.Version{}, parseError(perr, fromStdin)
@@ -145,15 +146,20 @@ func parseError(perr *semver.ParseError, fromStdin bool) *userError {
 	switch {
 	case perr.Suggestion != "":
 		ue.hint = fmt.Sprintf("Did you mean %q?", perr.Suggestion)
-	case !fromStdin && looksLikeCommand(perr.Input):
-		ue.hint = "To list svm's commands, run svm --help."
+	case fromStdin:
+		// No hint: the input isn't something typed on the command line.
+	case slices.Contains(modifierNames(), perr.Input):
+		ue.hint = fmt.Sprintf("Did you mean --%s?", perr.Input)
+	case isWord(perr.Input):
+		ue.hint = "To see what svu modify accepts, run svu modify --help."
 	}
 
 	return ue
 }
 
-// looksLikeCommand reports whether s could be a mistyped command name.
-func looksLikeCommand(s string) bool {
+// isWord reports whether s is made only of lowercase letters and hyphens, as a
+// mistyped command or flag would be.
+func isWord(s string) bool {
 	return strings.Trim(s, "abcdefghijklmnopqrstuvwxyz-") == ""
 }
 
@@ -181,7 +187,7 @@ func latestTag(ctx context.Context, dir string, readTags tagReader) (semver.Vers
 	return semver.Version{}, &userError{
 		headline: headline,
 		detail:   detail,
-		hint:     "Give a version, as in svm 0.1.0, or tag a release, as in git tag v0.1.0.",
+		hint:     "Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.",
 	}
 }
 
@@ -195,14 +201,14 @@ func tagsError(err error, dir string) *userError {
 
 	switch {
 	case errors.Is(err, git.ErrNotRepository):
-		hint := "Give a version, as in svm 1.2.3, or run svm inside a git repository."
+		hint := "Give a version, as in svu modify 1.2.3, or run svu inside a git repository."
 		if dir != "" {
-			hint = "Give a version, as in svm 1.2.3, or set --directory to a git repository."
+			hint = "Give a version, as in svu modify 1.2.3, or set --directory to a git repository."
 		}
 
 		return &userError{
-			headline: "svm has no valid input.",
-			detail: "No version was given, so svm reads the latest version from git tags,\n" +
+			headline: "svu has no valid input.",
+			detail: "No version was given, so svu reads the latest version from git tags,\n" +
 				"but " + place + " is not in a git repository.",
 			hint: hint,
 			err:  err,
@@ -221,9 +227,9 @@ func tagsError(err error, dir string) *userError {
 		}
 	case errors.Is(err, git.ErrNotInstalled):
 		return &userError{
-			headline: "svm could not find git.",
-			detail:   "No version was given, so svm needs git to read the latest version from the tags.",
-			hint:     "Install git, or give a version, as in svm 1.2.3.",
+			headline: "svu could not find git.",
+			detail:   "No version was given, so svu needs git to read the latest version from the tags.",
+			hint:     "Install git, or give a version, as in svu modify 1.2.3.",
 			err:      err,
 		}
 	case errors.As(err, &cmdErr) && cmdErr.Stderr != "":
@@ -233,6 +239,6 @@ func tagsError(err error, dir string) *userError {
 			err:      err,
 		}
 	default:
-		return &userError{headline: "svm could not read the git tags in " + place + ".", hint: reportHint, err: err}
+		return &userError{headline: "svu could not read the git tags in " + place + ".", hint: reportHint, err: err}
 	}
 }

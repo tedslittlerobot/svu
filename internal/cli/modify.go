@@ -1,217 +1,112 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
-	"strings"
+	"io"
 
-	"github.com/spf13/pflag"
-
-	"github.com/tedslittlerobot/svm/internal/semver"
+	"github.com/spf13/cobra"
 )
 
-// modifier is one flag that changes the version, such as --minor or --rc.
-type modifier[T any] struct {
-	flag  string // Without the leading "--".
-	usage string
-	value T
-	set   bool
-}
+const modifyLong = `Modify a version and print the result.
 
-// The modifier flags, in the order they appear in help and messages. The
-// stage modifiers are in §Stages order, which hints rely on.
-func newVersionModifiers() []*modifier[semver.Part] {
-	return []*modifier[semver.Part]{
-		{flag: "major", value: semver.Major, usage: "Bump MAJOR, and reset MINOR and PATCH to 0"},
-		{flag: "minor", value: semver.Minor, usage: "Bump MINOR, and reset PATCH to 0"},
-		{flag: "patch", value: semver.Patch, usage: "Bump PATCH"},
-	}
-}
+svu modify reads one version:
 
-func newStageModifiers() []*modifier[semver.Stage] {
-	return []*modifier[semver.Stage]{
-		{flag: "alpha", value: semver.Alpha, usage: "Move to alpha-001, or to the next alpha"},
-		{flag: "beta", value: semver.Beta, usage: "Move to beta-001, or to the next beta"},
-		{flag: "rc", value: semver.RC, usage: "Move to rc-001, or to the next rc"},
-		{flag: "release", value: semver.Release, usage: "Remove the stage from a pre-release"},
-	}
-}
+  - from the version argument, or from standard input if the argument is "-";
+  - with no argument, from the latest git tag that is a valid version, in the
+    repository that contains the current directory, or --directory if given.
 
-// modifiers holds the modifier flags for one run of svm.
-type modifiers struct {
-	versions []*modifier[semver.Part]
-	stages   []*modifier[semver.Stage]
-}
+It applies any modifiers, then prints the result on standard output. A
+version modifier on its own removes any stage. Add a stage modifier, as in
+--minor --alpha, to start that stage at 001. Stages never go backwards.`
 
-func newModifiers(flags *pflag.FlagSet) *modifiers {
-	m := &modifiers{versions: newVersionModifiers(), stages: newStageModifiers()}
+const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
+  svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
+  svu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
+  svu modify 1.2.3-rc-001 --release   # 1.2.3
+  echo v1.2.3 | svu modify - --patch  # 1.2.4
+  svu m --patch --with-v-prefix       # the latest git tag, bumped, as in v1.2.4`
 
-	for _, v := range m.versions {
-		flags.BoolVar(&v.set, v.flag, false, v.usage)
-		setHelpGroup(flags, v.flag, groupVersion)
-	}
+func newModifyCommand(env environment) *cobra.Command {
+	var (
+		opts    inputOptions
+		vPrefix bool
+		mods    *modifiers
+	)
 
-	for _, s := range m.stages {
-		flags.BoolVar(&s.set, s.flag, false, s.usage)
-		setHelpGroup(flags, s.flag, groupStage)
-	}
+	cmd := &cobra.Command{
+		Use:               "modify [version]",
+		Aliases:           []string{"m"},
+		Short:             "Modify a version, such as bumping it or moving it to a new stage",
+		Long:              modifyLong,
+		Example:           modifyExample,
+		Args:              atMostOneVersion,
+		ValidArgsFunction: cobra.NoFileCompletions,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.directorySet = cmd.Flags().Changed("directory")
 
-	return m
-}
+			// Check the flags before reading any input, which may run git.
+			if err := mods.validate(); err != nil {
+				return err
+			}
 
-// validate checks that at most one modifier from each group was given.
-func (m *modifiers) validate() error {
-	if err := atMostOne("version", m.versions); err != nil {
-		return err
-	}
+			v, err := readVersion(cmd.Context(), args, cmd.InOrStdin(), opts, env.readTags)
+			if err != nil {
+				return err
+			}
 
-	return atMostOne("stage", m.stages)
-}
+			v, err = mods.apply(v)
+			if err != nil {
+				return err
+			}
 
-func atMostOne[T any](group string, mods []*modifier[T]) error {
-	var all, set []string
+			out := v.String()
+			if vPrefix {
+				out = "v" + out
+			}
 
-	for _, mod := range mods {
-		all = append(all, "--"+mod.flag)
-
-		if mod.set {
-			set = append(set, "--"+mod.flag)
-		}
+			return writeResult(cmd.OutOrStdout(), out)
+		},
 	}
 
-	if len(set) <= 1 {
+	// Flags appear in help in the order they are defined here, by group.
+	flags := cmd.Flags()
+	flags.SortFlags = false
+
+	flags.StringVar(&opts.directory, "directory", "", "Read tags from the git repository containing `path`")
+	setHelpGroup(flags, "directory", groupInput)
+	_ = cmd.MarkFlagDirname("directory") // Only fails if the flag doesn't exist.
+
+	mods = newModifiers(flags)
+
+	flags.BoolVar(&vPrefix, "with-v-prefix", false, `Print the version with a leading "v" (alias --vp)`)
+	setHelpGroup(flags, "with-v-prefix", groupOutput)
+
+	return cmd
+}
+
+// atMostOneVersion checks that svu modify was given no more than one version.
+func atMostOneVersion(_ *cobra.Command, args []string) error {
+	if len(args) <= 1 {
 		return nil
 	}
 
 	return &userError{
-		headline: join(set, "and") + " can't be used together.",
-		detail:   fmt.Sprintf("Give at most one %s modifier: %s.", group, join(all, "or")),
+		headline: fmt.Sprintf("svu modify was given %d versions, but it takes at most one.", len(args)),
+		hint:     "Give a single version, as in svu modify 1.2.3.",
 	}
 }
 
-// chosen returns the value of the modifier that was set, if any.
-func chosen[T any](mods []*modifier[T]) (T, bool) {
-	for _, mod := range mods {
-		if mod.set {
-			return mod.value, true
-		}
-	}
-
-	var zero T
-
-	return zero, false
-}
-
-// apply changes v as the modifiers ask. It must only be called after
-// validate has passed.
-func (m *modifiers) apply(v semver.Version) (semver.Version, error) {
-	part, bump := chosen(m.versions)
-	stage, move := chosen(m.stages)
-
-	var (
-		next semver.Version
-		err  error
-	)
-
-	switch {
-	case bump:
-		// With no stage modifier, stage is Release: any suffix is removed.
-		next, err = v.Bump(part, stage)
-	case move:
-		next, err = v.Advance(stage)
-	default:
-		return v, nil
-	}
-
-	if err != nil {
-		return semver.Version{}, m.modifyError(err)
-	}
-
-	return next, nil
-}
-
-func (m *modifiers) modifyError(err error) *userError {
-	var (
-		serr *semver.StageError
-		oerr *semver.OverflowError
-	)
-
-	switch {
-	case errors.As(err, &serr):
-		return m.stageError(serr)
-	case errors.As(err, &oerr):
+// writeResult writes the result to stdout, as conventions/output.md requires:
+// one version and a newline.
+func writeResult(w io.Writer, version string) error {
+	if _, err := fmt.Fprintln(w, version); err != nil {
 		return &userError{
-			headline: fmt.Sprintf("The %s version of %q can't be bumped.", oerr.Part, oerr.Version),
-			detail:   ruleDetails[semver.RuleNumberTooLarge],
+			headline: "svu could not write its output.",
+			detail:   "The output stream was closed before svu finished writing.",
+			hint:     reportHint,
 			err:      err,
 		}
-	default:
-		return &userError{headline: "svm could not modify the version.", hint: reportHint, err: err}
-	}
-}
-
-const newVersionHint = "add --major, --minor or --patch to start a new version"
-
-func (m *modifiers) stageError(err *semver.StageError) *userError {
-	v := err.Version.String()
-
-	switch err.Problem {
-	case semver.ProblemAlreadyReleased:
-		return &userError{
-			headline: fmt.Sprintf("%q has already been released.", v),
-			detail:   "--release removes the stage from a pre-release, such as 1.2.3-rc-001.",
-			hint:     "To start a new version, use --major, --minor or --patch.",
-			err:      err,
-		}
-	case semver.ProblemReleaseIsFinal:
-		return &userError{
-			headline: fmt.Sprintf("%q has been released, so it can't go back to %s.", v, err.To),
-			detail:   "Once a version is released, it can't go back into any stage.",
-			hint:     fmt.Sprintf("Add --major, --minor or --patch to start a new version at %s, as in --patch --%s.", err.To, err.To),
-			err:      err,
-		}
-	case semver.ProblemBackwards:
-		return &userError{
-			headline: fmt.Sprintf("%q can't go back from %s to %s.", v, err.Version.Stage, err.To),
-			detail:   "Stages only move forward: alpha, then beta, then rc, then the release.",
-			hint:     fmt.Sprintf("Use %s, or %s.", join(m.stageFlags(err.Version.Stage, true), "or"), newVersionHint),
-			err:      err,
-		}
-	case semver.ProblemIndexExhausted:
-		return &userError{
-			headline: fmt.Sprintf("%q is the last %s allowed.", v, err.To),
-			detail:   fmt.Sprintf("A stage allows at most %d iterations.", semver.MaxIndex),
-			hint:     fmt.Sprintf("Use %s, or %s.", join(m.stageFlags(err.Version.Stage, false), "or"), newVersionHint),
-			err:      err,
-		}
-	default:
-		return &userError{headline: "svm could not modify the version.", hint: reportHint, err: err}
-	}
-}
-
-// stageFlags returns the stage modifier flags after from, and from's own flag
-// too if inclusive is true.
-func (m *modifiers) stageFlags(from semver.Stage, inclusive bool) []string {
-	var flags []string
-
-	found := false
-
-	for _, s := range m.stages {
-		if found || (inclusive && s.value == from) {
-			flags = append(flags, "--"+s.flag)
-		}
-
-		found = found || s.value == from
 	}
 
-	return flags
-}
-
-// join lists items in English, as in "a, b and c".
-func join(items []string, conjunction string) string {
-	if len(items) <= 1 {
-		return strings.Join(items, "")
-	}
-
-	return strings.Join(items[:len(items)-1], ", ") + " " + conjunction + " " + items[len(items)-1]
+	return nil
 }

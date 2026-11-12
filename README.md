@@ -1,24 +1,24 @@
-# svm — SemVer Modifier
+# svu — Semantic Version Utilities
 
 [![CI](https://github.com/tedslittlerobot/svm/actions/workflows/ci.yml/badge.svg)](https://github.com/tedslittlerobot/svm/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/tedslittlerobot/svm)](https://github.com/tedslittlerobot/svm/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/tedslittlerobot/svm.svg)](https://pkg.go.dev/github.com/tedslittlerobot/svm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**The goal of svm is to make it easy to modify a
-[semantic version](https://semver.org).**
+**svu is a set of small, predictable tools for working with
+[semantic versions](https://semver.org).**
 
-`svm` is a small command-line tool. You give it a version and ask for a change,
+Its first tool is `svu modify`. You give it a version and ask for a change,
 such as a new patch release or the next release candidate. It prints the
 modified version and nothing else, so it fits neatly into scripts, CI jobs and
 release processes.
 
-> **Status:** early development. Reading and modifying versions works, but
-> details may still change. Expect breaking changes until v1.0.0.
+> **Status:** early development. `svu modify` works, but details may still
+> change. Expect breaking changes until v1.0.0.
 
 ## Version format
 
-svm works with a strict subset of SemVer:
+svu works with a strict subset of SemVer:
 
 ```text
 [v]MAJOR.MINOR.PATCH[-STAGE-INDEX]      e.g. 1.2.3, v1.2.3, 1.2.3-alpha-001, v2.3.4-rc-987
@@ -26,7 +26,7 @@ svm works with a strict subset of SemVer:
 
 Stages are `alpha`, `beta` and `rc`, always in that order. The index is three
 digits, from `001` to `999`. Build metadata (`+…`) isn't supported. Other SemVer
-tools sort svm versions in the same order svm does. See
+tools sort svu versions in the same order svu does. See
 [`conventions/semver.md`](conventions/semver.md) for the full rules.
 
 ## Installation
@@ -42,7 +42,7 @@ Every tagged release publishes binaries for:
 
 Download the archive for your platform from the
 [releases page](https://github.com/tedslittlerobot/svm/releases), extract it,
-and put `svm` somewhere on your `PATH`.
+and put `svu` somewhere on your `PATH`.
 
 ### Linux packages
 
@@ -50,45 +50,53 @@ Each release also includes native packages:
 
 | Distribution family          | Format       | Install with                       |
 |------------------------------|--------------|------------------------------------|
-| Debian, Ubuntu               | `.deb`       | `sudo apt install ./svm_*.deb`     |
-| Fedora, RHEL, openSUSE       | `.rpm`       | `sudo dnf install ./svm-*.rpm`     |
-| Alpine                       | `.apk`       | `sudo apk add --allow-untrusted ./svm_*.apk` |
-| Arch, Manjaro                | `.pkg.tar.zst` | `sudo pacman -U ./svm-*.pkg.tar.zst` |
+| Debian, Ubuntu               | `.deb`       | `sudo apt install ./svu_*.deb`     |
+| Fedora, RHEL, openSUSE       | `.rpm`       | `sudo dnf install ./svu-*.rpm`     |
+| Alpine                       | `.apk`       | `sudo apk add --allow-untrusted ./svu_*.apk` |
+| Arch, Manjaro                | `.pkg.tar.zst` | `sudo pacman -U ./svu-*.pkg.tar.zst` |
 
 ### From source
 
 With Go installed (see `go.mod` for the minimum version):
 
 ```sh
-go install github.com/tedslittlerobot/svm/cmd/svm@latest
+go install github.com/tedslittlerobot/svm/cmd/svu@latest
 ```
 
 ## Usage
 
-svm reads one version, checks it against the [version format](#version-format)
-and prints it:
-
 ```sh
-svm 1.2.3-rc-001            # from an argument                 → 1.2.3-rc-001
-echo v1.2.3 | svm -         # from standard input, with "-"     → 1.2.3
-svm                         # from the latest valid git tag     → e.g. 0.10.0
-svm --directory ../app      # ...of the repository at ../app
-svm --with-v-prefix 1.2.3   # add a "v" prefix (alias --vp)    → v1.2.3
+svu help             # list commands (also svu --help, or just svu)
+svu help modify      # help for one command (also svu modify --help)
 ```
 
-With no argument, svm reads the tags of the git repository that contains the
+### svu modify
+
+`svu modify` (or `svu m`) reads one version, checks it against the
+[version format](#version-format), applies any [modifiers](#modifiers) and
+prints it:
+
+```sh
+svu modify 1.2.3-rc-001            # from an argument                → 1.2.3-rc-001
+echo v1.2.3 | svu modify -         # from standard input, with "-"    → 1.2.3
+svu modify                         # from the latest valid git tag    → e.g. 0.10.0
+svu modify --directory ../app      # ...of the repository at ../app
+svu modify --with-v-prefix 1.2.3   # add a "v" prefix (alias --vp)   → v1.2.3
+```
+
+With no argument, svu modify reads the tags of the git repository that contains the
 current directory (or `--directory`), ignores any that aren't valid versions,
 and uses the latest. It's an error if there is no repository or no valid tag.
 
-svm only reads standard input when the argument is `-`. It never reads it
+svu modify only reads standard input when the argument is `-`. It never reads it
 otherwise, so it can't hang in CI jobs, git hooks or loops where standard input
-is open but not meant for svm.
+is open but not meant for svu.
 
 The `v` prefix is never printed unless you ask for it, whatever the input had.
 
-### Modifying the version
+#### Modifiers
 
-Modifiers change the version before svm prints it. Use at most one version
+Modifiers change the version before svu modify prints it. Use at most one version
 modifier and at most one stage modifier.
 
 | Modifier | Effect | Example |
@@ -104,12 +112,12 @@ A version modifier on its own removes any stage: `1.2.3-rc-004 --patch` gives
 `001`:
 
 ```sh
-svm 1.2.3 --minor --alpha          # 1.3.0-alpha-001
-svm --patch --rc --with-v-prefix   # next patch's first release candidate, from the latest git tag
+svu modify 1.2.3 --minor --alpha   # 1.3.0-alpha-001
+svu m --patch --rc --vp            # next patch's first release candidate, from the latest git tag
 ```
 
 Stages only move forward, as set out in
-[`conventions/semver.md`](conventions/semver.md#stage-progression). svm
+[`conventions/semver.md`](conventions/semver.md#stage-progression). svu
 refuses to:
 
 - release a version that is already released (`1.2.3 --release`)
@@ -121,20 +129,19 @@ refuses to:
 ### Other commands
 
 ```sh
-svm --help       # list commands and flags, on stderr
-svm --version    # print svm's own version
-svm version      # print full build information
+svu --version    # print svu's own version
+svu version      # print full build information
 ```
 
 Shell completion scripts are available for bash, zsh, fish and PowerShell:
 
 ```sh
-svm completion --help
+svu completion --help
 ```
 
 ### Output
 
-svm is built for scripts:
+svu is built for scripts:
 
 - **stdout** only ever holds the resulting version and a newline, with no
   colour. On failure it is empty.
@@ -143,7 +150,7 @@ svm is built for scripts:
   [`NO_COLOR`](https://no-color.org) or pass `--colour=never` to turn it off.
 
 ```sh
-next="$(svm …)" || exit 1   # $next is always a valid version, or the script stops
+next="$(svu modify …)" || exit 1   # $next is always a valid version, or the script stops
 ```
 
 See [`conventions/output.md`](conventions/output.md) for the full rules.
@@ -156,7 +163,7 @@ artefacts locally, [GoReleaser](https://goreleaser.com) v2.
 
 ```sh
 make help       # list all targets
-make build      # build ./bin/svm
+make build      # build ./bin/svu
 make test       # run tests with the race detector, in random order
 make cover      # run tests and open a coverage report
 make lint       # run golangci-lint
@@ -167,10 +174,10 @@ make snapshot   # build every release artefact into ./dist without publishing
 ### Project layout
 
 ```text
-cmd/svm/            Entry point. Wires OS streams and signals into the CLI; no logic.
+cmd/svu/            Entry point. Wires OS streams and signals into the CLI; no logic.
 internal/cli/       Cobra commands. Parses input, calls domain code, formats output.
 internal/buildinfo/ Version, commit and build date of the running binary.
-internal/semver/    Parsing, ordering and formatting of svm versions.
+internal/semver/    Parsing, ordering and formatting of svu versions.
 internal/git/       Reads tags by running the git command.
 internal/colour/    Decides when stderr uses colour, and applies it.
 ```

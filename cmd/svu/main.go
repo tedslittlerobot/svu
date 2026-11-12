@@ -1,4 +1,4 @@
-// Command svm (SemVer Modifier) reads and modifies semantic version strings.
+// Command svu (Semantic Version Utilities) reads and modifies semantic version strings.
 //
 // This file is the process boundary: it collects the real arguments, streams
 // and signals, hands them to the cli package, and exits with the code it

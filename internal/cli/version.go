@@ -11,7 +11,7 @@ import (
 func newVersionCommand(info buildinfo.Info) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Print detailed build information for svm",
+		Short: "Print detailed build information for svu",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if _, err := fmt.Fprintln(cmd.OutOrStdout(), info); err != nil {

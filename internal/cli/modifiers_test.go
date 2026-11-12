@@ -61,7 +61,7 @@ func TestModifiers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			inv := invocation{args: tt.args, stdin: strings.NewReader(tt.stdin)}
+			inv := invocation{args: modifyArgs(tt.args...), stdin: strings.NewReader(tt.stdin)}
 			if tt.tags != nil {
 				inv.tags = tt.tags(t)
 			}
@@ -165,7 +165,7 @@ Hint: Use --beta, --rc or --release, or add --major, --minor or --patch to start
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			assertResult(t, run(t, tt.args...), result{code: ExitFailure, stderr: tt.want})
+			assertResult(t, run(t, modifyArgs(tt.args...)...), result{code: ExitFailure, stderr: tt.want})
 		})
 	}
 }
@@ -189,7 +189,7 @@ func TestModifyErrorAsksForAReportWhenUnexpected(t *testing.T) {
 
 			got := m.modifyError(tt.err)
 
-			if got.headline != "svm could not modify the version." || got.hint != reportHint {
+			if got.headline != "svu could not modify the version." || got.hint != reportHint {
 				t.Errorf("modifyError() = %+v, want the unexpected-failure message", got)
 			}
 		})

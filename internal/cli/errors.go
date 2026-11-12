@@ -13,7 +13,7 @@ import (
 const reportHint = "If this keeps happening, please report it at https://github.com/tedslittlerobot/svm/issues."
 
 // userError is an error with a message written for the user, rendered as
-// described in conventions/output.md. Every error svm itself returns from a
+// described in conventions/output.md. Every error svu itself returns from a
 // command is a userError; anything else comes from cobra.
 type userError struct {
 	// headline is one sentence saying what went wrong, without "Error: ".
@@ -53,7 +53,7 @@ func render(w io.Writer, err error) {
 	var ue *userError
 	if !errors.As(err, &ue) {
 		// cobra's own errors, such as an unknown flag.
-		_, _ = fmt.Fprintf(w, "svm: %v\n", err)
+		_, _ = fmt.Fprintf(w, "svu: %v\n", err)
 
 		return
 	}

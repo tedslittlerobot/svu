@@ -1,4 +1,4 @@
-// Package colour decides whether svm's stderr output uses colour, and styles
+// Package colour decides whether svu's stderr output uses colour, and styles
 // text with ANSI escape codes when it does.
 //
 // The rules are in conventions/output.md, under "Colour". Only the 16 basic
@@ -114,7 +114,7 @@ func New(on bool) Styler {
 	return Styler{on: on}
 }
 
-// SGR parameters for the styles svm uses.
+// SGR parameters for the styles svu uses.
 const (
 	bold   = "1"
 	dim    = "2"

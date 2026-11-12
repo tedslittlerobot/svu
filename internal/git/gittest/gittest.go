@@ -37,9 +37,9 @@ func Run(t *testing.T, dir string, args ...string) {
 	cmd.Env = append(cmd.Environ(),
 		"GIT_CONFIG_GLOBAL=/dev/null",
 		"GIT_CONFIG_NOSYSTEM=1",
-		"GIT_AUTHOR_NAME=svm tests",
+		"GIT_AUTHOR_NAME=svu tests",
 		"GIT_AUTHOR_EMAIL=tests@example.com",
-		"GIT_COMMITTER_NAME=svm tests",
+		"GIT_COMMITTER_NAME=svu tests",
 		"GIT_COMMITTER_EMAIL=tests@example.com",
 	)
 

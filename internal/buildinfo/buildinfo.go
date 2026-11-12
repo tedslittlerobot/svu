@@ -1,4 +1,4 @@
-// Package buildinfo reports version metadata for the running svm binary.
+// Package buildinfo reports version metadata for the running svu binary.
 //
 // Release builds inject values at link time (see .goreleaser.yaml). Builds
 // made with plain `go build` or `go install` fall back to the metadata the Go
@@ -79,7 +79,7 @@ func resolve(ver, rev, built string, read func() (*debug.BuildInfo, bool)) Info 
 
 // String renders the build information on a single line.
 func (i Info) String() string {
-	return fmt.Sprintf("svm %s (commit %s, built %s, %s, %s)",
+	return fmt.Sprintf("svu %s (commit %s, built %s, %s, %s)",
 		i.Version, i.Commit, i.Date, i.GoVersion, i.Platform)
 }
 

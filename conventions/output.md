@@ -1,12 +1,12 @@
-# svm output conventions
+# svu output conventions
 
-svm is a tool for developers, and it's mostly run inside scripts, CI jobs and
+svu is a tool for developers, and it's mostly run inside scripts, CI jobs and
 shell pipelines. Its output has two jobs:
 
 1. **Machines** need a clean result they can capture without parsing.
 2. **People** need errors they can understand and fix at a glance.
 
-svm uses stdout for the first job and stderr for the second, and never mixes
+svu uses stdout for the first job and stderr for the second, and never mixes
 them.
 
 In this document, **must**, **must not**, **should** and **may** are used as
@@ -14,8 +14,8 @@ defined in [RFC 2119][rfc2119].
 
 ## stdout: the result, and nothing else
 
-stdout is only for the result of a command, and for svm that result is a
-version that is valid under [svm's version rules](semver.md).
+stdout is only for the result of a command, and for svu that result is a
+version that is valid under [svu's version rules](semver.md).
 
 - On success, stdout **must** contain exactly one version, followed by a single
   newline (`\n`).
@@ -23,14 +23,14 @@ version that is valid under [svm's version rules](semver.md).
   messages, warnings, blank lines or trailing whitespace.
 - stdout **must not** ever contain ANSI escape codes, even when it is a
   terminal.
-- On failure, stdout **must** be empty. svm never prints a partial or
+- On failure, stdout **must** be empty. svu never prints a partial or
   best-guess result before failing.
 
 This means the following always gives either a valid version or a non-zero
 exit status with an empty variable:
 
 ```sh
-next="$(svm …)" || exit 1
+next="$(svu modify …)" || exit 1
 ```
 
 ### Exceptions
@@ -39,19 +39,19 @@ These commands have outputs that other programs read, so they write to stdout:
 
 | Output | Why it goes to stdout |
 |---|---|
-| `svm --version` | It prints svm's own version as a bare version, such as `1.4.0`, so it fits the rule above. |
-| `svm completion <shell>` | Shells read completion scripts from stdout, as in `source <(svm completion bash)`. |
+| `svu --version` | It prints svu's own version as a bare version, such as `1.4.0`, so it fits the rule above. |
+| `svu completion <shell>` | Shells read completion scripts from stdout, as in `source <(svu completion bash)`. |
 
 Nothing else is an exception. Help text, usage and the detailed output of
-`svm version` all go to stderr.
+`svu version` all go to stderr.
 
 ## stderr: everything else
 
 stderr **must** be used for all output that isn't the result. That includes:
 
 - errors and warnings
-- help and usage text, which is shown only for `--help` or `-h`
-- detailed build information (`svm version`)
+- help and usage text, from `svu help`, `--help` or `-h`
+- detailed build information (`svu version`)
 - any diagnostic or explanatory message
 
 ## Writing messages
@@ -63,7 +63,7 @@ Every message on stderr is written for a person to read.
 - Messages **must** be in clear, correctly punctuated **British English**:
   "colour", "behaviour", "recognised", "initialise", "licence" (noun).
 - Every sentence **must** start with a capital letter and end with a full stop.
-- Use plain, direct words. Say what's wrong; don't describe what svm was doing
+- Use plain, direct words. Say what's wrong; don't describe what svu was doing
   when it went wrong.
 - Never blame the user, apologise, or use exclamation marks.
 - Values the user gave **must** be quoted with straight double quotes, for
@@ -75,7 +75,7 @@ Every message on stderr is written for a person to read.
 ### Errors
 
 An error has a **headline**. It should also have **detail** and a **hint**
-whenever svm can offer them:
+whenever svu can offer them:
 
 ```text
 Error: "1.2.3-alpha-1" is not a valid version.
@@ -91,8 +91,8 @@ Hint: Did you mean "1.2.3-alpha-001"?
 |---|---|
 | Headline | **Must** start with `Error: ` and be one sentence saying what went wrong, naming the input involved. |
 | Pointer | **Should** be shown when the error is at a known position in one input. Show the input and a `^` under the problem. |
-| Detail | **Should** explain the rule that was broken, in terms of [svm's version rules](semver.md). Indented by two spaces. |
-| Hint | **Should** be given when svm can suggest a fix. Starts with `Hint: `. When svm can work out the corrected value, the hint should include it. |
+| Detail | **Should** explain the rule that was broken, in terms of [svu's version rules](semver.md). Indented by two spaces. |
+| Hint | **Should** be given when svu can suggest a fix. Starts with `Hint: `. When svu can work out the corrected value, the hint should include it. |
 
 Keep it short. One headline, a few lines of detail at most, and at most one
 hint. If more than one thing is wrong, report the first problem clearly rather
@@ -102,9 +102,9 @@ An unexpected failure that the user can't fix (a bug, or an I/O failure)
 still gets a proper headline, and asks for a report:
 
 ```text
-Error: svm could not write its output.
+Error: svu could not write its output.
 
-  The output stream was closed before svm finished writing.
+  The output stream was closed before svu finished writing.
 
 Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/svm/issues.
 ```
@@ -123,7 +123,7 @@ as plain text.
 
 ### When colour is used
 
-svm decides whether to use colour on stderr in this order. The first rule that
+svu decides whether to use colour on stderr in this order. The first rule that
 applies wins:
 
 1. `--colour=always` or `--colour=never`, if given. `--color` is accepted as an
@@ -156,12 +156,12 @@ make particular parts stand out.
 
 - Use only the 16 basic ANSI colours, plus bold and dim, so that the user's
   terminal theme decides the actual shades. No 256-colour or truecolour codes.
-- Reset styling at the end of every styled span. svm **must** never leave the
+- Reset styling at the end of every styled span. svu **must** never leave the
   terminal in a styled state, even when it is interrupted.
 
 ## Implementation notes
 
-- **Go errors vs messages.** Go error values inside svm follow normal Go style:
+- **Go errors vs messages.** Go error values inside svu follow normal Go style:
   lower case, no full stop, wrapped with `%w`. They are never printed as they
   are. The `internal/cli` layer is the only place that turns errors into the
   user-facing messages described here. Domain packages return typed errors
