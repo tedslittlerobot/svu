@@ -139,9 +139,9 @@ The `v` prefix is ignored. `v1.2.3` and `1.2.3` are equal.
 
 ## Out of scope
 
-This document only defines which versions are valid and how they're ordered.
-How svu formats its output, including whether it prints a `v` prefix, will be
-set out with the command requirements.
+This document only defines which versions are valid, how they're ordered and
+how stages progress. How svu prints versions, including when it adds a `v`
+prefix, is set out in [svu's output conventions](output.md).
 
 [semver]: https://semver.org/spec/v2.0.0.html
 [rfc2119]: https://www.rfc-editor.org/rfc/rfc2119

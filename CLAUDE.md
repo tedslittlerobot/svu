@@ -44,6 +44,7 @@ make test       # go test -race -shuffle=on ./...
 make lint       # golangci-lint run (config: .golangci.yml)
 make fmt        # golangci-lint fmt (gofmt + goimports)
 make build      # ./bin/svu with version info linked in
+make vuln       # govulncheck: known vulnerabilities svu's code can reach (CI runs it too)
 make snapshot   # goreleaser release --snapshot --clean (validates release config)
 go test ./internal/cli -run TestVersionCommand   # run a single test
 ```

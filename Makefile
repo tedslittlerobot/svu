@@ -48,8 +48,12 @@ tidy: ## Tidy and verify module dependencies
 	go mod tidy
 	go mod verify
 
+.PHONY: vuln
+vuln: ## Check for known vulnerabilities that svu's code can reach (needs network)
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
 .PHONY: check
-check: tidy fmt lint test ## Everything CI runs; do this before pushing
+check: tidy fmt lint test ## Tidy, format, lint and test; do this before pushing
 
 .PHONY: snapshot
 snapshot: ## Build release artefacts locally without publishing

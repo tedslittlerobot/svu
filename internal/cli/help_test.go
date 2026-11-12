@@ -174,7 +174,7 @@ func TestHelp(t *testing.T) {
 		// toStdout is true for the help command, whose main output is help.
 		toStdout bool
 	}{
-		{name: "shows general help with no command", args: nil, want: rootHelp},
+		{name: "shows general help with no command", args: nil, want: rootHelp, toStdout: true},
 		{name: "shows general help for --help", args: []string{"--help"}, want: rootHelp},
 		{name: "shows general help for -h", args: []string{"-h"}, want: rootHelp},
 		{name: "shows general help for the help command", args: []string{"help"}, want: rootHelp, toStdout: true},
@@ -320,6 +320,25 @@ func TestHelpCommandColoursStdout(t *testing.T) {
 	}
 }
 
+func TestCommandGroupsShowHelpOnStdout(t *testing.T) {
+	t.Parallel()
+
+	got := invoke(t, invocation{args: []string{"completion"}})
+
+	if got.code != ExitOK || got.stderr != "" {
+		t.Fatalf("exit code = %d, stderr = %q, want %d and empty", got.code, got.stderr, ExitOK)
+	}
+
+	if want := "Generate the autocompletion script for svu"; !strings.HasPrefix(got.stdout, want) {
+		t.Errorf("stdout = %q, want it to start with %q", got.stdout, want)
+	}
+
+	// A shell still gets its script on stdout.
+	if got := invoke(t, invocation{args: []string{"completion", "bash"}}); !strings.Contains(got.stdout, "bash completion") {
+		t.Errorf("svu completion bash stdout = %q, want a bash completion script", got.stdout[:min(len(got.stdout), 80)])
+	}
+}
+
 func TestUnknownCommands(t *testing.T) {
 	t.Parallel()
 
@@ -342,6 +361,16 @@ func TestUnknownCommands(t *testing.T) {
 			name: "suggests modify for a bare version",
 			args: []string{"v1.2.3"},
 			want: "Error: \"v1.2.3\" is not an svu command.\n\nHint: To modify a version, run svu modify v1.2.3.\n",
+		},
+		{
+			name: "rejects an unknown shell for completion",
+			args: []string{"completion", "nope"},
+			want: "Error: \"nope\" is not a command of svu completion.\n\nHint: To list them, run svu help completion.\n",
+		},
+		{
+			name: "suggests a shell close to a typo",
+			args: []string{"completion", "bsah"},
+			want: "Error: \"bsah\" is not a command of svu completion.\n\nHint: Did you mean svu completion bash?\n",
 		},
 		{
 			name: "rejects help for an unknown command",

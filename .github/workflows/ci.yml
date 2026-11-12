@@ -55,6 +55,16 @@ jobs:
         with:
           version: v2.12.2
 
+  vulnerabilities:
+    name: Vulnerability check
+    runs-on: ubuntu-latest
+    steps:
+      # Fails only if svu's code can reach a known vulnerability, in its
+      # dependencies or in the Go standard library it is built with.
+      - uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: go.mod
+
   release-check:
     name: Release build check
     runs-on: ubuntu-latest

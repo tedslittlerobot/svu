@@ -110,6 +110,14 @@ const rootExample = `  svu modify 1.2.3 --minor     # 1.3.0
 // newRootCommand builds svu's command tree. colourMode receives the value of
 // --colour once flags are parsed.
 func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *cobra.Command {
+	// Help is coloured for the stream it goes to, as conventions/output.md
+	// describes. --help and -h write it to stderr, because they interrupt
+	// another command. svu help, and a command group run on its own, write it
+	// to stdout, because there help is the main output.
+	help := func(w io.Writer, cmd *cobra.Command) {
+		renderHelp(w, cmd, colour.New(colour.Enabled(colourMode.mode, env.getenv, w)))
+	}
+
 	root := &cobra.Command{
 		Use:     "svu",
 		Short:   "svu (Semantic Version Utilities) works with semantic versions",
@@ -117,17 +125,10 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 		Example: rootExample,
 		Version: env.info.Version,
 		// svu runs a command. On its own it shows help; given anything else,
-		// it says that isn't a command. This replaces cobra's own message, so
-		// that it follows conventions/output.md.
+		// it says that isn't a command.
 		Args:              cobra.ArbitraryArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return cmd.Help()
-			}
-
-			return unknownCommandError(cmd, args[0])
-		},
+		RunE:              commandGroup(help),
 
 		// Errors are reported once, by execute, rather than by cobra.
 		SilenceErrors: true,
@@ -156,12 +157,6 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 	root.SetVersionTemplate("{{.Version}}\n")
 	root.SetFlagErrorFunc(flagError)
 
-	// Help is coloured for the stream it goes to, as conventions/output.md
-	// describes. --help and -h write it to stderr. The help command writes it
-	// to stdout, because there help is the command's main output.
-	help := func(w io.Writer, cmd *cobra.Command) {
-		renderHelp(w, cmd, colour.New(colour.Enabled(colourMode.mode, env.getenv, w)))
-	}
 	root.SetHelpFunc(func(cmd *cobra.Command, _ []string) { help(cmd.ErrOrStderr(), cmd) })
 	root.SetUsageFunc(func(cmd *cobra.Command) error {
 		help(cmd.ErrOrStderr(), cmd)
@@ -176,15 +171,57 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 		newVersionCommand(env.info),
 	)
 
+	// cobra adds its completion command when svu runs. Add it now instead, so
+	// that it behaves like svu's own command groups: help on its own, and a
+	// usage error for an unknown shell, rather than help and success.
+	root.InitDefaultCompletionCmd()
+
+	for _, c := range root.Commands() {
+		if c.Name() == "completion" {
+			c.Args = cobra.ArbitraryArgs
+			c.RunE = commandGroup(help)
+			c.SuggestionsMinimumDistance = root.SuggestionsMinimumDistance
+		}
+	}
+
 	return root
 }
 
-// unknownCommandError reports that name isn't one of svu's commands, and
-// suggests what was probably meant.
-func unknownCommandError(root *cobra.Command, name string) *userError {
-	ue := &userError{code: ExitUsage, headline: fmt.Sprintf("%q is not an svu command.", name)}
+// commandGroup returns the RunE for a command that only groups subcommands.
+// On its own it shows its help on stdout, as its main output. Given anything
+// else, it reports that there is no such subcommand.
+func commandGroup(help func(io.Writer, *cobra.Command)) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			help(cmd.OutOrStdout(), cmd)
 
-	suggestions := root.SuggestionsFor(name)
+			return nil
+		}
+
+		return unknownCommandError(cmd, args[0])
+	}
+}
+
+// unknownCommandError reports that name isn't a subcommand of parent, and
+// suggests what was probably meant.
+func unknownCommandError(parent *cobra.Command, name string) *userError {
+	suggestions := parent.SuggestionsFor(name)
+
+	if parent.HasParent() {
+		ue := &userError{
+			code:     ExitUsage,
+			headline: fmt.Sprintf("%q is not a command of %s.", name, parent.CommandPath()),
+			hint:     fmt.Sprintf("To list them, run `svu help %s`.", parent.Name()),
+		}
+
+		if len(suggestions) > 0 {
+			ue.hint = fmt.Sprintf("Did you mean `%s %s`?", parent.CommandPath(), suggestions[0])
+		}
+
+		return ue
+	}
+
+	ue := &userError{code: ExitUsage, headline: fmt.Sprintf("%q is not an svu command.", name)}
 
 	switch {
 	case isVersion(name):

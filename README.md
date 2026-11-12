@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/tedslittlerobot/svu/actions/workflows/ci.yml/badge.svg)](https://github.com/tedslittlerobot/svu/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/tedslittlerobot/svu)](https://github.com/tedslittlerobot/svu/releases)
-[![Go Reference](https://pkg.go.dev/badge/github.com/tedslittlerobot/svu.svg)](https://pkg.go.dev/github.com/tedslittlerobot/svu)
 [![Licence: MIT](https://img.shields.io/badge/Licence-MIT-blue.svg)](LICENSE)
 
 **svu is a set of small, predictable tools for working with
@@ -117,7 +116,7 @@ This puts `svu` in `$(go env GOPATH)/bin`, which needs to be on your `PATH`.
 
 ```sh
 svu --version    # prints the installed version, as in 0.1.0
-svu help         # lists the commands
+svu help         # lists the commands (just svu does the same)
 ```
 
 ### Shell completion (optional)
@@ -326,7 +325,7 @@ They can't be used with a version, because there are no tags to read.
 ### Other commands
 
 ```sh
-svu help [command]        # general help, or help for one command, on stdout
+svu help [command]        # general help, or help for one command, on stdout (also just svu)
 svu <command> --help      # the same help, on stderr (also -h)
 svu --version             # svu's own version, as in 0.1.0
 svu version               # svu's version with its build information
@@ -412,8 +411,8 @@ svu is built to be captured with `$(…)`:
 
 - **stdout** holds the command's main output and nothing else: one version and
   a newline for `svu latest` and `svu modify`. It never contains colour, and
-  it is **empty whenever svu fails**. (`svu help` writes help there too, so
-  `svu help | less` works.)
+  it is **empty whenever svu fails**. (`svu help`, and `svu` on its own,
+  write help there too, so `svu help | less` works.)
 - **stderr** gets everything else: errors, hints, and help from `--help`.
 - **Exit status** tells you what went wrong without reading stderr:
 
@@ -461,6 +460,7 @@ make build      # build ./bin/svu
 make test       # run tests with the race detector, in random order
 make cover      # run tests and open a coverage report
 make lint       # run golangci-lint
+make vuln       # check for known vulnerabilities that svu's code can reach
 make check      # tidy, format, lint and test: run this before pushing
 make snapshot   # build every release artefact into ./dist without publishing
 ```
@@ -482,7 +482,8 @@ CLI, so it can be tested directly.
 ### Contributing
 
 1. Open an issue or pull request against `main`.
-2. Make sure `make check` passes. CI runs the same checks on Linux and macOS.
+2. Make sure `make check` passes. CI runs the same checks on Linux and macOS,
+   plus a vulnerability check and a release build.
 3. Use [Conventional Commits](https://www.conventionalcommits.org) for commit
    messages (`feat:`, `fix:`, `docs:` and so on). Release notes are generated
    from them.

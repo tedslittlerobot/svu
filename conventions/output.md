@@ -26,18 +26,22 @@ stdout **must** contain that and nothing else.
 | `svu version` | svu's version with its build information, on one line |
 | `svu completion <shell>` | The completion script, as in `source <(svu completion bash)` |
 | `svu help [command]` | Help, so that `svu help \| less` works |
+| `svu` or `svu completion`, with no command | Help, the same as `svu help` |
 
 Help asked for with the `--help` or `-h` flag is not a main output: the flag
-interrupts some other command. It goes to stderr. Only the `help` command
-writes help to stdout.
+interrupts some other command. It goes to stderr. Help that a command prints
+because it was asked for, by `svu help` or by running a command group on its
+own, goes to stdout.
 
 - On success, stdout **must** contain the main output followed by a single
   newline (`\n`). For `svu modify` and `svu latest`, that is exactly one
   version.
+- A version is printed without a `v` prefix, whatever the input had, unless
+  `--with-v-prefix` (alias `--vp`) is given. Then it has a lowercase `v`.
 - stdout **must not** contain anything else: no labels, prompts, progress
   messages, warnings, blank lines or trailing whitespace.
 - stdout **must not** contain ANSI escape codes, even when it is a terminal.
-  The one exception is `svu help`, whose output is for people: it follows the
+  The one exception is help, whose output is for people: it follows the
   [colour rules](#when-colour-is-used) for stdout, so it is plain whenever
   stdout isn't a terminal.
 - On failure, stdout **must** be empty. svu never prints a partial or
@@ -56,7 +60,7 @@ stderr **must** be used for all output that isn't a command's main output.
 That includes:
 
 - errors and warnings
-- help and usage text from `--help` or `-h`, or from `svu` with no command
+- help and usage text from `--help` or `-h`
 - any diagnostic or explanatory message
 
 ## Exit status
@@ -142,7 +146,7 @@ non-zero.
 
 ## Colour
 
-Colour is used on **stderr**, and for `svu help` on stdout. It makes messages
+Colour is used on **stderr**, and for help on stdout. It makes messages
 quicker to scan, but must never be needed to understand them. Every message
 has to make complete sense as plain text.
 
