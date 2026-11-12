@@ -75,6 +75,22 @@ svm completion --help
 
 More commands will be documented here as they land.
 
+### Output
+
+svm is built for scripts:
+
+- **stdout** only ever holds the resulting version and a newline, with no
+  colour. On failure it is empty.
+- **stderr** gets everything else, including errors, warnings and help.
+- Colour is used on stderr only when it is a terminal. Set
+  [`NO_COLOR`](https://no-color.org) or pass `--colour=never` to turn it off.
+
+```sh
+next="$(svm …)" || exit 1   # $next is always a valid version, or the script stops
+```
+
+See [`conventions/output.md`](conventions/output.md) for the full rules.
+
 ## Development
 
 You need Go (the version in `go.mod`), plus

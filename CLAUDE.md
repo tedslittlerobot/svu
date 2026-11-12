@@ -65,14 +65,19 @@ publish a public Go API.
 - **No global mutable state.** Each command is built by an unexported
   `newXCommand(...)` constructor and registered in `newRootCommand`. Pass
   dependencies in as arguments; avoid `init()` and package-level command vars.
-- **Errors.** Return errors; don't print and continue. Wrap with context using
-  `fmt.Errorf("doing x: %w", err)`. Error strings are lower case with no
-  trailing punctuation. `execute` prints the final error once as `svm: <err>`
-  and maps it to an exit code; exit codes are defined as constants in
-  `internal/cli/cli.go`, so add new ones there.
-- **Output is a contract.** stdout carries only the result, so `svm` composes
-  in shell pipelines; diagnostics go to stderr. Changing output format is a
-  breaking change.
+- **Output follows [`conventions/output.md`](conventions/output.md).** stdout
+  is only the resulting version and a newline, with no colour, and it's empty
+  on failure. Everything else goes to stderr, including help, errors and
+  warnings. User-facing messages are full sentences in British English, and
+  stderr may use colour as described there. Changing output is a breaking
+  change.
+- **Errors.** Return errors; don't print and continue. Inside the code, Go
+  error values follow normal Go style: lower case, no trailing punctuation,
+  wrapped with `fmt.Errorf("doing x: %w", err)`. Domain packages return typed
+  errors that carry the input, position and rule that was broken. Only
+  `internal/cli` turns errors into user-facing messages
+  (`Error:` / detail / `Hint:`), and a raw Go error string never reaches the
+  user. Exit codes are constants in `internal/cli/cli.go`; add new ones there.
 
 ## Testing
 
@@ -108,6 +113,9 @@ and of every command's success and failure paths.
   consumed, and only when there is more than one implementation or a test needs it.
 - Add dependencies only when they clearly pay for themselves; prefer the
   standard library.
+- British English in all user-facing text and documentation. Go identifiers
+  follow the standard library and ecosystem (`Color`, not `Colour`), so they
+  read naturally next to the APIs they call.
 
 ## Commits and releases
 
