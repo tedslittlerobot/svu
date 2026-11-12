@@ -269,10 +269,7 @@ func noArgs(cmd *cobra.Command, args []string) error {
 
 // flagAliases maps alternative flag names to their canonical names.
 func flagAliases(_ *pflag.FlagSet, name string) pflag.NormalizedName {
-	switch name {
-	case "vp":
-		name = "with-v-prefix"
-	case "color": //nolint:misspell // --color is the conventional alias that output.md requires.
+	if name == "color" { //nolint:misspell // --color is the conventional alias that output.md requires.
 		name = "colour"
 	}
 

@@ -35,19 +35,19 @@ func TestInput(t *testing.T) {
 			wantStdout: "1.2.3\n",
 		},
 		{
-			name:       "removes the v prefix by default",
+			name:       "keeps the v of the argument by default",
 			args:       []string{"v1.2.3-rc-001"},
-			wantStdout: "1.2.3-rc-001\n",
+			wantStdout: "v1.2.3-rc-001\n",
 		},
 		{
-			name:       "adds a v prefix with --with-v-prefix",
-			args:       []string{"--with-v-prefix", "1.2.3"},
+			name:       "adds a v with --with-v",
+			args:       []string{"--with-v", "1.2.3"},
 			wantStdout: "v1.2.3\n",
 		},
 		{
-			name:       "accepts --vp as an alias for --with-v-prefix",
-			args:       []string{"v1.2.3-beta-010", "--vp"},
-			wantStdout: "v1.2.3-beta-010\n",
+			name:       "removes a v with --without-v",
+			args:       []string{"v1.2.3-beta-010", "--without-v"},
+			wantStdout: "1.2.3-beta-010\n",
 		},
 		{
 			name:     "rejects an invalid argument and points at the problem",
@@ -121,11 +121,11 @@ Hint: Give a single version, as in svu modify 1.2.3.
 			name:       "reads the version from standard input when the argument is -",
 			args:       []string{"-"},
 			stdin:      "v1.2.3\n",
-			wantStdout: "1.2.3\n",
+			wantStdout: "v1.2.3\n",
 		},
 		{
 			name:       "adds a v prefix to a version from standard input",
-			args:       []string{"--vp", "-"},
+			args:       []string{"--with-v", "-"},
 			stdin:      "1.2.3-rc-002",
 			wantStdout: "v1.2.3-rc-002\n",
 		},
@@ -215,11 +215,11 @@ Hint: Remove --directory, or remove the version.
 
 				return fixedTags(t, "", "v1.9.0", "nightly", "v1.10.0-rc-001", "v1.2.3-alpha-1")
 			},
-			wantStdout: "1.10.0-rc-001\n",
+			wantStdout: "v1.10.0-rc-001\n",
 		},
 		{
 			name: "adds a v prefix to the latest tag",
-			args: []string{"--with-v-prefix"},
+			args: []string{"--with-v"},
 			tags: func(t *testing.T) tagReader {
 				t.Helper()
 
@@ -235,7 +235,7 @@ Hint: Remove --directory, or remove the version.
 
 				return fixedTags(t, "path/to/repository", "v0.1.0")
 			},
-			wantStdout: "0.1.0\n",
+			wantStdout: "v0.1.0\n",
 		},
 		{
 			name: "reports that there is no input outside a git repository",
@@ -385,11 +385,11 @@ func TestInputFromRealGitRepository(t *testing.T) {
 		{
 			name: "prints the latest valid tag",
 			args: []string{"--directory", repo},
-			want: result{stdout: "0.10.0-rc-001\n"},
+			want: result{stdout: "v0.10.0-rc-001\n"},
 		},
 		{
 			name: "prints the latest valid tag with a v prefix",
-			args: []string{"--directory", repo, "--vp"},
+			args: []string{"--directory", repo, "--with-v"},
 			want: result{stdout: "v0.10.0-rc-001\n"},
 		},
 		{
@@ -437,7 +437,7 @@ func TestInputOnlyReadsStdinWhenAsked(t *testing.T) {
 
 				return fixedTags(t, "", "v2.0.0")
 			},
-			want: "2.0.0\n",
+			want: "v2.0.0\n",
 		},
 	}
 
@@ -480,7 +480,7 @@ func TestInputReadsPipedFiles(t *testing.T) {
 
 	t.Cleanup(func() { _ = f.Close() })
 
-	assertResult(t, invoke(t, invocation{args: modifyArgs("-"), stdin: f}), result{stdout: "3.0.0\n"})
+	assertResult(t, invoke(t, invocation{args: modifyArgs("-"), stdin: f}), result{stdout: "v3.0.0\n"})
 }
 
 func TestInputReportsUnreadableStdin(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -87,6 +88,7 @@ func (f *tagFlags) query(releaseFlag string, fallback bool) (tagQuery, error) {
 	}
 
 	q.initial = &initial
+	q.initialText = f.initial
 
 	return q, nil
 }
@@ -119,6 +121,8 @@ type tagQuery struct {
 	releaseFlag string
 	// initial, if set, is the version to use when no tag matches.
 	initial *semver.Version
+	// initialText is --initial as typed, for its "v".
+	initialText string
 	// fallback is true when tags are read only because no version was given,
 	// as svu modify does. Errors then suggest giving a version instead.
 	fallback bool
@@ -155,17 +159,22 @@ func (q tagQuery) pick(tags []string) (semver.Version, bool) {
 	return semver.Latest(tags)
 }
 
-// latestTag returns the latest git tag that is a valid version: the same
-// filtering and ordering for every command that reads tags.
-func latestTag(ctx context.Context, readTags tagReader, q tagQuery) (semver.Version, error) {
-	v, _, err := latestNamedTag(ctx, readTags, q)
+// source returns the text a version read for q came from, given the name of
+// its tag: the name without the prefix, or --initial as typed if there was no
+// tag. A version is printed with a "v" if this has one.
+func (q tagQuery) source(tag string) string {
+	if tag == "" {
+		return q.initialText
+	}
 
-	return v, err
+	return strings.TrimPrefix(tag, q.prefix)
 }
 
-// latestNamedTag is latestTag, and also returns the name of the tag, such as
-// "v1.2.3" or "api/v1.2.3". The name is "" when the version is --initial.
-func latestNamedTag(ctx context.Context, readTags tagReader, q tagQuery) (semver.Version, string, error) {
+// latestTag returns the latest git tag that is a valid version: the same
+// filtering and ordering for every command that reads tags. It also returns
+// the tag's name, such as "v1.2.3" or "api/v1.2.3", or "" when the version is
+// --initial.
+func latestTag(ctx context.Context, readTags tagReader, q tagQuery) (semver.Version, string, error) {
 	tags, err := readTags(ctx, q.dir, q.options())
 	if err != nil {
 		return semver.Version{}, "", tagsError(err, q)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -36,13 +35,9 @@ func (f *applyFlags) add(cmd *cobra.Command) {
 }
 
 // tag tags the checked-out commit with v, if --apply or --apply-annotate was
-// given.
-//
-// The tag is named like the repository's latest tag: the --tag-prefix, then
-// v, with a "v" if --with-v-prefix was given or the latest tag has one. So a
-// repository of v1.2.3-style tags gets v1.2.4, even without --with-v-prefix.
-// If v is already tagged, in either style, nothing is tagged.
-func (f *applyFlags) tag(cmd *cobra.Command, env environment, q tagQuery, v semver.Version, p vPrefix) error {
+// given. The tag's name is the --tag-prefix, then printed: v as the command
+// prints it. If v is already tagged, with or without a "v", nothing is tagged.
+func (f *applyFlags) tag(cmd *cobra.Command, env environment, q tagQuery, v semver.Version, printed string) error {
 	if !f.apply && !f.annotate {
 		return nil
 	}
@@ -65,12 +60,7 @@ func (f *applyFlags) tag(cmd *cobra.Command, env environment, q tagQuery, v semv
 		}
 	}
 
-	withV := bool(p)
-	if latest, ok := semver.Latest(tags); ok {
-		withV = withV || strings.HasPrefix(tagName(tags, latest), "v")
-	}
-
-	name := q.prefix + vPrefix(withV).format(v)
+	name := q.prefix + printed
 
 	var editor *git.Editor
 

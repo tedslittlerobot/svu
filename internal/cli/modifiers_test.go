@@ -42,7 +42,7 @@ func TestModifiers(t *testing.T) {
 		{name: "treats --release with a bump as no stage", args: []string{"1.2.3", "--minor", "--release"}, want: "1.3.0\n"},
 
 		// With other options and inputs.
-		{name: "adds a v prefix to the modified version", args: []string{"v1.2.3", "--patch", "--vp"}, want: "v1.2.4\n"},
+		{name: "adds a v prefix to the modified version", args: []string{"v1.2.3", "--patch", "--with-v"}, want: "v1.2.4\n"},
 		{name: "ignores modifiers set to false", args: []string{"1.2.3", "--major=false", "--minor"}, want: "1.3.0\n"},
 		{name: "modifies a version from standard input", args: []string{"-", "--beta"}, stdin: "1.2.3-alpha-001\n", want: "1.2.3-beta-001\n"},
 		{
@@ -53,7 +53,7 @@ func TestModifiers(t *testing.T) {
 
 				return fixedTags(t, "", "v1.9.0", "v1.10.0")
 			},
-			want: "1.10.1-rc-001\n",
+			want: "v1.10.1-rc-001\n",
 		},
 	}
 

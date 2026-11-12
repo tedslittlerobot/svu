@@ -23,18 +23,19 @@ const autoFlag = "auto"
 
 // autoVersion works out the next version for svu modify --auto: it reads the
 // latest tag that q matches, and bumps it as the Conventional Commits since
-// then need. If explain isn't nil, it writes how it decided there.
+// then need. If explain isn't nil, it writes how it decided there. It also
+// returns the text the latest version came from, for its "v".
 func autoVersion(
 	ctx context.Context, env environment, q tagQuery, stage semver.Stage, explain io.Writer,
-) (semver.Version, error) {
-	latest, tag, err := latestNamedTag(ctx, env.readTags, q)
+) (semver.Version, string, error) {
+	latest, tag, err := latestTag(ctx, env.readTags, q)
 	if err != nil {
-		return semver.Version{}, err
+		return semver.Version{}, "", err
 	}
 
 	messages, err := env.readMessages(ctx, q.dir, tag)
 	if err != nil {
-		return semver.Version{}, historyError(err, q)
+		return semver.Version{}, "", historyError(err, q)
 	}
 
 	summary := commits.Summarise(messages)
@@ -45,7 +46,7 @@ func autoVersion(
 	}
 
 	if summary.Bump == commits.None {
-		return semver.Version{}, nothingToReleaseError(summary, since)
+		return semver.Version{}, "", nothingToReleaseError(summary, since)
 	}
 
 	// A pre-release is a bump over the last release, so that's needed too.
@@ -54,7 +55,7 @@ func autoVersion(
 	if !latest.IsRelease() {
 		tags, err := env.readTags(ctx, q.dir, q.options())
 		if err != nil {
-			return semver.Version{}, tagsError(err, q)
+			return semver.Version{}, "", tagsError(err, q)
 		}
 
 		release, _ = semver.LatestRelease(tags)
@@ -62,7 +63,7 @@ func autoVersion(
 
 	plan, err := semver.Auto(latest, release, bumpPart(summary.Bump), stage)
 	if err != nil {
-		return semver.Version{}, fmt.Errorf("working out the next version: %w", err)
+		return semver.Version{}, "", fmt.Errorf("working out the next version: %w", err)
 	}
 
 	if explain != nil {
@@ -70,7 +71,7 @@ func autoVersion(
 			count(summary.Commits, "commit"), since, breakdown(summary), planReason(latest, release, plan))
 	}
 
-	return plan.Next, nil
+	return plan.Next, q.source(tag), nil
 }
 
 // bumpPart turns a commit bump into the part of a version it bumps.

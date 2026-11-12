@@ -42,7 +42,7 @@ func TestApply(t *testing.T) {
 			name:    "tags the new version like the latest tag",
 			args:    []string{"modify", "--patch", "--apply"},
 			tags:    []string{"v1.2.3"},
-			want:    "1.2.4\n",
+			want:    "v1.2.4\n",
 			wantTag: tagCall{name: "v1.2.4"},
 		},
 		{
@@ -54,43 +54,50 @@ func TestApply(t *testing.T) {
 		},
 		{
 			name:    "adds a v when asked, whatever the latest tag",
-			args:    []string{"modify", "--minor", "--apply", "--vp"},
+			args:    []string{"modify", "--minor", "--apply", "--with-v"},
 			tags:    []string{"1.2.3"},
 			want:    "v1.3.0\n",
 			wantTag: tagCall{name: "v1.3.0"},
 		},
 		{
-			name:    "follows --with-v-prefix in a repository with no tags",
+			name:    "follows --initial in a repository with no tags",
 			args:    []string{"modify", "--initial", "0.0.0", "--minor", "--apply"},
 			want:    "0.1.0\n",
 			wantTag: tagCall{name: "0.1.0"},
 		},
 		{
-			name:    "tags a version given as an argument like the latest tag",
+			name:    "tags a version given as an argument as it's typed",
 			args:    []string{"modify", "2.0.0", "--apply"},
 			tags:    []string{"v1.2.3"},
 			want:    "2.0.0\n",
-			wantTag: tagCall{name: "v2.0.0"},
+			wantTag: tagCall{name: "2.0.0"},
+		},
+		{
+			name:    "drops the v from the tag with --without-v",
+			args:    []string{"modify", "--patch", "--apply", "--without-v"},
+			tags:    []string{"v1.2.3"},
+			want:    "1.2.4\n",
+			wantTag: tagCall{name: "1.2.4"},
 		},
 		{
 			name:    "makes an annotated tag with --apply-annotate",
 			args:    []string{"modify", "--rc", "--apply-annotate"},
 			tags:    []string{"v1.3.0-rc-001"},
-			want:    "1.3.0-rc-002\n",
+			want:    "v1.3.0-rc-002\n",
 			wantTag: tagCall{name: "v1.3.0-rc-002", annotated: true},
 		},
 		{
 			name:    "puts the prefix in the tag name",
 			args:    []string{"modify", "--tag-prefix", "api/", "--minor", "--apply"},
 			tags:    []string{"api/v0.4.0", "v9.0.0"},
-			want:    "0.5.0\n",
+			want:    "v0.5.0\n",
 			wantTag: tagCall{name: "api/v0.5.0"},
 		},
 		{
 			name:    "tags in the --directory repository",
 			args:    []string{"modify", "--directory", "elsewhere", "--patch", "--apply"},
 			tags:    []string{"v1.0.0"},
-			want:    "1.0.1\n",
+			want:    "v1.0.1\n",
 			wantTag: tagCall{dir: "elsewhere", name: "v1.0.1"},
 		},
 		{
@@ -98,7 +105,7 @@ func TestApply(t *testing.T) {
 			args:     []string{"modify", "--auto", "--apply"},
 			tags:     []string{"v1.2.3"},
 			messages: []string{"feat: a"},
-			want:     "1.3.0\n",
+			want:     "v1.3.0\n",
 			wantTag:  tagCall{name: "v1.3.0"},
 		},
 	}
@@ -143,7 +150,7 @@ func TestApplyGivesTheEditorTheTerminal(t *testing.T) {
 	})
 
 	// What the editor writes goes to stderr, never into the version on stdout.
-	assertResult(t, got, result{stdout: "1.0.1\n", stderr: "editor screen\n"})
+	assertResult(t, got, result{stdout: "v1.0.1\n", stderr: "editor screen\n"})
 
 	if editor == nil || editor.In == nil {
 		t.Fatal("svu made the tag without giving git the terminal")
@@ -264,9 +271,9 @@ func TestApplyInRealGitRepository(t *testing.T) {
 	env := invocation{tags: git.Tags, createTag: git.CreateTag}
 
 	env.args = []string{"modify", "--patch", "--apply", "--directory", dir}
-	assertResult(t, invoke(t, env), result{stdout: "1.2.4\n"})
+	assertResult(t, invoke(t, env), result{stdout: "v1.2.4\n"})
 
 	// The new tag is the latest, on HEAD, so a re-run sees it's tagged.
-	env.args = []string{"latest", "--at-head", "--vp", "--directory", dir}
+	env.args = []string{"latest", "--at-head", "--with-v", "--directory", dir}
 	assertResult(t, invoke(t, env), result{stdout: "v1.2.4\n"})
 }

@@ -20,25 +20,35 @@ const stdinArgument = "-"
 //  1. the version argument, or standard input if the argument is "-";
 //  2. with no argument, the latest git tag that q matches.
 //
+// It also returns the text the version came from, for its "v": the argument,
+// what was on standard input, the tag's name without --tag-prefix, or the
+// --initial version.
+//
 // Standard input is only read when asked for with "-". Reading it whenever it
 // isn't a terminal would hang wherever stdin is a pipe that never closes (CI
 // runners, IDEs, subprocesses), and would consume input meant for something
 // else (git hooks, while-read loops).
 func readVersion(
 	ctx context.Context, args []string, stdin io.Reader, q tagQuery, readTags tagReader,
-) (semver.Version, error) {
+) (semver.Version, string, error) {
 	switch {
 	case len(args) == 0:
-		return latestTag(ctx, readTags, q)
+		v, name, err := latestTag(ctx, readTags, q)
+
+		return v, q.source(name), err
 	case args[0] == stdinArgument:
 		input, err := readStdin(stdin)
 		if err != nil {
-			return semver.Version{}, err
+			return semver.Version{}, "", err
 		}
 
-		return parseVersion(input, " on standard input", false)
+		v, err := parseVersion(input, " on standard input", false)
+
+		return v, input, err
 	default:
-		return parseVersion(args[0], "", true)
+		v, err := parseVersion(args[0], "", true)
+
+		return v, args[0], err
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -22,6 +23,10 @@ It applies any modifiers, then prints the result on standard output. A
 version modifier on its own removes any stage. Add a stage modifier, as in
 --minor --alpha, to start that stage at 001. Stages never go backwards.
 
+The result keeps the "v" of the version it read, from the argument, standard
+input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
+--with-v or --without-v to choose instead.
+
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
 
@@ -31,8 +36,8 @@ and perf bump PATCH. If the latest tag is a pre-release that already covers
 the bump, it carries on from it. If no commit needs a new version, svu modify
 fails with exit status 8. --explain says on stderr how the bump was chosen.
 
---apply also tags the checked-out commit with the new version, named like the
-latest tag (with a "v" if it has one). --apply-annotate makes an annotated
+--apply also tags the checked-out commit with the new version, exactly as
+it's printed (after any --tag-prefix). --apply-annotate makes an annotated
 tag, and opens your editor for its message. Neither pushes the tag. If the
 version is already tagged, nothing is tagged or printed, and svu modify fails
 with exit status 9.`
@@ -41,8 +46,9 @@ const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
   svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
   svu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
   svu modify 1.2.3-rc-001 --release   # 1.2.3
-  echo v1.2.3 | svu modify - --patch  # 1.2.4
-  svu m --patch --with-v-prefix       # the latest git tag, bumped, as in v1.2.4
+  echo v1.2.3 | svu modify - --patch  # v1.2.4
+  svu modify v1.2.3 --without-v       # 1.2.3
+  svu m --patch                       # the latest git tag, bumped, as in v1.2.4
   svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
   svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
   svu m --auto --explain              # the bump the commits since the latest tag need
@@ -52,7 +58,7 @@ const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
 func newModifyCommand(env environment) *cobra.Command {
 	var (
 		tags    tagFlags
-		prefix  vPrefix
+		vstyle  vFlags
 		explain bool
 		apply   applyFlags
 		mods    *modifiers
@@ -69,6 +75,10 @@ func newModifyCommand(env environment) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check the flags before reading any input, which may run git.
 			if err := mods.validate(); err != nil {
+				return err
+			}
+
+			if err := vstyle.validate(); err != nil {
 				return err
 			}
 
@@ -95,12 +105,15 @@ func newModifyCommand(env environment) *cobra.Command {
 				}
 			}
 
-			var v semver.Version
+			var (
+				v      semver.Version
+				source string // The text v came from, for its "v".
+			)
 
 			if mods.auto() {
-				v, err = runAuto(cmd, args, env, q, mods, explain)
+				v, source, err = runAuto(cmd, args, env, q, mods, explain)
 			} else {
-				v, err = readVersion(cmd.Context(), args, cmd.InOrStdin(), q, env.readTags)
+				v, source, err = readVersion(cmd.Context(), args, cmd.InOrStdin(), q, env.readTags)
 				if err == nil {
 					v, err = mods.apply(v)
 				}
@@ -110,12 +123,14 @@ func newModifyCommand(env environment) *cobra.Command {
 				return err
 			}
 
+			out := vstyle.format(v, source)
+
 			// Tag before printing: on failure, stdout must stay empty.
-			if err := apply.tag(cmd, env, q, v, prefix); err != nil {
+			if err := apply.tag(cmd, env, q, v, out); err != nil {
 				return err
 			}
 
-			return writeResult(cmd.OutOrStdout(), prefix.format(v))
+			return writeResult(cmd.OutOrStdout(), out)
 		},
 	}
 
@@ -127,7 +142,7 @@ func newModifyCommand(env environment) *cobra.Command {
 
 	mods = newModifiers(flags)
 
-	prefix.addFlag(cmd)
+	vstyle.add(cmd)
 
 	flags.BoolVar(&explain, "explain", false, "With --auto, say on stderr how the bump was chosen")
 	setHelpGroup(flags, "explain", groupOutput)
@@ -138,12 +153,13 @@ func newModifyCommand(env environment) *cobra.Command {
 }
 
 // runAuto works out the version for svu modify --auto: the bump comes from
-// the Conventional Commits since the latest tag.
+// the Conventional Commits since the latest tag. It also returns the text the
+// version came from, as readVersion does.
 func runAuto(
 	cmd *cobra.Command, args []string, env environment, q tagQuery, mods *modifiers, explain bool,
-) (semver.Version, error) {
+) (semver.Version, string, error) {
 	if len(args) > 0 {
-		return semver.Version{}, &userError{
+		return semver.Version{}, "", &userError{
 			code:     ExitUsage,
 			headline: "--auto can't be used when a version is given.",
 			detail:   "--auto works out the bump from the commits since the latest tag, so it reads the tags itself.",
@@ -156,17 +172,17 @@ func runAuto(
 		out = cmd.ErrOrStderr()
 	}
 
-	v, err := autoVersion(cmd.Context(), env, q, mods.stage(), out)
+	v, source, err := autoVersion(cmd.Context(), env, q, mods.stage(), out)
 	if err != nil {
 		var ue *userError
 		if errors.As(err, &ue) {
-			return semver.Version{}, ue
+			return semver.Version{}, "", ue
 		}
 
-		return semver.Version{}, mods.modifyError(err)
+		return semver.Version{}, "", mods.modifyError(err)
 	}
 
-	return v, nil
+	return v, source, nil
 }
 
 // atMostOneVersion checks that svu modify was given no more than one version.
@@ -198,19 +214,44 @@ func writeResult(w io.Writer, output string) error {
 	return nil
 }
 
-// vPrefix is the --with-v-prefix flag, shared by every command that prints a
+// vFlags are --with-v and --without-v, shared by every command that prints a
 // version.
-type vPrefix bool
-
-// addFlag adds --with-v-prefix, and its alias --vp, to cmd.
-func (p *vPrefix) addFlag(cmd *cobra.Command) {
-	cmd.Flags().BoolVar((*bool)(p), "with-v-prefix", false, `Print the version with a leading "v" (alias --vp)`)
-	setHelpGroup(cmd.Flags(), "with-v-prefix", groupOutput)
+type vFlags struct {
+	with    bool
+	without bool
 }
 
-// format writes v as a command prints it: without a "v" unless asked for.
-func (p vPrefix) format(v semver.Version) string {
-	if p {
+// add adds --with-v and --without-v to cmd.
+func (f *vFlags) add(cmd *cobra.Command) {
+	flags := cmd.Flags()
+
+	flags.BoolVar(&f.with, "with-v", false, `Always print the version with a leading "v"`)
+	flags.BoolVar(&f.without, "without-v", false, `Never print a leading "v"`)
+
+	setHelpGroup(flags, "with-v", groupOutput)
+	setHelpGroup(flags, "without-v", groupOutput)
+}
+
+// validate checks that --with-v and --without-v weren't both given.
+func (f vFlags) validate() error {
+	if !f.with || !f.without {
+		return nil
+	}
+
+	return &userError{
+		code:     ExitUsage,
+		headline: "--with-v and --without-v can't be used together.",
+		detail: `Without either, svu keeps the "v" of the version it read: from the argument,` +
+			"\nstandard input or the tag.",
+		hint: "Remove one of them.",
+	}
+}
+
+// format writes v as a command prints it. source is the text v came from,
+// such as the argument or the tag's name without --tag-prefix. Without
+// --with-v or --without-v, the result has a "v" if source has one.
+func (f vFlags) format(v semver.Version, source string) string {
+	if f.with || (!f.without && strings.HasPrefix(source, "v")) {
 		return "v" + v.String()
 	}
 

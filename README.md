@@ -19,8 +19,8 @@ script or CI job:
 
 ```sh
 $ svu latest
-1.2.3
-$ svu modify --minor --rc --with-v-prefix
+v1.2.3
+$ svu modify --minor --rc
 v1.3.0-rc-001
 ```
 
@@ -169,7 +169,7 @@ doesn't need Go.
   with:
     version: 0.1.0   # optional; the default is the latest release
 
-- run: echo "Next version: $(svu modify --patch --vp)"
+- run: echo "Next version: $(svu modify --patch)"
 ```
 
 The action runs on Linux and macOS runners, and sets a `version` output with
@@ -190,15 +190,16 @@ full history (`fetch-depth: 0` above), or run `git fetch --tags` first.
 In a git repository with a tag such as `v1.2.3`:
 
 ```sh
-svu latest                      # 1.2.3            the latest version
-svu modify --patch              # 1.2.4            the next patch release
-svu modify --minor --rc         # 1.3.0-rc-001     the first release candidate of the next minor
+svu latest                      # v1.2.3           the latest version
+svu modify --patch              # v1.2.4           the next patch release
+svu modify --minor --rc         # v1.3.0-rc-001    the first release candidate of the next minor
 svu modify 1.3.0-rc-001 --rc    # 1.3.0-rc-002     the next release candidate
 svu modify 1.3.0-rc-002 --release  # 1.3.0         the release itself
 ```
 
-Add `--with-v-prefix` (or `--vp`) to get `v1.2.4` instead of `1.2.4`, for
-example to use as a tag name.
+A version keeps its `v`, or lack of one: from the tag `v1.2.3` you get
+`v1.2.4`, and from the argument `1.3.0-rc-001` you get `1.3.0-rc-002`. Add
+`--with-v` or `--without-v` to choose.
 
 ## Version format
 
@@ -211,8 +212,9 @@ svu works with a strict subset of SemVer:
 - **Stages** are `alpha`, `beta` and `rc`, always in that order. A version with
   no stage is a **release**.
 - The **index** is always three digits, from `001` to `999`.
-- A leading `v` is accepted on input and ignored. svu only prints one when you
-  ask with `--with-v-prefix`.
+- A leading `v` is accepted on input, and ignored when comparing versions. svu
+  prints a version with a `v` if it read it with one, unless you pass
+  `--with-v` or `--without-v` (see [the `v`](#the-v)).
 - Build metadata (`+…`) isn't supported.
 
 These rules keep svu's ordering identical to plain SemVer's, so other tools
@@ -263,9 +265,9 @@ These flags apply to both commands:
 `svu latest` (alias `svu l`) prints the latest version in the git tags.
 
 ```sh
-svu latest                     # 1.3.0-rc-002     the latest version, pre-releases included
-svu latest --released          # 1.2.0            the latest release, skipping pre-releases
-svu latest --with-v-prefix     # v1.3.0-rc-002
+svu latest                     # v1.3.0-rc-002    the latest version, pre-releases included
+svu latest --released          # v1.2.0           the latest release, skipping pre-releases
+svu latest --without-v         # 1.3.0-rc-002
 svu latest --global            # including tags on other branches
 svu latest --tag-prefix api/   # the latest api/… tag, as a version
 svu latest --initial 0.0.0     # 0.0.0 if there are no matching tags yet
@@ -276,7 +278,7 @@ svu l --directory ../app       # the latest version in the repository at ../app
 |---|---|
 | `--released` | Skip pre-releases |
 | `--at-head` | Only read tags on the checked-out commit itself. It fails if there are none, so a script can check whether a commit is tagged yet |
-| `--with-v-prefix`, `--vp` | Print a leading `v` |
+| `--with-v`, `--without-v` | Always, or never, print a leading `v`. Without either, the version is printed as the tag has it |
 
 It also takes [the tag flags](#which-tags-svu-reads). Without `--initial`, it's
 an error if there is no repository, no tag that is a valid version, or, with
@@ -338,8 +340,8 @@ If your commit messages follow [Conventional Commits](https://www.conventionalco
 | Only other types, such as `docs:` or `chore:`, or messages that don't follow the convention | None: svu fails with exit status `8` |
 
 ```sh
-svu modify --auto                 # 1.3.0, for a feat since v1.2.3
-svu modify --auto --rc --vp       # v1.3.0-rc-001
+svu modify --auto                 # v1.3.0, for a feat since v1.2.3
+svu modify --auto --rc            # v1.3.0-rc-001
 svu modify --auto --explain       # the same, saying why on stderr:
 # 4 commits since v1.2.3: 1 feat, 1 fix, 1 docs and 1 not following Conventional Commits.
 # That's a minor bump, from 1.2.3 to 1.3.0.
@@ -364,15 +366,16 @@ svu modify --auto --explain       # the same, saying why on stderr:
 does: git opens your editor for the tag's message.
 
 ```sh
-svu modify --patch --apply              # prints 1.2.4, and tags v1.2.4
+svu modify --patch --apply              # prints v1.2.4, and tags v1.2.4
 svu modify --auto --rc --apply-annotate # opens your editor, then tags v1.3.0-rc-001
 git push origin v1.2.4                  # svu never pushes
 ```
 
-- **The tag is named like your latest tag.** It gets a `v` if the latest tag
-  has one, or if you pass `--with-v-prefix`, so a repository of `v1.2.3`-style
-  tags gets `v1.2.4` even if you forget. With `--tag-prefix api/`, it's
-  `api/v1.2.4`.
+- **The tag is exactly what's printed**, after any `--tag-prefix`. Read from
+  the tag `v1.2.3`, the new version and tag are `v1.2.4`; with
+  `--tag-prefix api/`, the tag is `api/v1.2.4`. Given a version as an
+  argument, its `v` (or lack of one) decides, unless you pass `--with-v` or
+  `--without-v`.
 - **It never tags a version twice.** If the version is already tagged, in
   either style, svu tags nothing, prints nothing, and exits with status `9`.
 - **It works with every way of choosing the version**, including a version
@@ -384,6 +387,20 @@ git push origin v1.2.4                  # svu never pushes
 - If the editor fails, or you leave the message empty, git doesn't make the
   tag. svu exits with status `7`. git picks the editor from `GIT_EDITOR`, the
   `core.editor` setting, `VISUAL` or `EDITOR`.
+
+#### The `v`
+
+A printed version keeps the `v` of the version svu read, or its lack of one:
+
+| svu read | `v`? |
+|---|---|
+| the argument `v1.2.3`, or `v1.2.3` on standard input | yes |
+| the tag `v1.2.3`, or `api/v1.2.3` with `--tag-prefix api/` | yes |
+| `--initial v0.0.0`, when no tag matches | yes |
+| `1.2.3` from any of those | no |
+
+`--with-v` always adds one, and `--without-v` always leaves it out. You can't
+give both. `svu latest` follows the same rule.
 
 Stages only move forward, as set out in
 [`conventions/semver.md`](conventions/semver.md#stage-progression). svu
@@ -399,7 +416,7 @@ Other flags:
 
 | Flag | Meaning |
 |---|---|
-| `--with-v-prefix`, `--vp` | Print a leading `v` |
+| `--with-v`, `--without-v` | Always, or never, print a leading `v` (see [the `v`](#the-v)) |
 | `--explain` | With `--auto`, say on stderr how the bump was chosen |
 | `--apply` | Also [tag the checked-out commit](#tagging-the-new-version) with the new version |
 | `--apply-annotate` | The same, as an annotated tag, writing its message in your editor |
@@ -438,7 +455,7 @@ Every command accepts `--colour auto|always|never` (alias `--color`).
 ### A release-candidate cycle
 
 ```sh
-svu latest --vp                    # v1.2.3          what's out now
+svu latest                         # v1.2.3          what's out now
 
 svu m --minor --rc --apply         # tags v1.3.0-rc-001
 svu m --rc --apply                 # tags v1.3.0-rc-002
@@ -457,7 +474,7 @@ svu latest --at-head > /dev/null 2>&1 || status=$?
 if [ "$status" -eq 0 ]; then echo "Already tagged."; exit 0; fi
 if [ "$status" -ne 6 ]; then exit "$status"; fi   # 6: no version tag yet
 
-next="$(svu modify --patch --with-v-prefix --apply)" || exit 1
+next="$(svu modify --patch --apply)" || exit 1
 git push origin "$next"
 ```
 
@@ -479,7 +496,7 @@ fi
 ```sh
 # Exit status 8 means no commit since the latest tag needs a release.
 status=0
-next="$(svu modify --auto --vp --apply)" || status=$?
+next="$(svu modify --auto --apply)" || status=$?
 if [ "$status" -eq 8 ]; then echo "Nothing to release."; exit 0; fi
 if [ "$status" -ne 0 ]; then exit "$status"; fi
 
@@ -489,8 +506,8 @@ git push origin "$next"
 ### Hotfix a release while a release candidate is in progress
 
 ```sh
-svu latest --vp                    # v1.3.0-rc-002    the rc in progress
-svu latest --released --vp         # v1.2.3           what's out now
+svu latest                         # v1.3.0-rc-002    the rc in progress
+svu latest --released              # v1.2.3           what's out now
 
 git switch -c hotfix/1.2 v1.2.3    # fix what's out, without the rc's changes
 git commit -am "fix: …"            # the fix itself
@@ -505,7 +522,7 @@ gives `1.2.4` from anywhere.
 ### Start versioning a new repository
 
 ```sh
-svu m --initial 0.0.0 --minor --vp --apply   # tags v0.1.0 when there are no tags yet
+svu m --initial v0.0.0 --minor --apply   # tags v0.1.0 when there are no tags yet
 ```
 
 With tags present, `--initial` is ignored, so the same line works on every
@@ -521,7 +538,7 @@ svu m --tag-prefix api/ --minor --apply   # api/v1.4.0 → tags api/v1.5.0
 
 ```sh
 git switch support/1.x
-svu latest                         # 1.2.5    this branch's latest, not main's 2.0.0
+svu latest                         # v1.2.5   this branch's latest, not main's v2.0.0
 svu m --patch --apply              # tags v1.2.6
 ```
 
@@ -656,7 +673,7 @@ suite, then builds and publishes everything with GoReleaser. svu can work out
 the tag:
 
 ```sh
-next="$(svu modify --minor --with-v-prefix --apply-annotate)"   # opens your editor; tags v0.2.0, say
+next="$(svu modify --minor --apply-annotate)"   # opens your editor; tags v0.2.0, say
 git push origin "$next"
 ```
 

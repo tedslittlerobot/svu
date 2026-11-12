@@ -24,9 +24,9 @@ func TestLatest(t *testing.T) {
 	}{
 		{name: "prints the latest version, pre-releases included", args: []string{"latest"}, tags: tags, want: "2.0.0-alpha-001\n"},
 		{name: "answers to its alias", args: []string{"l"}, tags: tags, want: "2.0.0-alpha-001\n"},
-		{name: "prints the latest release with --released", args: []string{"latest", "--released"}, tags: tags, want: "1.10.0\n"},
-		{name: "adds a v prefix with --with-v-prefix", args: []string{"latest", "--with-v-prefix"}, tags: tags, want: "v2.0.0-alpha-001\n"},
-		{name: "accepts --vp with --released", args: []string{"l", "--released", "--vp"}, tags: tags, want: "v1.10.0\n"},
+		{name: "prints the latest release with --released", args: []string{"latest", "--released"}, tags: tags, want: "v1.10.0\n"},
+		{name: "removes the tag's v with --without-v", args: []string{"latest", "--without-v"}, tags: tags, want: "2.0.0-alpha-001\n"},
+		{name: "combines --without-v with --released", args: []string{"l", "--released", "--without-v"}, tags: tags, want: "1.10.0\n"},
 		{
 			name:    "reads tags in the directory given by --directory",
 			args:    []string{"l", "--directory", "path/to/repository"},
@@ -169,7 +169,7 @@ func TestLatestFromRealGitRepository(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "prints the latest tag", args: []string{"latest", "--directory", repo}, want: "0.10.0-rc-001\n"},
+		{name: "prints the latest tag", args: []string{"latest", "--directory", repo}, want: "v0.10.0-rc-001\n"},
 		{name: "prints the latest release", args: []string{"l", "--directory", repo, "--released"}, want: "0.9.1\n"},
 	}
 
@@ -212,7 +212,7 @@ func TestLatestAtHead(t *testing.T) {
 			args:    []string{"latest", "--at-head"},
 			head:    []string{"v1.2.3", "deployed"},
 			history: []string{"v1.3.0"},
-			want:    result{stdout: "1.2.3\n"},
+			want:    result{stdout: "v1.2.3\n"},
 		},
 		{
 			name:    "fails when the checked-out commit has no version tag",
@@ -255,5 +255,5 @@ func TestLatestAtHeadInRealGitRepository(t *testing.T) {
 	gittest.Run(t, dir, "tag", "v1.0.1")
 
 	got = invoke(t, invocation{args: []string{"latest", "--at-head", "--directory", dir}, tags: git.Tags})
-	assertResult(t, got, result{stdout: "1.0.1\n"})
+	assertResult(t, got, result{stdout: "v1.0.1\n"})
 }

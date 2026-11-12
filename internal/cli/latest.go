@@ -16,15 +16,18 @@ With --tag-prefix, only tags starting with the prefix count, and the prefix
 is ignored. With --released, pre-releases are skipped too. With --initial,
 that version is printed if no tag matches.
 
+It prints the version as the tag has it, with or without a "v", unless
+--with-v or --without-v says otherwise.
+
 With --at-head, only tags on the checked-out commit itself count. It fails
 (exit status 6) if that commit has no version tag, so a script can check
 whether it has already tagged a commit.`
 
-const latestExample = `  svu latest                         # 1.3.0-rc-002
-  svu latest --released              # 1.2.0
-  svu latest --with-v-prefix         # v1.3.0-rc-002
+const latestExample = `  svu latest                         # v1.3.0-rc-002, from the tag v1.3.0-rc-002
+  svu latest --released              # v1.2.0
+  svu latest --without-v             # 1.3.0-rc-002
   svu latest --global                # including tags on other branches
-  svu latest --tag-prefix api/       # 0.4.0, from the tag api/v0.4.0
+  svu latest --tag-prefix api/       # v0.4.0, from the tag api/v0.4.0
   svu latest --at-head               # fails if the checked-out commit has no version tag
   svu l --directory path/to/repository`
 
@@ -33,7 +36,7 @@ func newLatestCommand(env environment) *cobra.Command {
 		tags     tagFlags
 		released bool
 		atHead   bool
-		prefix   vPrefix
+		vstyle   vFlags
 	)
 
 	cmd := &cobra.Command{
@@ -45,6 +48,10 @@ func newLatestCommand(env environment) *cobra.Command {
 		Args:              noArgs,
 		ValidArgsFunction: cobra.NoFileCompletions,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := vstyle.validate(); err != nil {
+				return err
+			}
+
 			releaseFlag := ""
 			if released {
 				releaseFlag = "--released"
@@ -66,12 +73,12 @@ func newLatestCommand(env environment) *cobra.Command {
 
 			q.atHead = atHead
 
-			v, err := latestTag(cmd.Context(), env.readTags, q)
+			v, name, err := latestTag(cmd.Context(), env.readTags, q)
 			if err != nil {
 				return err
 			}
 
-			return writeResult(cmd.OutOrStdout(), prefix.format(v))
+			return writeResult(cmd.OutOrStdout(), vstyle.format(v, q.source(name)))
 		},
 	}
 
@@ -87,7 +94,7 @@ func newLatestCommand(env environment) *cobra.Command {
 		"Only read tags on the checked-out commit itself, as in a check for whether it's tagged yet")
 	setHelpGroup(flags, "at-head", groupFilter)
 
-	prefix.addFlag(cmd)
+	vstyle.add(cmd)
 
 	return cmd
 }

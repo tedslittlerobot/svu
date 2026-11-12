@@ -41,11 +41,11 @@ func TestAuto(t *testing.T) {
 			tags:       []string{"v1.2.3"},
 			since:      "v1.2.3",
 			messages:   []string{"fix: a", "feat(api): b", "docs: c"},
-			wantStdout: "1.3.0\n",
+			wantStdout: "v1.3.0\n",
 		},
 		{
 			name:       "bumps patch for a fix and starts a stage",
-			args:       []string{"m", "--auto", "--rc", "--vp"},
+			args:       []string{"m", "--auto", "--rc", "--with-v"},
 			tags:       []string{"v1.2.3"},
 			since:      "v1.2.3",
 			messages:   []string{"fix: a", "chore: b"},
@@ -57,7 +57,7 @@ func TestAuto(t *testing.T) {
 			tags:       []string{"v1.2.3"},
 			since:      "v1.2.3",
 			messages:   []string{"refactor!: drop a flag"},
-			wantStdout: "2.0.0\n",
+			wantStdout: "v2.0.0\n",
 		},
 		{
 			name:       "explains a bump on stderr",
@@ -65,7 +65,7 @@ func TestAuto(t *testing.T) {
 			tags:       []string{"v1.2.3"},
 			since:      "v1.2.3",
 			messages:   []string{"fix: a", "feat!: b", "feat: c", "docs: d", "Tidy up"},
-			wantStdout: "2.0.0\n",
+			wantStdout: "v2.0.0\n",
 			wantStderr: "5 commits since v1.2.3: 1 breaking change, 1 feat, 1 fix, 1 docs and 1 not following Conventional Commits.\n" +
 				"That's a major bump, from 1.2.3 to 2.0.0.\n",
 		},
@@ -84,7 +84,7 @@ func TestAuto(t *testing.T) {
 			tags:       []string{"v1.2.3", "v1.3.0-rc-001"},
 			since:      "v1.3.0-rc-001",
 			messages:   []string{"fix: a"},
-			wantStdout: "1.3.0-rc-002\n",
+			wantStdout: "v1.3.0-rc-002\n",
 			wantStderr: "1 commit since v1.3.0-rc-001: 1 fix.\n1.3.0-rc-001 already covers a patch bump, so it carries on, to 1.3.0-rc-002.\n",
 		},
 		{
@@ -93,7 +93,7 @@ func TestAuto(t *testing.T) {
 			tags:       []string{"v1.2.3", "v1.3.0-rc-001"},
 			since:      "v1.3.0-rc-001",
 			messages:   []string{"fix: a"},
-			wantStdout: "1.3.0\n",
+			wantStdout: "v1.3.0\n",
 			wantStderr: "1 commit since v1.3.0-rc-001: 1 fix.\n1.3.0-rc-001 already covers a patch bump, so it's released, as 1.3.0.\n",
 		},
 		{
@@ -102,7 +102,7 @@ func TestAuto(t *testing.T) {
 			tags:       []string{"v1.2.3", "v1.3.0-rc-001"},
 			since:      "v1.3.0-rc-001",
 			messages:   []string{"feat!: a"},
-			wantStdout: "2.0.0-rc-001\n",
+			wantStdout: "v2.0.0-rc-001\n",
 			wantStderr: "1 commit since v1.3.0-rc-001: 1 breaking change.\n" +
 				"1.3.0-rc-001 doesn't cover a major bump, so it's a major bump from the last release, 1.2.3, to 2.0.0-rc-001.\n",
 		},
@@ -120,7 +120,7 @@ func TestAuto(t *testing.T) {
 			tags:       []string{"api/v0.4.0", "v9.0.0"},
 			since:      "api/v0.4.0",
 			messages:   []string{"perf: a"},
-			wantStdout: "0.4.1\n",
+			wantStdout: "v0.4.1\n",
 		},
 	}
 
@@ -286,15 +286,15 @@ func TestAutoInRealGitRepository(t *testing.T) {
 
 	env := invocation{tags: git.Tags, messages: git.Messages}
 
-	env.args = []string{"modify", "--auto", "--rc", "--vp", "--directory", dir}
+	env.args = []string{"modify", "--auto", "--rc", "--with-v", "--directory", dir}
 	assertResult(t, invoke(t, env), result{stdout: "v1.3.0-rc-001\n"})
 
 	gittest.Run(t, dir, "tag", "v1.3.0-rc-001")
 	gittest.Run(t, dir, "commit", "--quiet", "--allow-empty", "--message", "fix: off by one")
 
 	env.args = []string{"modify", "--auto", "--rc", "--directory", dir}
-	assertResult(t, invoke(t, env), result{stdout: "1.3.0-rc-002\n"})
+	assertResult(t, invoke(t, env), result{stdout: "v1.3.0-rc-002\n"})
 
 	env.args = []string{"modify", "--auto", "--directory", dir}
-	assertResult(t, invoke(t, env), result{stdout: "1.3.0\n"})
+	assertResult(t, invoke(t, env), result{stdout: "v1.3.0\n"})
 }

@@ -25,28 +25,28 @@ func TestTagFlags(t *testing.T) {
 		want string
 	}{
 		// Scope.
-		{name: "latest reads only tags on the checked-out history", args: []string{"latest"}, want: "1.3.0-rc-001\n"},
-		{name: "latest reads every tag with --global", args: []string{"latest", "--global"}, want: "2.0.0\n"},
-		{name: "modify reads only tags on the checked-out history", args: []string{"modify", "--patch"}, want: "1.3.1\n"},
-		{name: "modify reads every tag with --global", args: []string{"m", "--global", "--patch"}, want: "2.0.1\n"},
+		{name: "latest reads only tags on the checked-out history", args: []string{"latest"}, want: "v1.3.0-rc-001\n"},
+		{name: "latest reads every tag with --global", args: []string{"latest", "--global"}, want: "v2.0.0\n"},
+		{name: "modify reads only tags on the checked-out history", args: []string{"modify", "--patch"}, want: "v1.3.1\n"},
+		{name: "modify reads every tag with --global", args: []string{"m", "--global", "--patch"}, want: "v2.0.1\n"},
 
 		// Prefix.
-		{name: "latest reads prefixed tags", args: []string{"latest", "--tag-prefix", "api/"}, want: "0.5.0-beta-002\n"},
+		{name: "latest reads prefixed tags", args: []string{"latest", "--tag-prefix", "api/"}, want: "v0.5.0-beta-002\n"},
 		{
 			name: "latest combines a prefix with --released and --global",
 			args: []string{"l", "--tag-prefix", "api/", "--released", "--global"},
-			want: "0.6.0\n",
+			want: "v0.6.0\n",
 		},
-		{name: "modify bumps a prefixed tag", args: []string{"m", "--tag-prefix=api/", "--beta"}, want: "0.5.0-beta-003\n"},
+		{name: "modify bumps a prefixed tag", args: []string{"m", "--tag-prefix=api/", "--beta"}, want: "v0.5.0-beta-003\n"},
 
 		// Hotfix.
-		{name: "hotfix patches the latest release, not the rc", args: []string{"modify", "--hotfix"}, want: "1.2.4\n"},
-		{name: "hotfix can start a stage", args: []string{"m", "--hotfix", "--rc", "--vp"}, want: "v1.2.4-rc-001\n"},
-		{name: "hotfix reads every release with --global", args: []string{"m", "--hotfix", "--global"}, want: "2.0.1\n"},
-		{name: "hotfix works with a prefix", args: []string{"m", "--hotfix", "--tag-prefix", "api/"}, want: "0.4.1\n"},
+		{name: "hotfix patches the latest release, not the rc", args: []string{"modify", "--hotfix"}, want: "v1.2.4\n"},
+		{name: "hotfix can start a stage", args: []string{"m", "--hotfix", "--rc", "--with-v"}, want: "v1.2.4-rc-001\n"},
+		{name: "hotfix reads every release with --global", args: []string{"m", "--hotfix", "--global"}, want: "v2.0.1\n"},
+		{name: "hotfix works with a prefix", args: []string{"m", "--hotfix", "--tag-prefix", "api/"}, want: "v0.4.1\n"},
 
 		// Initial is ignored when a tag matches.
-		{name: "initial is unused when a tag matches", args: []string{"latest", "--initial", "9.9.9"}, want: "1.3.0-rc-001\n"},
+		{name: "initial is unused when a tag matches", args: []string{"latest", "--initial", "9.9.9"}, want: "v1.3.0-rc-001\n"},
 	}
 
 	for _, tt := range tests {
@@ -62,7 +62,7 @@ func TestTagFlags(t *testing.T) {
 func TestHotfixGivenAVersion(t *testing.T) {
 	t.Parallel()
 
-	assertResult(t, run(t, "modify", "v1.2.3", "--hotfix"), result{stdout: "1.2.4\n"})
+	assertResult(t, run(t, "modify", "v1.2.3", "--hotfix"), result{stdout: "v1.2.4\n"})
 
 	assertResult(t, run(t, "modify", "1.3.0-rc-001", "--hotfix"), result{
 		code: ExitModification,
@@ -85,7 +85,7 @@ func TestInitial(t *testing.T) {
 		{name: "modify bumps the initial version", args: []string{"modify", "--initial", "0.0.0", "--minor"}, want: "0.1.0\n"},
 		{
 			name: "modify starts a stage from the initial version",
-			args: []string{"m", "--initial=v0.0.0", "--patch", "--alpha", "--vp"},
+			args: []string{"m", "--initial=v0.0.0", "--patch", "--alpha", "--with-v"},
 			want: "v0.0.1-alpha-001\n",
 		},
 		{
@@ -253,10 +253,10 @@ func TestTagFlagsInRealGitRepository(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "latest sees only the support branch", args: []string{"latest"}, want: "1.0.1\n"},
-		{name: "latest sees everything with --global", args: []string{"latest", "--global"}, want: "1.1.0-rc-001\n"},
-		{name: "a patch on the support branch follows its own tags", args: []string{"modify", "--patch"}, want: "1.0.2\n"},
-		{name: "a global hotfix patches the latest release", args: []string{"modify", "--hotfix", "--global"}, want: "1.0.2\n"},
+		{name: "latest sees only the support branch", args: []string{"latest"}, want: "v1.0.1\n"},
+		{name: "latest sees everything with --global", args: []string{"latest", "--global"}, want: "v1.1.0-rc-001\n"},
+		{name: "a patch on the support branch follows its own tags", args: []string{"modify", "--patch"}, want: "v1.0.2\n"},
+		{name: "a global hotfix patches the latest release", args: []string{"modify", "--hotfix", "--global"}, want: "v1.0.2\n"},
 	}
 
 	for _, tt := range tests {

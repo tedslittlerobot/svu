@@ -263,7 +263,7 @@ func newHelpCommand(show func(w io.Writer, cmd *cobra.Command)) *cobra.Command {
 }
 
 // styleFlags colours any flag named in prose, such as "--directory" or
-// "(alias --vp)", the way help colours flags. A flag starts a word.
+// "or --directory if given", the way help colours flags. A flag starts a word.
 func styleFlags(s colour.Styler, text string) string {
 	var b strings.Builder
 

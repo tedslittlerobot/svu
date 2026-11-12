@@ -81,9 +81,9 @@ func TestFlagErrors(t *testing.T) {
 			want: "Error: \"--patch\" is not a flag of svu.\n\nHint: Did you mean svu modify --patch?\n",
 		},
 		{
-			name: "finds the right command for an alias",
-			args: []string{"--vp"},
-			want: "Error: \"--vp\" is not a flag of svu.\n\nHint: Did you mean svu latest --vp?\n",
+			name: "finds the right command for an output flag",
+			args: []string{"--with-v"},
+			want: "Error: \"--with-v\" is not a flag of svu.\n\nHint: Did you mean svu latest --with-v?\n",
 		},
 		{
 			name: "suggests a flag of the same command that the name is close to",

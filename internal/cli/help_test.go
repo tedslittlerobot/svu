@@ -52,6 +52,10 @@ It applies any modifiers, then prints the result on standard output. A
 version modifier on its own removes any stage. Add a stage modifier, as in
 --minor --alpha, to start that stage at 001. Stages never go backwards.
 
+The result keeps the "v" of the version it read, from the argument, standard
+input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
+--with-v or --without-v to choose instead.
+
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
 
@@ -61,8 +65,8 @@ and perf bump PATCH. If the latest tag is a pre-release that already covers
 the bump, it carries on from it. If no commit needs a new version, svu modify
 fails with exit status 8. --explain says on stderr how the bump was chosen.
 
---apply also tags the checked-out commit with the new version, named like the
-latest tag (with a "v" if it has one). --apply-annotate makes an annotated
+--apply also tags the checked-out commit with the new version, exactly as
+it's printed (after any --tag-prefix). --apply-annotate makes an annotated
 tag, and opens your editor for its message. Neither pushes the tag. If the
 version is already tagged, nothing is tagged or printed, and svu modify fails
 with exit status 9.
@@ -78,8 +82,9 @@ Examples:
   svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
   svu modify 1.2.3-rc-001 --rc        # 1.2.3-rc-002
   svu modify 1.2.3-rc-001 --release   # 1.2.3
-  echo v1.2.3 | svu modify - --patch  # 1.2.4
-  svu m --patch --with-v-prefix       # the latest git tag, bumped, as in v1.2.4
+  echo v1.2.3 | svu modify - --patch  # v1.2.4
+  svu modify v1.2.3 --without-v       # 1.2.3
+  svu m --patch                       # the latest git tag, bumped, as in v1.2.4
   svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
   svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
   svu m --auto --explain              # the bump the commits since the latest tag need
@@ -106,7 +111,8 @@ Stage modifiers (use at most one):
       --release            Remove the stage from a pre-release
 
 Output:
-      --with-v-prefix      Print the version with a leading "v" (alias --vp)
+      --with-v             Always print the version with a leading "v"
+      --without-v          Never print a leading "v"
       --explain            With --auto, say on stderr how the bump was chosen
 
 Tagging:
@@ -133,6 +139,9 @@ With --tag-prefix, only tags starting with the prefix count, and the prefix
 is ignored. With --released, pre-releases are skipped too. With --initial,
 that version is printed if no tag matches.
 
+It prints the version as the tag has it, with or without a "v", unless
+--with-v or --without-v says otherwise.
+
 With --at-head, only tags on the checked-out commit itself count. It fails
 (exit status 6) if that commit has no version tag, so a script can check
 whether it has already tagged a commit.
@@ -144,11 +153,11 @@ Aliases:
   latest, l
 
 Examples:
-  svu latest                         # 1.3.0-rc-002
-  svu latest --released              # 1.2.0
-  svu latest --with-v-prefix         # v1.3.0-rc-002
+  svu latest                         # v1.3.0-rc-002, from the tag v1.3.0-rc-002
+  svu latest --released              # v1.2.0
+  svu latest --without-v             # 1.3.0-rc-002
   svu latest --global                # including tags on other branches
-  svu latest --tag-prefix api/       # 0.4.0, from the tag api/v0.4.0
+  svu latest --tag-prefix api/       # v0.4.0, from the tag api/v0.4.0
   svu latest --at-head               # fails if the checked-out commit has no version tag
   svu l --directory path/to/repository
 
@@ -163,7 +172,8 @@ Filter:
       --at-head            Only read tags on the checked-out commit itself, as in a check for whether it's tagged yet
 
 Output:
-      --with-v-prefix      Print the version with a leading "v" (alias --vp)
+      --with-v             Always print the version with a leading "v"
+      --without-v          Never print a leading "v"
 
 Other:
   -h, --help               Show this help
@@ -308,7 +318,6 @@ func TestHelpInColour(t *testing.T) {
 				"\x1b[1mAliases:\x1b[0m\n  \x1b[36mmodify, m\x1b[0m",
 				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m     Read",
 				"\n\x1b[36m--hotfix\x1b[0m patches the latest release",     // Flags in descriptions are cyan,
-				"(alias \x1b[36m--vp\x1b[0m)",                              // in flag descriptions too,
 				"as in\n\x1b[36m--minor\x1b[0m \x1b[36m--alpha\x1b[0m, to", // even at the start of a line.
 			},
 		},

@@ -37,8 +37,10 @@ own, goes to stdout.
 - On success, stdout **must** contain the main output followed by a single
   newline (`\n`). For `svu modify` and `svu latest`, that is exactly one
   version.
-- A version is printed without a `v` prefix, whatever the input had, unless
-  `--with-v-prefix` (alias `--vp`) is given. Then it has a lowercase `v`.
+- A version is printed with a lowercase `v` if svu read it with one: from the
+  argument, standard input, the tag (after any `--tag-prefix`) or
+  `--initial`. `--with-v` always adds one and `--without-v` always leaves it
+  out; they can't be used together.
 - stdout **must not** contain anything else: no labels, prompts, progress
   messages, warnings, blank lines or trailing whitespace.
 - stdout **must not** contain ANSI escape codes, even when it is a terminal.

@@ -32,7 +32,7 @@ if ! "$svu" validate "$tag"; then
   fail "$tag is not a valid svu version, so it can't be released."
 fi
 
-latest="$("$svu" latest --with-v-prefix)"
+latest="$("$svu" latest --with-v)"
 
 if [ "$latest" != "$tag" ]; then
   fail "$tag is older than $latest, which is already on its history. Tag a newer version."
