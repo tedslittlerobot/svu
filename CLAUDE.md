@@ -2,10 +2,18 @@
 
 Guidance for working in this repository.
 
+## Goal
+
+**The goal of this project is to make it easy to modify a semantic version.**
+
+Judge every feature, command, flag and design decision against this goal. Prefer
+whatever makes modifying a version simpler, more predictable and harder to get
+wrong. Push back on anything that doesn't serve it.
+
 ## Project
 
-`svm` (SemVer Modifier) is a Go command-line tool for reading and modifying
-semantic version strings. It is open source under the MIT licence and hosted at
+`svm` (SemVer Modifier) is a Go command-line tool that modifies semantic
+versions. It is open source under the MIT licence and hosted at
 https://github.com/tedslittlerobot/svm.
 
 - Module path: `github.com/tedslittlerobot/svm`

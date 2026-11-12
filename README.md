@@ -5,8 +5,13 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/tedslittlerobot/svm.svg)](https://pkg.go.dev/github.com/tedslittlerobot/svm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`svm` is a small command-line tool for reading and modifying
-[semantic version](https://semver.org) strings.
+**The goal of svm is to make it easy to modify a
+[semantic version](https://semver.org).**
+
+`svm` is a small command-line tool. You give it a version and ask for a change,
+such as a new patch release or the next release candidate. It prints the
+modified version and nothing else, so it fits neatly into scripts, CI jobs and
+release processes.
 
 > **Status:** early development. The project skeleton is in place and the
 > version-manipulation commands are still being written. Expect breaking
