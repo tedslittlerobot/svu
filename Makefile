@@ -48,6 +48,11 @@ tidy: ## Tidy and verify module dependencies
 	go mod tidy
 	go mod verify
 
+.PHONY: go-latest
+go-latest: ## Move go.mod to the latest Go release (needs network)
+	go get go@latest
+	go mod tidy
+
 .PHONY: vuln
 vuln: ## Check for known vulnerabilities that svu's code can reach (needs network)
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...

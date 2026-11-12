@@ -20,7 +20,17 @@ semantic versions. Each job is a subcommand: `svu modify` (alias `svu m`) and
 https://github.com/tedslittlerobot/svu.
 
 - Module path: `github.com/tedslittlerobot/svu`
-- Go version: the one in `go.mod`
+- Go version: **always the latest Go release.** The `go` line in `go.mod` is
+  the single source of truth: CI, release builds and goenv all read it. When
+  a new Go version is out, update in one commit:
+  1. `make go-latest` (runs `go get go@latest` and `go mod tidy`);
+  2. if you use goenv, `goenv install <version>`;
+  3. bump golangci-lint in `.github/workflows/ci.yml` to a release built with
+     that Go (`golangci-lint version` shows it), since older builds refuse
+     newer Go;
+  4. run `make check`, `make vuln` and `make snapshot`.
+  The `Go version` workflow fails when `go.mod` falls behind, including on a
+  weekly schedule.
 - CLI framework: [Cobra](https://github.com/spf13/cobra)
 - Spec: [`conventions/semver.md`](conventions/semver.md) defines the version
   format svu accepts: a strict subset of
@@ -44,6 +54,7 @@ make test       # go test -race -shuffle=on ./...
 make lint       # golangci-lint run (config: .golangci.yml)
 make fmt        # golangci-lint fmt (gofmt + goimports)
 make build      # ./bin/svu with version info linked in
+make go-latest  # move go.mod to the latest Go release (see Project)
 make vuln       # govulncheck: known vulnerabilities svu's code can reach (CI runs it too)
 make snapshot   # goreleaser release --snapshot --clean (validates release config)
 go test ./internal/cli -run TestVersionCommand   # run a single test

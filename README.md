@@ -450,7 +450,7 @@ Colour is used only when the stream is a terminal. Set
 
 ## Development
 
-You need Go (the version in `go.mod`), plus
+You need Go (the version in `go.mod`, which is always the latest release), plus
 [golangci-lint](https://golangci-lint.run) v2 and, to build release artefacts
 locally, [GoReleaser](https://goreleaser.com) v2.
 
@@ -461,6 +461,7 @@ make test       # run tests with the race detector, in random order
 make cover      # run tests and open a coverage report
 make lint       # run golangci-lint
 make vuln       # check for known vulnerabilities that svu's code can reach
+make go-latest  # move go.mod to the latest Go release
 make check      # tidy, format, lint and test: run this before pushing
 make snapshot   # build every release artefact into ./dist without publishing
 ```

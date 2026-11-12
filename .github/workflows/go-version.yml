@@ -1,0 +1,40 @@
+name: Go version
+
+# svu always builds with the latest Go release (see CLAUDE.md). This fails as
+# soon as go.mod falls behind, including on a quiet week with no other
+# changes, so that a new Go release is never missed.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 6 * * 1" # Mondays, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    name: Go is the latest release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Compare go.mod with the latest Go release
+        run: |
+          have="$(sed -n 's/^go //p' go.mod)"
+          want="$(go list -m -f '{{.Version}}' go@latest)"
+
+          if [ "$have" != "$want" ]; then
+            echo "::error file=go.mod::go.mod is on Go $have, but the latest release is Go $want. Run make go-latest, then update golangci-lint in ci.yml to a release built with Go $want."
+            exit 1
+          fi
+
+          echo "go.mod is on the latest Go release, $want."
