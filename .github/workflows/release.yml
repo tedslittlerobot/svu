@@ -13,12 +13,37 @@ jobs:
     name: CI
     uses: ./.github/workflows/ci.yml
 
+  tag:
+    name: Check the tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      # svu checks its own release tag, built from the tagged commit: the tag
+      # must be a valid svu version, and the latest on its history.
+      - name: Build svu
+        run: go build -o "$RUNNER_TEMP/svu" ./cmd/svu
+
+      - name: Check the tag is a valid, newer version
+        run: scripts/check-release-tag.sh "$GITHUB_REF_NAME" "$RUNNER_TEMP/svu"
+
   release:
     name: Publish
-    needs: ci
+    needs:
+      - ci
+      - tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # For build provenance attestations.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -35,3 +60,11 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Sign a record of how each artefact was built, so users can check a
+      # download came from this workflow:
+      #   gh attestation verify <file> --repo tedslittlerobot/svu
+      # checksums.txt lists every archive and package, so this covers them all.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-checksums: dist/checksums.txt

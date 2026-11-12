@@ -28,6 +28,7 @@ Commands:
   help        Show help for svu or one of its commands
   latest, l   Print the latest version in a repository's git tags
   modify, m   Modify a version, such as bumping it or moving it to a new stage
+  validate    Check that a version is valid, by exit status
   version     Print detailed build information for svu
 
 Flags:
@@ -111,6 +112,10 @@ With --tag-prefix, only tags starting with the prefix count, and the prefix
 is ignored. With --released, pre-releases are skipped too. With --initial,
 that version is printed if no tag matches.
 
+With --at-head, only tags on the checked-out commit itself count. It fails
+(exit status 6) if that commit has no version tag, so a script can check
+whether it has already tagged a commit.
+
 Usage:
   svu latest [flags]
 
@@ -123,6 +128,7 @@ Examples:
   svu latest --with-v-prefix         # v1.3.0-rc-002
   svu latest --global                # including tags on other branches
   svu latest --tag-prefix api/       # 0.4.0, from the tag api/v0.4.0
+  svu latest --at-head               # fails if the checked-out commit has no version tag
   svu l --directory path/to/repository
 
 Input:
@@ -133,6 +139,7 @@ Input:
 
 Filter:
       --released           Skip pre-releases, and print the latest release
+      --at-head            Only read tags on the checked-out commit itself, as in a check for whether it's tagged yet
 
 Output:
       --with-v-prefix      Print the version with a leading "v" (alias --vp)
@@ -142,6 +149,31 @@ Other:
 
 Global flags:
       --colour when        Use colour in help and errors: auto (the default), always or never (alias --color)
+`
+
+//nolint:misspell // The help names the --color alias.
+const validateHelp = `Check that a version is valid.
+
+svu validate prints nothing. It exits with status 0 if the version is valid,
+or 3 if it isn't, and then explains why on standard error. Give the version
+as the argument, or "-" to read it from standard input.
+
+A leading "v" is accepted, as everywhere in svu.
+
+Usage:
+  svu validate <version> [flags]
+
+Examples:
+  svu validate 1.2.3-rc-001
+  svu validate 1.2.3-alpha-1                 # exit status 3, and the reason
+  echo "$TAG" | svu validate -
+  svu validate "$TAG" 2>/dev/null && echo valid
+
+Flags:
+  -h, --help         Show this help
+
+Global flags:
+      --colour when  Use colour in help and errors: auto (the default), always or never (alias --color)
 `
 
 //nolint:misspell // The help names the --color alias.
@@ -188,6 +220,8 @@ func TestHelp(t *testing.T) {
 			want: modifyHelp,
 		},
 		{name: "shows help for the version command", args: []string{"version", "--help"}, want: versionHelp},
+		{name: "shows help for the validate command", args: []string{"validate", "-h"}, want: validateHelp},
+		{name: "shows help for help validate", args: []string{"help", "validate"}, want: validateHelp, toStdout: true},
 		{name: "shows help for the latest command", args: []string{"latest", "--help"}, want: latestHelp},
 		{name: "shows help for help l", args: []string{"help", "l"}, want: latestHelp, toStdout: true},
 		{name: "shows help for help version", args: []string{"help", "version"}, want: versionHelp, toStdout: true},

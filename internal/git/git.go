@@ -55,6 +55,9 @@ type TagOptions struct {
 	// tags reachable from HEAD: those on the commit that is checked out, or
 	// on its history.
 	All bool
+	// AtHead lists only the tags on the commit that is checked out, and
+	// overrides All.
+	AtHead bool
 	// Prefix, if set, keeps only the tags whose names start with it, and
 	// removes it from the names returned. For example, with Prefix "api/",
 	// the tag "api/v1.2.3" is returned as "v1.2.3" and "v2.0.0" is skipped.
@@ -77,7 +80,11 @@ func tags(ctx context.Context, gitPath, dir string, opts TagOptions) ([]string, 
 	}
 
 	args := []string{"tag", "--list"}
-	if !opts.All {
+
+	switch {
+	case opts.AtHead:
+		args = append(args, "--points-at", "HEAD")
+	case !opts.All:
 		args = append(args, "--merged", "HEAD")
 	}
 
@@ -86,8 +93,9 @@ func tags(ctx context.Context, gitPath, dir string, opts TagOptions) ([]string, 
 	var cmdErr *CommandError
 
 	switch {
-	case errors.As(err, &cmdErr) && strings.Contains(cmdErr.Stderr, "malformed object name HEAD"):
-		// A repository with no commits yet has nothing reachable from HEAD.
+	case errors.As(err, &cmdErr) && strings.Contains(cmdErr.Stderr, "malformed object name") &&
+		strings.Contains(cmdErr.Stderr, "HEAD"):
+		// A repository with no commits yet has nothing on or reachable from HEAD.
 		return []string{}, nil
 	case err != nil:
 		return nil, err

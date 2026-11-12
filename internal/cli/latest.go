@@ -14,19 +14,25 @@ svu modify reads tags the same way when given no version.
 
 With --tag-prefix, only tags starting with the prefix count, and the prefix
 is ignored. With --released, pre-releases are skipped too. With --initial,
-that version is printed if no tag matches.`
+that version is printed if no tag matches.
+
+With --at-head, only tags on the checked-out commit itself count. It fails
+(exit status 6) if that commit has no version tag, so a script can check
+whether it has already tagged a commit.`
 
 const latestExample = `  svu latest                         # 1.3.0-rc-002
   svu latest --released              # 1.2.0
   svu latest --with-v-prefix         # v1.3.0-rc-002
   svu latest --global                # including tags on other branches
   svu latest --tag-prefix api/       # 0.4.0, from the tag api/v0.4.0
+  svu latest --at-head               # fails if the checked-out commit has no version tag
   svu l --directory path/to/repository`
 
 func newLatestCommand(env environment) *cobra.Command {
 	var (
 		tags     tagFlags
 		released bool
+		atHead   bool
 		prefix   vPrefix
 	)
 
@@ -49,6 +55,17 @@ func newLatestCommand(env environment) *cobra.Command {
 				return err
 			}
 
+			if atHead && tags.global {
+				return &userError{
+					code:     ExitUsage,
+					headline: "--at-head and --global can't be used together.",
+					detail:   "--at-head only reads tags on the checked-out commit, so there's nothing for --global to add.",
+					hint:     "Remove `--global`.",
+				}
+			}
+
+			q.atHead = atHead
+
 			v, err := latestTag(cmd.Context(), env.readTags, q)
 			if err != nil {
 				return err
@@ -65,6 +82,10 @@ func newLatestCommand(env environment) *cobra.Command {
 
 	flags.BoolVar(&released, "released", false, "Skip pre-releases, and print the latest release")
 	setHelpGroup(flags, "released", groupFilter)
+
+	flags.BoolVar(&atHead, "at-head", false,
+		"Only read tags on the checked-out commit itself, as in a check for whether it's tagged yet")
+	setHelpGroup(flags, "at-head", groupFilter)
 
 	prefix.addFlag(cmd)
 

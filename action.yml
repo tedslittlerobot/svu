@@ -1,0 +1,34 @@
+name: Set up svu
+description: Install svu (Semantic Version Utilities) from a GitHub release, and put it on the PATH.
+author: tedslittlerobot
+
+branding:
+  icon: tag
+  color: blue
+
+inputs:
+  version:
+    description: The svu version to install, as in 0.1.0, or "latest" for the latest release.
+    required: false
+    default: latest
+  token:
+    description: A GitHub token, used to look up the latest release without hitting the API's rate limit.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  version:
+    description: The svu version that was installed, as in 0.1.0.
+    value: ${{ steps.install.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    # The script downloads the release archive for the runner, checks it
+    # against the release's checksums, and adds svu to the PATH.
+    - id: install
+      shell: bash
+      env:
+        SVU_VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: '"$GITHUB_ACTION_PATH/scripts/install-svu.sh"'

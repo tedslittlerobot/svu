@@ -22,6 +22,7 @@ stdout **must** contain that and nothing else.
 |---|---|
 | `svu modify` | The modified version, valid under [svu's version rules](semver.md) |
 | `svu latest` | The latest version in the repository's git tags |
+| `svu validate` | Nothing: the exit status is the answer |
 | `svu --version` | svu's own version, bare, such as `1.4.0` |
 | `svu version` | svu's version with its build information, on one line |
 | `svu completion <shell>` | The completion script, as in `source <(svu completion bash)` |

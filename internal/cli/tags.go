@@ -72,7 +72,7 @@ func (f *tagFlags) query(releaseFlag string, fallback bool) (tagQuery, error) {
 		return q, nil
 	}
 
-	initial, err := parseVersion(f.initial, " for --initial")
+	initial, err := parseVersion(f.initial, " for --initial", false)
 	if err != nil {
 		return tagQuery{}, err
 	}
@@ -109,6 +109,8 @@ type tagQuery struct {
 	dir string
 	// all reads every tag, not only those reachable from HEAD.
 	all bool
+	// atHead reads only the tags on HEAD itself.
+	atHead bool
 	// prefix keeps only tags starting with it, and removes it.
 	prefix string
 	// releasesOnly skips pre-releases.
@@ -123,7 +125,7 @@ type tagQuery struct {
 }
 
 func (q tagQuery) options() git.TagOptions {
-	return git.TagOptions{All: q.all, Prefix: q.prefix}
+	return git.TagOptions{All: q.all, AtHead: q.atHead, Prefix: q.prefix}
 }
 
 // place names the directory the query reads, for messages.
@@ -188,7 +190,7 @@ func latestTag(ctx context.Context, readTags tagReader, q tagQuery) (semver.Vers
 
 	// Tags on other branches don't count by default. Say so if they would
 	// have given an answer.
-	if !q.all {
+	if !q.all && !q.atHead {
 		everything := q
 		everything.all = true
 
@@ -210,7 +212,11 @@ func noVersionTagsError(q tagQuery, count int) *userError {
 	}
 
 	where := ""
-	if !q.all {
+
+	switch {
+	case q.atHead:
+		where = " on the checked-out commit"
+	case !q.all:
 		where = " on the checked-out commit's history"
 	}
 
@@ -222,7 +228,10 @@ func noVersionTagsError(q tagQuery, count int) *userError {
 	example := fmt.Sprintf("`git tag %sv0.1.0`", q.prefix)
 
 	hint := fmt.Sprintf("Tag a release, as in %s, or use `--initial 0.0.0` to start from scratch.", example)
-	if q.fallback {
+	switch {
+	case q.atHead:
+		hint = "The checked-out commit has no version tag yet. Tag it, or leave out `--at-head`."
+	case q.fallback:
 		hint = fmt.Sprintf("Give a version, as in `svu modify 0.1.0`, tag a release, as in %s, "+
 			"or use `--initial 0.0.0`.", example)
 	}

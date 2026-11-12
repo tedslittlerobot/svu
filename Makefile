@@ -35,6 +35,24 @@ cover: ## Run tests and open an HTML coverage report
 	go tool cover -func=coverage.out | tail -n 1
 	go tool cover -html=coverage.out
 
+MIN_COVERAGE ?= 95
+
+.PHONY: cover-check
+cover-check: ## Run tests with coverage, and fail if the total is below MIN_COVERAGE (95%)
+	go test -race -shuffle=on -covermode=atomic -coverprofile=coverage.out ./...
+	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ { sub("%", "", $$3); print $$3 }'); \
+	echo "Total coverage: $$total% (minimum $(MIN_COVERAGE)%)"; \
+	if ! awk -v total="$$total" -v min="$(MIN_COVERAGE)" 'BEGIN { exit !(total + 0 >= min + 0) }'; then \
+		echo "Coverage $$total% is below the minimum of $(MIN_COVERAGE)%. Add tests for the new code." >&2; \
+		exit 1; \
+	fi
+
+FUZZ_TIME ?= 30s
+
+.PHONY: fuzz
+fuzz: ## Fuzz the version parser for FUZZ_TIME (30s)
+	go test -run='^$$' -fuzz=FuzzParse -fuzztime=$(FUZZ_TIME) ./internal/semver
+
 .PHONY: lint
 lint: ## Run golangci-lint
 	golangci-lint run

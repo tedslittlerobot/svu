@@ -168,6 +168,7 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 	root.AddCommand(
 		newLatestCommand(env),
 		newModifyCommand(env),
+		newValidateCommand(),
 		newVersionCommand(env.info),
 	)
 

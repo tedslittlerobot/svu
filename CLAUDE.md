@@ -55,6 +55,8 @@ https://github.com/tedslittlerobot/svu.
 ```sh
 make check      # tidy, format, lint, test: must pass before any commit
 make test       # go test -race -shuffle=on ./...
+make cover-check  # tests with coverage; fails below 95% total (CI runs this)
+make fuzz       # fuzz the version parser for 30s (CI runs this)
 make lint       # golangci-lint run (config: .golangci.yml)
 make fmt        # golangci-lint fmt (gofmt + goimports)
 make build      # ./bin/svu with version info linked in
@@ -73,10 +75,14 @@ internal/cli/         One file per command (<name>.go + <name>_test.go).
                       cli.go holds Execute, the root command and Streams.
                       modify.go is svu modify; modifiers.go and input.go support it.
                       latest.go is svu latest. tags.go reads git tags for both.
+                      validate.go is svu validate.
 internal/buildinfo/   Version metadata from ldflags, falling back to debug.ReadBuildInfo.
 internal/semver/      Parsing, ordering, formatting and modifying versions.
 internal/git/         Reads tags by running the git command.
 internal/colour/      Decides when stderr uses colour, and applies it.
+action.yml            The GitHub Action that installs svu (runs scripts/install-svu.sh).
+scripts/              Shell scripts for installing svu and checking release tags.
+                      They must run under bash 3.2 (macOS) as well as bash 5.
 ```
 
 New domain logic goes in its own focused package under `internal/` (for

@@ -36,9 +36,9 @@ func readVersion(
 			return semver.Version{}, err
 		}
 
-		return parseVersion(input, " on standard input")
+		return parseVersion(input, " on standard input", false)
 	default:
-		return parseVersion(args[0], "")
+		return parseVersion(args[0], "", true)
 	}
 }
 
@@ -78,8 +78,9 @@ func readStdin(stdin io.Reader) (string, error) {
 
 // parseVersion parses a version the user gave. where says where it came
 // from, for messages: "" for the version argument, or a phrase such as
-// " on standard input".
-func parseVersion(input, where string) (semver.Version, error) {
+// " on standard input". modifyHints is true for svu modify's version
+// argument, where an invalid word is probably a mistyped modifier.
+func parseVersion(input, where string, modifyHints bool) (semver.Version, error) {
 	v, err := semver.Parse(input)
 	if err == nil {
 		return v, nil
@@ -90,7 +91,7 @@ func parseVersion(input, where string) (semver.Version, error) {
 		return semver.Version{}, &userError{code: ExitInternal, headline: "svu could not read the version.", hint: reportHint, err: err}
 	}
 
-	return semver.Version{}, parseError(perr, where)
+	return semver.Version{}, parseError(perr, where, modifyHints)
 }
 
 // ruleDetails explains each version rule in terms of conventions/semver.md.
@@ -111,7 +112,7 @@ var ruleDetails = map[semver.Rule]string{
 	semver.RuleExtraSuffix:         "A version can have only one stage and index, as in 1.2.3-rc-001.",
 }
 
-func parseError(perr *semver.ParseError, where string) *userError {
+func parseError(perr *semver.ParseError, where string, modifyHints bool) *userError {
 	if perr.Rule == semver.RuleEmpty {
 		return &userError{
 			code:     ExitInvalidVersion,
@@ -132,8 +133,8 @@ func parseError(perr *semver.ParseError, where string) *userError {
 	switch {
 	case perr.Suggestion != "":
 		ue.hint = fmt.Sprintf("Did you mean %q?", perr.Suggestion)
-	case where != "":
-		// No hint: the input isn't the version argument.
+	case !modifyHints:
+		// No hint: the input isn't svu modify's version argument.
 	case slices.Contains(modifierNames(), perr.Input):
 		ue.hint = fmt.Sprintf("Did you mean `--%s`?", perr.Input)
 	case isWord(perr.Input):

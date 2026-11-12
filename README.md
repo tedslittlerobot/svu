@@ -33,8 +33,8 @@ v1.3.0-rc-001
 - [Quick start](#quick-start)
 - [Version format](#version-format)
 - [Commands](#commands): [which tags svu reads](#which-tags-svu-reads),
-  [`svu latest`](#svu-latest),
-  [`svu modify`](#svu-modify), [others](#other-commands)
+  [`svu latest`](#svu-latest), [`svu modify`](#svu-modify),
+  [`svu validate`](#svu-validate), [others](#other-commands)
 - [Recipes](#recipes)
 - [Scripting](#scripting)
 - [Development](#development)
@@ -75,6 +75,14 @@ To check the download first, fetch `checksums.txt` from the same release:
 curl -fsSLO "https://github.com/tedslittlerobot/svu/releases/download/v${VERSION}/checksums.txt"
 sha256sum --check --ignore-missing checksums.txt         # Linux
 shasum -a 256 --check --ignore-missing checksums.txt     # macOS
+```
+
+Each release is also signed with build provenance, which proves the archive
+was built by this repository's release workflow. To check it, with the
+[GitHub CLI](https://cli.github.com):
+
+```sh
+gh attestation verify "svu_${VERSION}_${OS}_${ARCH}.tar.gz" --repo tedslittlerobot/svu
 ```
 
 > **macOS:** if you download the archive with a browser rather than `curl`,
@@ -148,22 +156,34 @@ including PowerShell.
 
 ### In CI
 
-svu reads tags, and many CI systems clone without them. On GitHub Actions,
-fetch the full history:
+On **GitHub Actions**, use the svu action. It downloads the release binary,
+checks it against the release's checksums, and puts `svu` on the `PATH`. It
+doesn't need Go.
 
 ```yaml
 - uses: actions/checkout@v5
   with:
     fetch-depth: 0   # svu needs the tags; a shallow clone has none
 
-- uses: actions/setup-go@v6
+- uses: tedslittlerobot/svu@v0.1.0
   with:
-    go-version: stable
+    version: 0.1.0   # optional; the default is the latest release
 
-- run: go install github.com/tedslittlerobot/svu/cmd/svu@latest
+- run: echo "Next version: $(svu modify --patch --vp)"
 ```
 
-Elsewhere, run `git fetch --tags` before svu.
+The action runs on Linux and macOS runners, and sets a `version` output with
+the svu version it installed.
+
+On **other CI systems**, run the same install script:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tedslittlerobot/svu/main/scripts/install-svu.sh \
+  | SVU_VERSION=0.1.0 bash   # installs to ~/.local/bin
+```
+
+Either way, svu reads tags, and many CI systems clone without them. Fetch the
+full history (`fetch-depth: 0` above), or run `git fetch --tags` first.
 
 ## Quick start
 
@@ -255,6 +275,7 @@ svu l --directory ../app       # the latest version in the repository at ../app
 | Flag | Meaning |
 |---|---|
 | `--released` | Skip pre-releases |
+| `--at-head` | Only read tags on the checked-out commit itself. It fails if there are none, so a script can check whether a commit is tagged yet |
 | `--with-v-prefix`, `--vp` | Print a leading `v` |
 
 It also takes [the tag flags](#which-tags-svu-reads). Without `--initial`, it's
@@ -322,6 +343,19 @@ Other flags:
 With no version given, it also takes [the tag flags](#which-tags-svu-reads).
 They can't be used with a version, because there are no tags to read.
 
+### svu validate
+
+`svu validate` checks that a version is valid. It prints nothing: the exit
+status is the answer, `0` if valid and `3` if not, with the reason on
+standard error.
+
+```sh
+svu validate 1.2.3-rc-001                    # exit status 0
+svu validate 1.2.3-alpha-1                   # exit status 3, and the reason
+echo "$TAG" | svu validate -                 # read the version from standard input
+svu validate "$TAG" 2>/dev/null && echo ok   # just the answer
+```
+
 ### Other commands
 
 ```sh
@@ -330,6 +364,7 @@ svu <command> --help      # the same help, on stderr (also -h)
 svu --version             # svu's own version, as in 0.1.0
 svu version               # svu's version with its build information
 svu completion <shell>    # a completion script; see Setup
+svu validate <version>    # check a version, by exit status; see above
 ```
 
 Every command accepts `--colour auto|always|never` (alias `--color`).
@@ -352,16 +387,25 @@ the last.
 ### Tag the next patch release in CI
 
 ```sh
+# If this commit already has a version tag, as when a job is re-run, stop.
+status=0
+svu latest --at-head > /dev/null 2>&1 || status=$?
+if [ "$status" -eq 0 ]; then echo "Already tagged."; exit 0; fi
+if [ "$status" -ne 6 ]; then exit "$status"; fi   # 6: no version tag yet
+
 next="$(svu modify --patch --with-v-prefix)" || exit 1
 git tag -a "$next" -m "$next"
 git push origin "$next"
 ```
 
+Without the check, re-running the job would tag the same commit a second
+time, with the next version after that.
+
 ### Check a version before using it
 
 ```sh
-if version="$(svu modify "$INPUT" 2>/dev/null)"; then
-  echo "valid: $version"
+if svu validate "$INPUT" 2>/dev/null; then
+  echo "valid"
 else
   echo "not a valid svu version: $INPUT"
 fi
@@ -483,6 +527,8 @@ you, as long as your installed Go is 1.21 or newer.
 make help              # list all targets
 make build             # build ./bin/svu
 make test              # run tests with the race detector, in random order
+make cover-check       # run tests, and fail if coverage is below 95% (CI runs this)
+make fuzz              # fuzz the version parser for 30 seconds (CI runs this)
 make cover             # run tests and open a coverage report
 make lint              # run golangci-lint
 make vuln              # check for known vulnerabilities that svu's code can reach
@@ -510,8 +556,11 @@ CLI, so it can be tested directly.
 
 1. Open an issue or pull request against `main`.
 2. Make sure `make check` passes. CI runs the same checks on Linux and macOS,
-   plus a vulnerability check and a release build.
-3. Use [Conventional Commits](https://www.conventionalcommits.org) for commit
+   plus a coverage minimum of 95%, fuzzing, a vulnerability check and a
+   release build.
+3. To report a security problem, follow [`SECURITY.md`](SECURITY.md) instead
+   of opening an issue.
+4. Use [Conventional Commits](https://www.conventionalcommits.org) for commit
    messages (`feat:`, `fix:`, `docs:` and so on). Release notes are generated
    from them.
 
@@ -529,6 +578,16 @@ git push origin "$next"
 
 Tags with a stage (for example `v0.2.0-rc-001`) are published as GitHub
 pre-releases.
+
+Before anything is published, the release workflow builds svu from the tagged
+commit and uses it to check the tag
+([`scripts/check-release-tag.sh`](scripts/check-release-tag.sh)). The tag
+must be a valid svu version, and the latest version on its own history. So
+`v0.2.0-rc.1` is refused, as is `v0.1.5` after `v0.2.0` on `main`, but a
+hotfix such as `v0.1.5` on a maintenance branch is fine.
+
+Each release is published with signed build provenance for every archive and
+package (see [`SECURITY.md`](SECURITY.md#checking-a-download)).
 
 ## Licence
 

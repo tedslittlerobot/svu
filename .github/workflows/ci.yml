@@ -35,11 +35,30 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test
-        run: go test -race -shuffle=on -covermode=atomic -coverprofile=coverage.out ./...
+      - name: Test, and check coverage
+        run: make cover-check
 
-      - name: Coverage summary
-        run: go tool cover -func=coverage.out | tail -n 1
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Fuzz the version parser
+        run: make fuzz
+
+      # A failing input is saved under testdata. Keep it, so it can be added
+      # to the tests: go test ./internal/semver then replays it.
+      - name: Keep the failing input
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-failure
+          path: internal/semver/testdata/fuzz
 
   lint:
     name: Lint

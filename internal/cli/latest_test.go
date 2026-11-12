@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/tedslittlerobot/svu/internal/git"
@@ -179,4 +181,79 @@ func TestLatestFromRealGitRepository(t *testing.T) {
 			assertResult(t, got, result{stdout: tt.want})
 		})
 	}
+}
+
+// headTags returns a tagReader for a repository where head are the tags on
+// the checked-out commit, and history are other tags on its history.
+func headTags(t *testing.T, head, history []string) tagReader {
+	t.Helper()
+
+	return func(_ context.Context, _ string, opts git.TagOptions) ([]string, error) {
+		if opts.AtHead {
+			return head, nil
+		}
+
+		return append(slices.Clone(head), history...), nil
+	}
+}
+
+func TestLatestAtHead(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		args    []string
+		head    []string
+		history []string
+		want    result
+	}{
+		{
+			name:    "prints the version tag on the checked-out commit",
+			args:    []string{"latest", "--at-head"},
+			head:    []string{"v1.2.3", "deployed"},
+			history: []string{"v1.3.0"},
+			want:    result{stdout: "1.2.3\n"},
+		},
+		{
+			name:    "fails when the checked-out commit has no version tag",
+			args:    []string{"latest", "--at-head"},
+			history: []string{"v1.2.3"},
+			want: result{code: ExitNoMatchingTag, stderr: "Error: The git repository has no tags that are valid versions.\n\n" +
+				"  It has no tags on the checked-out commit.\n\n" +
+				"Hint: The checked-out commit has no version tag yet. Tag it, or leave out --at-head.\n"},
+		},
+		{
+			name: "rejects --at-head with --global",
+			args: []string{"latest", "--at-head", "--global"},
+			want: result{code: ExitUsage, stderr: "Error: --at-head and --global can't be used together.\n\n" +
+				"  --at-head only reads tags on the checked-out commit, so there's nothing for --global to add.\n\n" +
+				"Hint: Remove --global.\n"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := invoke(t, invocation{args: tt.args, tags: headTags(t, tt.head, tt.history)})
+			assertResult(t, got, tt.want)
+		})
+	}
+}
+
+func TestLatestAtHeadInRealGitRepository(t *testing.T) {
+	t.Parallel()
+
+	dir := gittest.NewRepository(t, "v1.0.0")
+	gittest.Run(t, dir, "commit", "--quiet", "--allow-empty", "--message", "Untagged")
+
+	got := invoke(t, invocation{args: []string{"latest", "--at-head", "--directory", dir}, tags: git.Tags})
+	if got.code != ExitNoMatchingTag {
+		t.Errorf("before tagging: exit code = %d, want %d", got.code, ExitNoMatchingTag)
+	}
+
+	gittest.Run(t, dir, "tag", "v1.0.1")
+
+	got = invoke(t, invocation{args: []string{"latest", "--at-head", "--directory", dir}, tags: git.Tags})
+	assertResult(t, got, result{stdout: "1.0.1\n"})
 }

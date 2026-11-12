@@ -163,6 +163,8 @@ func TestTagsScopeAndPrefix(t *testing.T) {
 			want: []string{"api/v2.0.0", "v1.0.0", "v1.0.1", "v1.1.0-rc-001"},
 		},
 		{name: "keeps and strips a prefix", opts: TagOptions{All: true, Prefix: "api/"}, want: []string{"v2.0.0"}},
+		{name: "lists only tags on HEAD with AtHead", opts: TagOptions{AtHead: true}, want: []string{"v1.0.1"}},
+		{name: "lets AtHead override All", opts: TagOptions{AtHead: true, All: true}, want: []string{"v1.0.1"}},
 		{name: "finds nothing reachable with a prefix only used elsewhere", opts: TagOptions{Prefix: "api/"}, want: []string{}},
 	}
 
@@ -190,7 +192,7 @@ func TestTagsInARepositoryWithNoCommits(t *testing.T) {
 	dir := t.TempDir()
 	gittest.Run(t, dir, "init", "--quiet")
 
-	for _, opts := range []TagOptions{{}, {All: true}} {
+	for _, opts := range []TagOptions{{}, {All: true}, {AtHead: true}} {
 		got, err := Tags(t.Context(), dir, opts)
 		if err != nil || len(got) != 0 {
 			t.Errorf("Tags(%+v) = %q, %v, want no tags and no error", opts, got, err)
