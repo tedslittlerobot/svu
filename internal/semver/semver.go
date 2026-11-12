@@ -40,6 +40,26 @@ func (s Stage) String() string {
 	return stageNames[s]
 }
 
+// name returns the stage's name, including "release" for Release, for use in
+// Go error strings.
+func (s Stage) name() string {
+	switch {
+	case s == Release:
+		return "release"
+	case s.valid():
+		return s.String()
+	default:
+		return "stage " + strconv.Itoa(int(s))
+	}
+}
+
+// valid reports whether s is one of the Stage constants.
+func (s Stage) valid() bool {
+	_, ok := stageNames[s]
+
+	return ok || s == Release
+}
+
 // rank orders stages by precedence (§Precedence): every pre-release stage
 // ranks below Release.
 func (s Stage) rank() int {

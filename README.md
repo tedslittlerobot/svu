@@ -13,9 +13,8 @@ such as a new patch release or the next release candidate. It prints the
 modified version and nothing else, so it fits neatly into scripts, CI jobs and
 release processes.
 
-> **Status:** early development. The project skeleton is in place and the
-> version-manipulation commands are still being written. Expect breaking
-> changes until v1.0.0.
+> **Status:** early development. Reading and modifying versions works, but
+> details may still change. Expect breaking changes until v1.0.0.
 
 ## Version format
 
@@ -87,6 +86,40 @@ is open but not meant for svm.
 
 The `v` prefix is never printed unless you ask for it, whatever the input had.
 
+### Modifying the version
+
+Modifiers change the version before svm prints it. Use at most one version
+modifier and at most one stage modifier.
+
+| Modifier | Effect | Example |
+|---|---|---|
+| `--major` | Bump MAJOR, reset MINOR and PATCH to 0 | `1.2.3` → `2.0.0` |
+| `--minor` | Bump MINOR, reset PATCH to 0 | `1.2.3` → `1.3.0` |
+| `--patch` | Bump PATCH | `1.2.3` → `1.2.4` |
+| `--alpha`, `--beta`, `--rc` | Move to a later stage at `001`, or to the next index in the same stage | `1.2.3-alpha-099` → `1.2.3-rc-001`, `1.2.3-rc-001` → `1.2.3-rc-002` |
+| `--release` | Remove the stage from a pre-release | `1.2.3-rc-001` → `1.2.3` |
+
+A version modifier on its own removes any stage: `1.2.3-rc-004 --patch` gives
+`1.2.4`. Put one of each together to bump the version and start a stage at
+`001`:
+
+```sh
+svm 1.2.3 --minor --alpha          # 1.3.0-alpha-001
+svm --patch --rc --with-v-prefix   # next patch's first release candidate, from the latest git tag
+```
+
+Stages only move forward, as set out in
+[`conventions/semver.md`](conventions/semver.md#stage-progression). svm
+refuses to:
+
+- release a version that is already released (`1.2.3 --release`)
+- put a release back into a stage (`1.2.3 --alpha`), so start a new version
+  instead, as in `--patch --alpha`
+- go back to an earlier stage (`1.2.3-rc-001 --alpha`)
+- go past index `999`
+
+### Other commands
+
 ```sh
 svm --help       # list commands and flags
 svm --version    # print svm's own version
@@ -98,8 +131,6 @@ Shell completion scripts are available for bash, zsh, fish and PowerShell:
 ```sh
 svm completion --help
 ```
-
-More commands will be documented here as they land.
 
 ### Output
 

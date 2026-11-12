@@ -59,18 +59,34 @@ svm reads one version:
   - with no argument, from the latest git tag that is a valid version, in the
     repository that contains the current directory, or --directory if given.
 
+Modifiers change the version before it is printed. Give at most one of each
+kind:
+
+  --major, --minor, --patch     bump that number, reset the ones after it to 0
+                                and remove any stage
+  --alpha, --beta, --rc         move to that stage at 001, or to the next index
+                                if already there; stages never go backwards
+  --release                     remove the stage from a pre-release
+
+Together, as in --minor --alpha, they bump the version and start the stage
+at 001.
+
 svm prints the version on standard output, without a "v" prefix unless
 --with-v-prefix is given.`
 
-const rootExample = `  svm 1.2.3-rc-001
-  echo v1.2.3 | svm -
-  svm --with-v-prefix
+const rootExample = `  svm 1.2.3 --minor            # 1.3.0
+  svm 1.2.3 --minor --alpha    # 1.3.0-alpha-001
+  svm 1.2.3-rc-001 --rc        # 1.2.3-rc-002
+  svm 1.2.3-rc-001 --release   # 1.2.3
+  echo v1.2.3 | svm - --patch  # 1.2.4
+  svm --patch --with-v-prefix  # the latest git tag, bumped, as in v1.2.4
   svm --directory path/to/repository`
 
 func newRootCommand(streams Streams, info buildinfo.Info, readTags tagReader) *cobra.Command {
 	var (
 		opts    inputOptions
 		vPrefix bool
+		mods    *modifiers
 	)
 
 	root := &cobra.Command{
@@ -84,7 +100,17 @@ func newRootCommand(streams Streams, info buildinfo.Info, readTags tagReader) *c
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.directorySet = cmd.Flags().Changed("directory")
 
+			// Check the flags before reading any input, which may run git.
+			if err := mods.validate(); err != nil {
+				return err
+			}
+
 			v, err := readVersion(cmd.Context(), args, cmd.InOrStdin(), opts, readTags)
+			if err != nil {
+				return err
+			}
+
+			v, err = mods.apply(v)
 			if err != nil {
 				return err
 			}
@@ -103,6 +129,7 @@ func newRootCommand(streams Streams, info buildinfo.Info, readTags tagReader) *c
 	}
 
 	flags := root.Flags()
+	mods = newModifiers(flags)
 	flags.StringVar(&opts.directory, "directory", "",
 		"read the latest version from the git tags of the repository containing this directory")
 	flags.BoolVar(&vPrefix, "with-v-prefix", false, `print the version with a leading "v" (alias --vp)`)
