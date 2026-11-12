@@ -503,7 +503,7 @@ func TestOutputReportsWriteFailure(t *testing.T) {
 		In:  strings.NewReader(""),
 		Out: errWriter{},
 		Err: &stderr,
-	}, testInfo, nil)
+	}, environment{info: testInfo})
 
 	want := "Error: svm could not write its output.\n\n" +
 		"  The output stream was closed before svm finished writing.\n\n" + reportLine

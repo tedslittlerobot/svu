@@ -121,7 +121,7 @@ refuses to:
 ### Other commands
 
 ```sh
-svm --help       # list commands and flags
+svm --help       # list commands and flags, on stderr
 svm --version    # print svm's own version
 svm version      # print full build information
 ```
@@ -172,6 +172,7 @@ internal/cli/       Cobra commands. Parses input, calls domain code, formats out
 internal/buildinfo/ Version, commit and build date of the running binary.
 internal/semver/    Parsing, ordering and formatting of svm versions.
 internal/git/       Reads tags by running the git command.
+internal/colour/    Decides when stderr uses colour, and applies it.
 ```
 
 Domain logic (parsing and modifying versions) lives in its own packages under

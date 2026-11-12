@@ -34,6 +34,12 @@ type invocation struct {
 	stdin io.Reader
 	// tags stands in for git. nil fails the test if svm reads git tags.
 	tags tagReader
+	// env is the environment variables svm sees. nil means none.
+	env map[string]string
+}
+
+func (inv invocation) getenv() func(string) string {
+	return func(key string) string { return inv.env[key] }
 }
 
 // run invokes svm in-process with the given arguments, empty stdin and no
@@ -66,7 +72,7 @@ func invoke(t *testing.T, inv invocation) result {
 		In:  inv.stdin,
 		Out: &stdout,
 		Err: &stderr,
-	}, testInfo, inv.tags)
+	}, environment{info: testInfo, readTags: inv.tags, getenv: inv.getenv()})
 
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
 }
@@ -104,10 +110,16 @@ func TestRoot(t *testing.T) {
 		exactStdout bool
 	}{
 		{
-			name:       "help flag prints help",
+			name:       "help flag prints help to stderr",
 			args:       []string{"--help"},
 			wantCode:   ExitOK,
-			wantStdout: "Usage:",
+			wantStderr: "Usage:",
+		},
+		{
+			name:       "short help flag prints help to stderr",
+			args:       []string{"-h"},
+			wantCode:   ExitOK,
+			wantStderr: "Usage:",
 		},
 		{
 			name:        "version flag prints the bare version",
@@ -120,7 +132,7 @@ func TestRoot(t *testing.T) {
 			name:       "help describes where the version comes from",
 			args:       []string{"--help"},
 			wantCode:   ExitOK,
-			wantStdout: "from the latest git tag that is a valid version",
+			wantStderr: "from the latest git tag that is a valid version",
 		},
 		{
 			name:       "an unknown command is read as an invalid version",

@@ -1,0 +1,215 @@
+package cli
+
+import (
+	"io"
+	"maps"
+	"slices"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
+	"github.com/tedslittlerobot/svm/internal/colour"
+)
+
+// helpGroupAnnotation is the flag annotation that names a flag's group in
+// help.
+const helpGroupAnnotation = "svm_help_group"
+
+// Flag groups, in the order help shows them. Flags without a group are shown
+// last.
+const (
+	groupInput   = "Input"
+	groupVersion = "Version modifiers (use at most one)"
+	groupStage   = "Stage modifiers (use at most one)"
+	groupOutput  = "Output"
+)
+
+var helpGroups = []string{groupInput, groupVersion, groupStage, groupOutput}
+
+// setHelpGroup puts a flag in a help group. The flag must exist.
+func setHelpGroup(flags *pflag.FlagSet, name, group string) {
+	_ = flags.SetAnnotation(name, helpGroupAnnotation, []string{group}) // Only fails if the flag doesn't exist.
+}
+
+// renderHelp writes help for cmd to w, styled with s. Help always goes to
+// stderr (conventions/output.md), so it never mixes with a result.
+func renderHelp(w io.Writer, cmd *cobra.Command, s colour.Styler) {
+	var b strings.Builder
+
+	description := cmd.Long
+	if description == "" {
+		description = cmd.Short
+	}
+
+	b.WriteString(strings.TrimSpace(description) + "\n")
+
+	writeUsage(&b, cmd, s)
+	writeExamples(&b, cmd, s)
+	writeCommands(&b, cmd, s)
+	writeFlags(&b, cmd, s)
+
+	if cmd.HasAvailableSubCommands() {
+		b.WriteString("\nRun " + s.Cyan(cmd.CommandPath()+" <command> --help") + " for help with a command.\n")
+	}
+
+	_, _ = io.WriteString(w, b.String())
+}
+
+func heading(b *strings.Builder, s colour.Styler, title string) {
+	b.WriteString("\n" + s.Bold(title+":") + "\n")
+}
+
+func writeUsage(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
+	heading(b, s, "Usage")
+
+	if cmd.Runnable() {
+		rest := strings.TrimPrefix(cmd.UseLine(), cmd.CommandPath())
+		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + rest + "\n")
+	}
+
+	if cmd.HasAvailableSubCommands() {
+		b.WriteString("  " + s.Cyan(cmd.CommandPath()) + " <command>\n")
+	}
+}
+
+// writeExamples shows cmd.Example, dimming any "# comment" on each line.
+func writeExamples(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
+	if cmd.Example == "" {
+		return
+	}
+
+	heading(b, s, "Examples")
+
+	for line := range strings.SplitSeq(cmd.Example, "\n") {
+		code, comment, hasComment := strings.Cut(line, "#")
+		if hasComment {
+			line = code + s.Dim("#"+comment)
+		}
+
+		b.WriteString(line + "\n")
+	}
+}
+
+func writeCommands(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
+	var commands []*cobra.Command
+
+	for _, c := range cmd.Commands() {
+		if c.IsAvailableCommand() {
+			commands = append(commands, c)
+		}
+	}
+
+	if len(commands) == 0 {
+		return
+	}
+
+	width := 0
+	for _, c := range commands {
+		width = max(width, len(c.Name()))
+	}
+
+	heading(b, s, "Commands")
+
+	for _, c := range commands {
+		b.WriteString("  " + s.Cyan(c.Name()) + strings.Repeat(" ", width-len(c.Name())) + "  " + c.Short + "\n")
+	}
+}
+
+// flagLine is one flag as help shows it.
+type flagLine struct {
+	names       string // Such as "-h, --help".
+	placeholder string // Such as "path", or "" for a boolean flag.
+	usage       string
+}
+
+func (l flagLine) width() int {
+	if l.placeholder == "" {
+		return len(l.names)
+	}
+
+	return len(l.names) + 1 + len(l.placeholder)
+}
+
+// writeFlags shows cmd's flags in their groups, then any flags it inherits
+// from its parents.
+func writeFlags(b *strings.Builder, cmd *cobra.Command, s colour.Styler) {
+	grouped := map[string][]flagLine{}
+
+	var ungrouped, inherited []flagLine
+
+	cmd.LocalFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Hidden {
+			return
+		}
+
+		if group := f.Annotations[helpGroupAnnotation]; len(group) == 1 {
+			grouped[group[0]] = append(grouped[group[0]], newFlagLine(f))
+
+			return
+		}
+
+		ungrouped = append(ungrouped, newFlagLine(f))
+	})
+
+	cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
+		if !f.Hidden {
+			inherited = append(inherited, newFlagLine(f))
+		}
+	})
+
+	// One width for every group, so all the descriptions line up.
+	width := 0
+	for _, lines := range append(slices.Collect(maps.Values(grouped)), ungrouped, inherited) {
+		for _, l := range lines {
+			width = max(width, l.width())
+		}
+	}
+
+	for _, group := range helpGroups {
+		writeFlagGroup(b, s, group, grouped[group], width)
+	}
+
+	other := "Flags"
+	if len(grouped) > 0 {
+		other = "Other"
+	}
+
+	writeFlagGroup(b, s, other, ungrouped, width)
+	writeFlagGroup(b, s, "Global flags", inherited, width)
+}
+
+func writeFlagGroup(b *strings.Builder, s colour.Styler, title string, lines []flagLine, width int) {
+	if len(lines) == 0 {
+		return
+	}
+
+	heading(b, s, title)
+
+	for _, l := range lines {
+		names := strings.TrimLeft(l.names, " ")
+		b.WriteString("  " + strings.Repeat(" ", len(l.names)-len(names)) + s.Cyan(names))
+
+		if l.placeholder != "" {
+			b.WriteString(" " + s.Dim(l.placeholder))
+		}
+
+		b.WriteString(strings.Repeat(" ", width-l.width()) + "  " + l.usage + "\n")
+	}
+}
+
+func newFlagLine(f *pflag.Flag) flagLine {
+	placeholder, usage := pflag.UnquoteUsage(f)
+
+	// cobra adds --help to each command with its own wording.
+	if f.Name == "help" {
+		usage = "Show this help"
+	}
+
+	names := "    --" + f.Name
+	if f.Shorthand != "" {
+		names = "-" + f.Shorthand + ", --" + f.Name
+	}
+
+	return flagLine{names: names, placeholder: placeholder, usage: usage}
+}

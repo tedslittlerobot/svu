@@ -22,18 +22,18 @@ type modifier[T any] struct {
 // stage modifiers are in §Stages order, which hints rely on.
 func newVersionModifiers() []*modifier[semver.Part] {
 	return []*modifier[semver.Part]{
-		{flag: "major", value: semver.Major, usage: "bump the major version, and reset minor and patch to 0"},
-		{flag: "minor", value: semver.Minor, usage: "bump the minor version, and reset patch to 0"},
-		{flag: "patch", value: semver.Patch, usage: "bump the patch version"},
+		{flag: "major", value: semver.Major, usage: "Bump MAJOR, and reset MINOR and PATCH to 0"},
+		{flag: "minor", value: semver.Minor, usage: "Bump MINOR, and reset PATCH to 0"},
+		{flag: "patch", value: semver.Patch, usage: "Bump PATCH"},
 	}
 }
 
 func newStageModifiers() []*modifier[semver.Stage] {
 	return []*modifier[semver.Stage]{
-		{flag: "alpha", value: semver.Alpha, usage: "move to the alpha stage, or to the next alpha"},
-		{flag: "beta", value: semver.Beta, usage: "move to the beta stage, or to the next beta"},
-		{flag: "rc", value: semver.RC, usage: "move to the rc stage, or to the next rc"},
-		{flag: "release", value: semver.Release, usage: "remove the stage from a pre-release"},
+		{flag: "alpha", value: semver.Alpha, usage: "Move to alpha-001, or to the next alpha"},
+		{flag: "beta", value: semver.Beta, usage: "Move to beta-001, or to the next beta"},
+		{flag: "rc", value: semver.RC, usage: "Move to rc-001, or to the next rc"},
+		{flag: "release", value: semver.Release, usage: "Remove the stage from a pre-release"},
 	}
 }
 
@@ -48,10 +48,12 @@ func newModifiers(flags *pflag.FlagSet) *modifiers {
 
 	for _, v := range m.versions {
 		flags.BoolVar(&v.set, v.flag, false, v.usage)
+		setHelpGroup(flags, v.flag, groupVersion)
 	}
 
 	for _, s := range m.stages {
 		flags.BoolVar(&s.set, s.flag, false, s.usage)
+		setHelpGroup(flags, s.flag, groupStage)
 	}
 
 	return m

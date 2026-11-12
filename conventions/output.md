@@ -50,7 +50,7 @@ Nothing else is an exception. Help text, usage and the detailed output of
 stderr **must** be used for all output that isn't the result. That includes:
 
 - errors and warnings
-- help and usage text
+- help and usage text, which is shown only for `--help` or `-h`
 - detailed build information (`svm version`)
 - any diagnostic or explanatory message
 
@@ -150,6 +150,9 @@ make particular parts stand out.
 | Suggested values in a hint | Green |
 | Detail text | Default colour |
 | Secondary information (paths, URLs) | Dim |
+| Help section headings | Bold |
+| Command and flag names in help | Cyan |
+| Placeholders and example comments in help | Dim |
 
 - Use only the 16 basic ANSI colours, plus bold and dim, so that the user's
   terminal theme decides the actual shades. No 256-colour or truecolour codes.
