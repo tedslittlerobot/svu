@@ -17,10 +17,9 @@ wrong. Push back on anything that doesn't serve it.
 `svu` (Semantic Version Utilities) is a Go command-line tool for working with
 semantic versions. Each job is a subcommand: `svu modify` (alias `svu m`) and
 `svu latest` (alias `svu l`). It is open source under the MIT licence and hosted at
-https://github.com/tedslittlerobot/svm (the repository and module path keep
-the project's earlier name).
+https://github.com/tedslittlerobot/svu.
 
-- Module path: `github.com/tedslittlerobot/svm`
+- Module path: `github.com/tedslittlerobot/svu`
 - Go version: the one in `go.mod`
 - CLI framework: [Cobra](https://github.com/spf13/cobra)
 - Spec: [`conventions/semver.md`](conventions/semver.md) defines the version
@@ -94,7 +93,9 @@ publish a public Go API.
   errors that carry the input, position and rule that was broken. Only
   `internal/cli` turns errors into user-facing messages
   (`Error:` / detail / `Hint:`), and a raw Go error string never reaches the
-  user. Exit codes are constants in `internal/cli/cli.go`; add new ones there.
+  user. Exit codes are constants in `internal/cli/cli.go`, one per kind of
+  failure, listed in `conventions/output.md`. Every `userError` sets one; add a
+  new constant (and document it) only for a new kind of failure.
 
 ## Testing
 

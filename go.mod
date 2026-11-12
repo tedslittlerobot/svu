@@ -1,4 +1,4 @@
-module github.com/tedslittlerobot/svm
+module github.com/tedslittlerobot/svu
 
 go 1.26.4
 

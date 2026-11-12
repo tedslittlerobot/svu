@@ -11,11 +11,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svm/internal/colour"
+	"github.com/tedslittlerobot/svu/internal/colour"
 )
 
 // reportHint asks for a bug report, for failures the user can't fix.
-const reportHint = "If this keeps happening, please report it at https://github.com/tedslittlerobot/svm/issues."
+const reportHint = "If this keeps happening, please report it at https://github.com/tedslittlerobot/svu/issues."
 
 // userError is an error with a message written for the user, rendered as
 // described in conventions/output.md. Every error svu returns from a command
@@ -36,6 +36,8 @@ type userError struct {
 	hint string
 	// err is the underlying error, if any. It is never shown to the user.
 	err error
+	// code is the process exit code for this kind of failure.
+	code int
 }
 
 // pointer marks a position in an input.
@@ -75,7 +77,7 @@ func asUserError(err error) *userError {
 		headline += "."
 	}
 
-	return &userError{headline: headline, err: err}
+	return &userError{code: ExitUsage, headline: headline, err: err}
 }
 
 // render writes err to w for the user to read, styled with s as
@@ -277,6 +279,7 @@ func flagError(cmd *cobra.Command, err error) error {
 		placeholder, _ := pflag.UnquoteUsage(f)
 
 		return &userError{
+			code:     ExitUsage,
 			headline: fmt.Sprintf("--%s needs a value.", f.Name),
 			hint:     fmt.Sprintf("Give one, as in `--%s %s`.", f.Name, placeholder),
 			err:      err,
@@ -285,6 +288,7 @@ func flagError(cmd *cobra.Command, err error) error {
 		return invalidValueError(invalid, err)
 	case errors.As(err, &syntax):
 		return &userError{
+			code:     ExitUsage,
 			headline: fmt.Sprintf("%q is not a valid flag.", syntax.GetSpecifiedFlag()),
 			hint:     fmt.Sprintf("To list the flags of %s, run `%s --help`.", path, path),
 			err:      err,
@@ -303,17 +307,43 @@ func unknownFlagError(cmd *cobra.Command, notExist *pflag.NotExistError, err err
 	}
 
 	ue := &userError{
+		code:     ExitUsage,
 		headline: fmt.Sprintf("%q is not a flag of %s.", flag, path),
 		hint:     fmt.Sprintf("To list the flags of %s, run `%s --help`.", path, path),
 		err:      err,
 	}
 
-	// A flag that belongs to another command, as in svu --patch.
-	if owner := flagOwner(cmd.Root(), notExist.GetSpecifiedName()); owner != nil && owner != cmd {
-		ue.hint = fmt.Sprintf("Did you mean `%s %s`?", owner.CommandPath(), flag)
+	name := notExist.GetSpecifiedName()
+
+	switch near := nearFlag(cmd, name); {
+	case notExist.GetSpecifiedShortnames() != "":
+		// A short flag is a single letter, too short to guess from.
+	case near != "":
+		// A flag of this command that the name is close to, as in --release
+		// for --released.
+		ue.hint = fmt.Sprintf("Did you mean `--%s`?", near)
+	default:
+		// A flag that belongs to another command, as in svu --patch.
+		if owner := flagOwner(cmd.Root(), name); owner != nil && owner != cmd {
+			ue.hint = fmt.Sprintf("Did you mean `%s %s`?", owner.CommandPath(), flag)
+		}
 	}
 
 	return ue
+}
+
+// nearFlag returns the name of one of cmd's flags that name is probably a
+// mistyping of, because one starts with the other, or "" if there isn't one.
+func nearFlag(cmd *cobra.Command, name string) string {
+	var near string
+
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if near == "" && !f.Hidden && (strings.HasPrefix(f.Name, name) || strings.HasPrefix(name, f.Name)) {
+			near = f.Name
+		}
+	})
+
+	return near
 }
 
 // flagOwner returns the first command under root with a long flag called
@@ -336,6 +366,7 @@ func invalidValueError(invalid *pflag.InvalidValueError, err error) *userError {
 	f := invalid.GetFlag()
 
 	ue := &userError{
+		code:     ExitUsage,
 		headline: fmt.Sprintf("%q is not a valid value for --%s.", invalid.GetValue(), f.Name),
 		err:      err,
 	}

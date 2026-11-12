@@ -49,27 +49,59 @@ func (e *CommandError) Unwrap() error {
 	return e.Err
 }
 
+// TagOptions chooses which tags Tags returns.
+type TagOptions struct {
+	// All lists every tag in the repository. Otherwise, Tags lists only the
+	// tags reachable from HEAD: those on the commit that is checked out, or
+	// on its history.
+	All bool
+	// Prefix, if set, keeps only the tags whose names start with it, and
+	// removes it from the names returned. For example, with Prefix "api/",
+	// the tag "api/v1.2.3" is returned as "v1.2.3" and "v2.0.0" is skipped.
+	Prefix string
+}
+
 // Tags returns the names of the tags in the git repository that contains
 // dir, in no particular order. An empty dir means the current directory.
-func Tags(ctx context.Context, dir string) ([]string, error) {
-	return tags(ctx, "git", dir)
+func Tags(ctx context.Context, dir string, opts TagOptions) ([]string, error) {
+	return tags(ctx, "git", dir, opts)
 }
 
 // tags is Tags with the git executable injected, so tests can simulate git
 // being missing or failing.
-func tags(ctx context.Context, gitPath, dir string) ([]string, error) {
+func tags(ctx context.Context, gitPath, dir string, opts TagOptions) ([]string, error) {
 	if dir != "" {
 		if err := checkDirectory(dir); err != nil {
 			return nil, err
 		}
 	}
 
-	out, err := run(ctx, gitPath, dir, "tag", "--list")
-	if err != nil {
+	args := []string{"tag", "--list"}
+	if !opts.All {
+		args = append(args, "--merged", "HEAD")
+	}
+
+	out, err := run(ctx, gitPath, dir, args...)
+
+	var cmdErr *CommandError
+
+	switch {
+	case errors.As(err, &cmdErr) && strings.Contains(cmdErr.Stderr, "malformed object name HEAD"):
+		// A repository with no commits yet has nothing reachable from HEAD.
+		return []string{}, nil
+	case err != nil:
 		return nil, err
 	}
 
-	return strings.Fields(out), nil
+	names := []string{}
+
+	for _, name := range strings.Fields(out) {
+		if rest, ok := strings.CutPrefix(name, opts.Prefix); ok {
+			names = append(names, rest)
+		}
+	}
+
+	return names, nil
 }
 
 func checkDirectory(dir string) error {

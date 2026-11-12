@@ -1,8 +1,8 @@
 # svu — Semantic Version Utilities
 
-[![CI](https://github.com/tedslittlerobot/svm/actions/workflows/ci.yml/badge.svg)](https://github.com/tedslittlerobot/svm/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/tedslittlerobot/svm)](https://github.com/tedslittlerobot/svm/releases)
-[![Go Reference](https://pkg.go.dev/badge/github.com/tedslittlerobot/svm.svg)](https://pkg.go.dev/github.com/tedslittlerobot/svm)
+[![CI](https://github.com/tedslittlerobot/svu/actions/workflows/ci.yml/badge.svg)](https://github.com/tedslittlerobot/svu/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/tedslittlerobot/svu)](https://github.com/tedslittlerobot/svu/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/tedslittlerobot/svu.svg)](https://pkg.go.dev/github.com/tedslittlerobot/svu)
 [![Licence: MIT](https://img.shields.io/badge/Licence-MIT-blue.svg)](LICENSE)
 
 **svu is a set of small, predictable tools for working with
@@ -33,7 +33,8 @@ v1.3.0-rc-001
 - [Setup](#setup)
 - [Quick start](#quick-start)
 - [Version format](#version-format)
-- [Commands](#commands): [`svu latest`](#svu-latest),
+- [Commands](#commands): [which tags svu reads](#which-tags-svu-reads),
+  [`svu latest`](#svu-latest),
   [`svu modify`](#svu-modify), [others](#other-commands)
 - [Recipes](#recipes)
 - [Scripting](#scripting)
@@ -46,7 +47,7 @@ svu is a single binary with no dependencies. It needs
 `svu modify` with no version).
 
 Pick whichever way suits you. Releases are listed on the
-[releases page](https://github.com/tedslittlerobot/svm/releases). In the
+[releases page](https://github.com/tedslittlerobot/svu/releases). In the
 examples below, replace `0.1.0` with the version you want.
 
 ### Pre-built binary (Linux and macOS)
@@ -64,7 +65,7 @@ VERSION=0.1.0
 OS=linux     # or darwin for macOS
 ARCH=amd64   # or arm64, armv7, 386
 
-curl -fsSLO "https://github.com/tedslittlerobot/svm/releases/download/v${VERSION}/svu_${VERSION}_${OS}_${ARCH}.tar.gz"
+curl -fsSLO "https://github.com/tedslittlerobot/svu/releases/download/v${VERSION}/svu_${VERSION}_${OS}_${ARCH}.tar.gz"
 tar -xzf "svu_${VERSION}_${OS}_${ARCH}.tar.gz" svu
 sudo install svu /usr/local/bin/svu
 ```
@@ -72,7 +73,7 @@ sudo install svu /usr/local/bin/svu
 To check the download first, fetch `checksums.txt` from the same release:
 
 ```sh
-curl -fsSLO "https://github.com/tedslittlerobot/svm/releases/download/v${VERSION}/checksums.txt"
+curl -fsSLO "https://github.com/tedslittlerobot/svu/releases/download/v${VERSION}/checksums.txt"
 sha256sum --check --ignore-missing checksums.txt         # Linux
 shasum -a 256 --check --ignore-missing checksums.txt     # macOS
 ```
@@ -96,7 +97,7 @@ Download the one for your distribution from the release, then install it:
 For example, on Debian or Ubuntu:
 
 ```sh
-curl -fsSLO "https://github.com/tedslittlerobot/svm/releases/download/v0.1.0/svu_0.1.0_amd64.deb"
+curl -fsSLO "https://github.com/tedslittlerobot/svu/releases/download/v0.1.0/svu_0.1.0_amd64.deb"
 sudo apt install ./svu_0.1.0_amd64.deb
 ```
 
@@ -105,12 +106,10 @@ sudo apt install ./svu_0.1.0_amd64.deb
 If you have Go installed (see `go.mod` for the minimum version):
 
 ```sh
-go install github.com/tedslittlerobot/svm/cmd/svu@latest
+go install github.com/tedslittlerobot/svu/cmd/svu@latest
 ```
 
 This puts `svu` in `$(go env GOPATH)/bin`, which needs to be on your `PATH`.
-The repository keeps the project's earlier name, `svm`, so that is the path to
-use.
 
 ## Setup
 
@@ -162,7 +161,7 @@ fetch the full history:
   with:
     go-version: stable
 
-- run: go install github.com/tedslittlerobot/svm/cmd/svu@latest
+- run: go install github.com/tedslittlerobot/svu/cmd/svu@latest
 ```
 
 Elsewhere, run `git fetch --tags` before svu.
@@ -220,29 +219,48 @@ Hint: Did you mean "1.2.3-alpha-001"?
 Run `svu help <command>` (or `svu <command> --help`) for full help on any
 command.
 
-### svu latest
+### Which tags svu reads
 
-`svu latest` (alias `svu l`) prints the latest version in the git tags of the
-repository that contains the current directory.
+`svu latest`, and `svu modify` without a version, read git tags the same way:
 
-```sh
-svu latest                    # 1.3.0-rc-002       the latest version, pre-releases included
-svu latest --release          # 1.2.0              the latest release, skipping pre-releases
-svu latest --with-v-prefix    # v1.3.0-rc-002
-svu l --directory ../app      # the latest version in the repository at ../app
-```
+- **Only tags on the checked-out commit's history count**, so on a
+  maintenance branch svu sees that branch's versions, not newer ones from
+  `main`. Add `--global` to read every tag in the repository.
+- **Tags that aren't valid versions are skipped** (such as `nightly`), and any
+  `v` is ignored.
+- **The latest is chosen by svu's ordering**, not by tag date or name.
 
-It skips tags that aren't valid versions (such as `nightly`), ignores any `v`,
-and picks the latest by svu's ordering, not by tag date or name.
+These flags apply to both commands:
 
 | Flag | Meaning |
 |---|---|
 | `--directory path` | Read the repository containing `path` instead of the current directory |
-| `--release` | Skip pre-releases |
+| `--global` | Read every tag, not only those on the checked-out commit's history |
+| `--tag-prefix prefix` | Only read tags starting with `prefix`, and ignore the prefix: with `--tag-prefix api/`, the tag `api/v1.2.3` is version `1.2.3` |
+| `--initial version` | Use `version` if no tag matches, as in a new repository, instead of failing |
+
+### svu latest
+
+`svu latest` (alias `svu l`) prints the latest version in the git tags.
+
+```sh
+svu latest                     # 1.3.0-rc-002     the latest version, pre-releases included
+svu latest --released          # 1.2.0            the latest release, skipping pre-releases
+svu latest --with-v-prefix     # v1.3.0-rc-002
+svu latest --global            # including tags on other branches
+svu latest --tag-prefix api/   # the latest api/… tag, as a version
+svu latest --initial 0.0.0     # 0.0.0 if there are no matching tags yet
+svu l --directory ../app       # the latest version in the repository at ../app
+```
+
+| Flag | Meaning |
+|---|---|
+| `--released` | Skip pre-releases |
 | `--with-v-prefix`, `--vp` | Print a leading `v` |
 
-It's an error if there is no repository, no tag that is a valid version, or,
-with `--release`, no released version.
+It also takes [the tag flags](#which-tags-svu-reads). Without `--initial`, it's
+an error if there is no repository, no tag that is a valid version, or, with
+`--released`, no released version.
 
 ### svu modify
 
@@ -255,8 +273,8 @@ prints the result.
 |---|---|
 | `svu modify 1.2.3` | The argument |
 | `echo 1.2.3 \| svu modify -` | Standard input, because the argument is `-` |
-| `svu modify` | The latest git tag, exactly as `svu latest` finds it |
-| `svu modify --directory ../app` | The latest git tag in the repository at `../app` |
+| `svu modify` | The latest git tag, exactly as `svu latest` finds it, using [the tag flags](#which-tags-svu-reads) |
+| `svu modify --hotfix` | The latest *released* git tag |
 
 svu only reads standard input when you pass `-`. It never reads it otherwise,
 so it can't hang in CI jobs, git hooks or loops where standard input is open
@@ -271,6 +289,7 @@ Use at most one version modifier and at most one stage modifier.
 | `--major` | Bump MAJOR, reset MINOR and PATCH to 0 | `1.2.3` → `2.0.0` |
 | `--minor` | Bump MINOR, reset PATCH to 0 | `1.2.3` → `1.3.0` |
 | `--patch` | Bump PATCH | `1.2.3` → `1.2.4` |
+| `--hotfix` | Bump PATCH of the latest release, skipping pre-releases | tags `v1.2.3`, `v1.3.0-rc-001` → `1.2.4` |
 | `--alpha`, `--beta`, `--rc` | Move to that stage at `001`, or to the next index if already there | `1.2.3-alpha-099` → `1.2.3-rc-001`<br>`1.2.3-rc-001` → `1.2.3-rc-002` |
 | `--release` | Remove the stage from a pre-release | `1.2.3-rc-001` → `1.2.3` |
 
@@ -278,6 +297,10 @@ Use at most one version modifier and at most one stage modifier.
   gives `1.2.4`. To release `1.2.3-rc-004` as `1.2.3`, use `--release`.
 - A version modifier **with a stage modifier** bumps the version and starts
   that stage at `001`: `1.2.3 --minor --alpha` gives `1.3.0-alpha-001`.
+- **`--hotfix`** is for fixing what's already out while a pre-release is in
+  progress. From git tags, it reads the latest *release*, so `v1.3.0-rc-001`
+  doesn't get in the way. `--patch` there would give `1.3.1`. Given a version
+  directly, it must be a release.
 - With **no modifiers**, svu prints the version as it is. That's useful for
   checking or normalising one (`v1.2.3` → `1.2.3`).
 
@@ -295,13 +318,16 @@ Other flags:
 
 | Flag | Meaning |
 |---|---|
-| `--directory path` | With no version given, read tags from the repository containing `path` |
 | `--with-v-prefix`, `--vp` | Print a leading `v` |
+
+With no version given, it also takes [the tag flags](#which-tags-svu-reads).
+They can't be used with a version, because there are no tags to read.
 
 ### Other commands
 
 ```sh
-svu help [command]        # general help, or help for one command (also --help, -h)
+svu help [command]        # general help, or help for one command, on stdout
+svu <command> --help      # the same help, on stderr (also -h)
 svu --version             # svu's own version, as in 0.1.0
 svu version               # svu's version with its build information
 svu completion <shell>    # a completion script; see Setup
@@ -342,10 +368,42 @@ else
 fi
 ```
 
+### Hotfix a release while a release candidate is in progress
+
+```sh
+svu latest --vp                    # v1.3.0-rc-002    the rc in progress
+svu latest --released --vp         # v1.2.3           what's out now
+git tag "$(svu m --hotfix --vp)"   # tags v1.2.4
+```
+
+### Start versioning a new repository
+
+```sh
+git tag "$(svu m --initial 0.0.0 --minor --vp)"   # tags v0.1.0 when there are no tags yet
+```
+
+With tags present, `--initial` is ignored, so the same line works on every
+run.
+
+### Version one package in a monorepo
+
+```sh
+next="$(svu m --tag-prefix api/ --minor --vp)"   # api/v1.4.0 → v1.5.0
+git tag "api/$next"
+```
+
+### Work on a maintenance branch
+
+```sh
+git switch support/1.x
+svu latest                         # 1.2.5    this branch's latest, not main's 2.0.0
+git tag "$(svu m --patch --vp)"    # tags v1.2.6
+```
+
 ### Version a project in another directory
 
 ```sh
-svu latest --directory ../api --release
+svu latest --directory ../api --released
 ```
 
 ## Scripting
@@ -354,9 +412,21 @@ svu is built to be captured with `$(…)`:
 
 - **stdout** holds the command's main output and nothing else: one version and
   a newline for `svu latest` and `svu modify`. It never contains colour, and
-  it is **empty whenever svu fails**.
-- **stderr** gets everything else: errors, hints and help.
-- **Exit status** is `0` on success and `1` on any failure.
+  it is **empty whenever svu fails**. (`svu help` writes help there too, so
+  `svu help | less` works.)
+- **stderr** gets everything else: errors, hints, and help from `--help`.
+- **Exit status** tells you what went wrong without reading stderr:
+
+| Status | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Internal failure, such as a bug; please report it |
+| `2` | Usage error: unknown command or flag, bad flag value, conflicting flags |
+| `3` | Invalid version |
+| `4` | The version can't be modified as asked, such as going back a stage |
+| `5` | No git repository where svu looked |
+| `6` | No tag that is a version of the kind asked for |
+| `7` | git isn't installed, or failed |
 
 So this either gives a valid version, or stops the script with an empty
 variable:
@@ -365,7 +435,16 @@ variable:
 next="$(svu modify --patch)" || exit 1
 ```
 
-Colour is used on stderr only when it's a terminal. Set
+And this starts from scratch only when there really are no matching tags:
+
+```sh
+latest="$(svu latest)"; status=$?
+if [ "$status" -eq 6 ]; then latest=0.0.0; elif [ "$status" -ne 0 ]; then exit "$status"; fi
+```
+
+(`svu latest --initial 0.0.0` does the same in one step.)
+
+Colour is used only when the stream is a terminal. Set
 [`NO_COLOR`](https://no-color.org) or pass `--colour=never` to turn it off, or
 `--colour=always` (or `FORCE_COLOR`) to force it on.
 [`conventions/output.md`](conventions/output.md) has the full rules.

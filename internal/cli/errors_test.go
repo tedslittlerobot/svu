@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svm/internal/colour"
+	"github.com/tedslittlerobot/svu/internal/colour"
 )
 
 func TestUserErrorKeepsTheCause(t *testing.T) {
@@ -86,6 +86,16 @@ func TestFlagErrors(t *testing.T) {
 			want: "Error: \"--vp\" is not a flag of svu.\n\nHint: Did you mean svu latest --vp?\n",
 		},
 		{
+			name: "suggests a flag of the same command that the name is close to",
+			args: []string{"latest", "--release"},
+			want: "Error: \"--release\" is not a flag of svu latest.\n\nHint: Did you mean --released?\n",
+		},
+		{
+			name: "suggests a flag that the name is the start of",
+			args: []string{"modify", "--tag", "api/"},
+			want: "Error: \"--tag\" is not a flag of svu modify.\n\nHint: Did you mean --tag-prefix?\n",
+		},
+		{
 			name: "rejects a flag with no value",
 			args: []string{"modify", "--directory"},
 			want: "Error: --directory needs a value.\n\nHint: Give one, as in --directory path.\n",
@@ -119,7 +129,7 @@ func TestFlagErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			assertResult(t, run(t, tt.args...), result{code: ExitFailure, stderr: tt.want})
+			assertResult(t, run(t, tt.args...), result{code: ExitUsage, stderr: tt.want})
 		})
 	}
 }
@@ -138,11 +148,13 @@ func TestErrorsInColour(t *testing.T) {
 
 	tests := []struct {
 		name string
+		code int
 		args []string
 		want string
 	}{
 		{
 			name: "colours the parts of a parse error",
+			code: ExitInvalidVersion,
 			args: []string{"modify", "1.2.3-alpha-1", "--colour=always"},
 			want: boldRed + "Error:" + reset + reset + " " +
 				boldRed + `"1.2.3-alpha-1"` + reset + reset + red + " is not a valid version." + reset + "\n\n" +
@@ -153,6 +165,7 @@ func TestErrorsInColour(t *testing.T) {
 		},
 		{
 			name: "colours suggested commands and flags in a hint",
+			code: ExitModification,
 			args: []string{"modify", "1.2.3-rc-001", "--alpha", "--colour=always"},
 			want: boldRed + "Error:" + reset + reset + " " +
 				boldRed + `"1.2.3-rc-001"` + reset + reset + red + " can't go back from rc to alpha." + reset + "\n\n" +
@@ -163,6 +176,7 @@ func TestErrorsInColour(t *testing.T) {
 		},
 		{
 			name: "colours flag errors",
+			code: ExitUsage,
 			args: []string{"--frobnicate", "--colour=always"},
 			want: boldRed + "Error:" + reset + reset + " " +
 				boldRed + `"--frobnicate"` + reset + reset + red + " is not a flag of svu." + reset + "\n\n" +
@@ -170,6 +184,7 @@ func TestErrorsInColour(t *testing.T) {
 		},
 		{
 			name: "colours an error from an environment that forces colour",
+			code: ExitUsage,
 			args: []string{"nope"},
 			want: boldRed + "Error:" + reset + reset + " " +
 				boldRed + `"nope"` + reset + reset + red + " is not an svu command." + reset + "\n\n" +
@@ -182,7 +197,7 @@ func TestErrorsInColour(t *testing.T) {
 			t.Parallel()
 
 			got := invoke(t, invocation{args: tt.args, env: map[string]string{forceColour: "1"}})
-			assertResult(t, got, result{code: ExitFailure, stderr: tt.want})
+			assertResult(t, got, result{code: tt.code, stderr: tt.want})
 		})
 	}
 }
@@ -194,7 +209,7 @@ func TestRenderStylesURLsDim(t *testing.T) {
 
 	render(&b, &userError{headline: "Something failed.", hint: reportHint}, colour.New(true))
 
-	want := "\x1b[2mhttps://github.com/tedslittlerobot/svm/issues\x1b[0m."
+	want := "\x1b[2mhttps://github.com/tedslittlerobot/svu/issues\x1b[0m."
 	if !strings.Contains(b.String(), want) {
 		t.Errorf("render() wrote %q, want it to contain %q", b.String(), want)
 	}

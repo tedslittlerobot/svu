@@ -16,16 +16,35 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svm/internal/buildinfo"
-	"github.com/tedslittlerobot/svm/internal/colour"
-	"github.com/tedslittlerobot/svm/internal/git"
-	"github.com/tedslittlerobot/svm/internal/semver"
+	"github.com/tedslittlerobot/svu/internal/buildinfo"
+	"github.com/tedslittlerobot/svu/internal/colour"
+	"github.com/tedslittlerobot/svu/internal/git"
+	"github.com/tedslittlerobot/svu/internal/semver"
 )
 
-// Process exit codes.
+// Process exit codes. Each kind of failure has its own, so scripts can tell
+// them apart. They are part of svu's interface: never renumber them.
 const (
-	ExitOK      = 0
-	ExitFailure = 1
+	// ExitOK means the command succeeded.
+	ExitOK = 0
+	// ExitInternal means something went wrong that the user can't fix, such
+	// as a bug or a failure to write output.
+	ExitInternal = 1
+	// ExitUsage means the command line was wrong: an unknown command or flag,
+	// a bad flag value, or flags that can't be used together.
+	ExitUsage = 2
+	// ExitInvalidVersion means an input version isn't valid.
+	ExitInvalidVersion = 3
+	// ExitModification means the version can't be modified as asked, such as
+	// moving to an earlier stage.
+	ExitModification = 4
+	// ExitRepository means there is no git repository where svu looked.
+	ExitRepository = 5
+	// ExitNoMatchingTag means the repository has no tag that is a version of
+	// the kind asked for.
+	ExitNoMatchingTag = 6
+	// ExitGit means git is not installed, or failed.
+	ExitGit = 7
 )
 
 // Streams holds the I/O handles available to commands.
@@ -61,11 +80,17 @@ func execute(ctx context.Context, args []string, streams Streams, env environmen
 	root.SetArgs(args)
 
 	if err := root.ExecuteContext(ctx); err != nil {
+		ue := asUserError(err)
+
 		// If --colour itself failed to parse, the mode is still auto.
 		on := colour.Enabled(colourMode.mode, env.getenv, streams.Err)
-		render(streams.Err, err, colour.New(on))
+		render(streams.Err, ue, colour.New(on))
 
-		return ExitFailure
+		if ue.code == ExitOK {
+			return ExitInternal // A userError without a code is a bug.
+		}
+
+		return ue.code
 	}
 
 	return ExitOK
@@ -79,7 +104,7 @@ followed by a stage (alpha, beta or rc) and a three-digit index, as in
 
 const rootExample = `  svu modify 1.2.3 --minor     # 1.3.0
   svu m --patch --rc           # the latest git tag's next patch, as an rc
-  svu latest --release         # the latest released version in git tags
+  svu latest --released        # the latest released version in git tags
   svu help modify              # how to modify a version`
 
 // newRootCommand builds svu's command tree. colourMode receives the value of
@@ -114,7 +139,7 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 	}
 
 	root.PersistentFlags().Var(colourMode, "colour",
-		"Use colour on stderr: auto (the default), always or never (alias --color)") //nolint:misspell // --color is the alias output.md requires.
+		"Use colour in help and errors: auto (the default), always or never (alias --color)") //nolint:misspell // --color is the alias output.md requires.
 
 	// Defined here, rather than by cobra, to control their wording.
 	flags := root.Flags()
@@ -131,19 +156,19 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 	root.SetVersionTemplate("{{.Version}}\n")
 	root.SetFlagErrorFunc(flagError)
 
-	// Help goes to stderr, coloured as conventions/output.md describes, for
-	// --help, -h and svu help alike.
-	help := func(cmd *cobra.Command) {
-		on := colour.Enabled(colourMode.mode, env.getenv, cmd.ErrOrStderr())
-		renderHelp(cmd.ErrOrStderr(), cmd, colour.New(on))
+	// Help is coloured for the stream it goes to, as conventions/output.md
+	// describes. --help and -h write it to stderr. The help command writes it
+	// to stdout, because there help is the command's main output.
+	help := func(w io.Writer, cmd *cobra.Command) {
+		renderHelp(w, cmd, colour.New(colour.Enabled(colourMode.mode, env.getenv, w)))
 	}
-	root.SetHelpFunc(func(cmd *cobra.Command, _ []string) { help(cmd) })
+	root.SetHelpFunc(func(cmd *cobra.Command, _ []string) { help(cmd.ErrOrStderr(), cmd) })
 	root.SetUsageFunc(func(cmd *cobra.Command) error {
-		help(cmd)
+		help(cmd.ErrOrStderr(), cmd)
 
 		return nil
 	})
-	root.SetHelpCommand(newHelpCommand())
+	root.SetHelpCommand(newHelpCommand(help))
 
 	root.AddCommand(
 		newLatestCommand(env),
@@ -157,7 +182,7 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 // unknownCommandError reports that name isn't one of svu's commands, and
 // suggests what was probably meant.
 func unknownCommandError(root *cobra.Command, name string) *userError {
-	ue := &userError{headline: fmt.Sprintf("%q is not an svu command.", name)}
+	ue := &userError{code: ExitUsage, headline: fmt.Sprintf("%q is not an svu command.", name)}
 
 	suggestions := root.SuggestionsFor(name)
 
@@ -186,6 +211,7 @@ func noArgs(cmd *cobra.Command, args []string) error {
 	}
 
 	return &userError{
+		code:     ExitUsage,
 		headline: fmt.Sprintf("%s takes no arguments, but was given %q.", cmd.CommandPath(), args[0]),
 		hint:     fmt.Sprintf("Run `%s` on its own.", cmd.CommandPath()),
 	}

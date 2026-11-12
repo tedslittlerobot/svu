@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 //nolint:misspell // The help names the --color alias.
@@ -18,7 +20,7 @@ Usage:
 Examples:
   svu modify 1.2.3 --minor     # 1.3.0
   svu m --patch --rc           # the latest git tag's next patch, as an rc
-  svu latest --release         # the latest released version in git tags
+  svu latest --released        # the latest released version in git tags
   svu help modify              # how to modify a version
 
 Commands:
@@ -31,7 +33,7 @@ Commands:
 Flags:
   -h, --help         Show this help
   -v, --version      Print svu's version
-      --colour when  Use colour on stderr: auto (the default), always or never (alias --color)
+      --colour when  Use colour in help and errors: auto (the default), always or never (alias --color)
 
 Run svu help <command> for help with a command.
 `
@@ -42,12 +44,15 @@ const modifyHelp = `Modify a version and print the result.
 svu modify reads one version:
 
   - from the version argument, or from standard input if the argument is "-";
-  - with no argument, from the latest git tag that is a valid version, in the
-    repository that contains the current directory, or --directory if given.
+  - with no argument, from the latest git tag that is a valid version, found
+    the same way as svu latest finds it (see svu help latest).
 
 It applies any modifiers, then prints the result on standard output. A
 version modifier on its own removes any stage. Add a stage modifier, as in
 --minor --alpha, to start that stage at 001. Stages never go backwards.
+
+--hotfix patches the latest release, skipping pre-releases, to fix what's
+already out while a pre-release is in progress.
 
 Usage:
   svu modify [version] [flags]
@@ -62,40 +67,49 @@ Examples:
   svu modify 1.2.3-rc-001 --release   # 1.2.3
   echo v1.2.3 | svu modify - --patch  # 1.2.4
   svu m --patch --with-v-prefix       # the latest git tag, bumped, as in v1.2.4
+  svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
+  svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
 
 Input:
-      --directory path  Read tags from the git repository containing path
+      --directory path     Read tags from the git repository containing path
+      --global             Read every tag in the repository, not only those on the checked-out commit's history
+      --tag-prefix prefix  Only read tags starting with prefix, such as api/ for api/v1.2.3
+      --initial version    Use version if no tag matches, as in a new repository
 
 Version modifiers (use at most one):
-      --major           Bump MAJOR, and reset MINOR and PATCH to 0
-      --minor           Bump MINOR, and reset PATCH to 0
-      --patch           Bump PATCH
+      --major              Bump MAJOR, and reset MINOR and PATCH to 0
+      --minor              Bump MINOR, and reset PATCH to 0
+      --patch              Bump PATCH
+      --hotfix             Bump PATCH of the latest release, skipping pre-releases
 
 Stage modifiers (use at most one):
-      --alpha           Move to alpha-001, or to the next alpha
-      --beta            Move to beta-001, or to the next beta
-      --rc              Move to rc-001, or to the next rc
-      --release         Remove the stage from a pre-release
+      --alpha              Move to alpha-001, or to the next alpha
+      --beta               Move to beta-001, or to the next beta
+      --rc                 Move to rc-001, or to the next rc
+      --release            Remove the stage from a pre-release
 
 Output:
-      --with-v-prefix   Print the version with a leading "v" (alias --vp)
+      --with-v-prefix      Print the version with a leading "v" (alias --vp)
 
 Other:
-  -h, --help            Show this help
+  -h, --help               Show this help
 
 Global flags:
-      --colour when     Use colour on stderr: auto (the default), always or never (alias --color)
+      --colour when        Use colour in help and errors: auto (the default), always or never (alias --color)
 `
 
 //nolint:misspell // The help names the --color alias.
 const latestHelp = `Print the latest version in a repository's git tags.
 
 svu latest reads the tags of the git repository that contains the current
-directory, or --directory if given. It skips any tag that isn't a valid
+directory, or --directory if given. Only tags on the checked-out commit's
+history count, unless --global is given. It skips any tag that isn't a valid
 version, ignores a leading "v", and prints the latest by svu's ordering.
-It reads exactly the tags that svu modify reads when given no version.
+svu modify reads tags the same way when given no version.
 
-With --release, pre-releases are skipped too.
+With --tag-prefix, only tags starting with the prefix count, and the prefix
+is ignored. With --released, pre-releases are skipped too. With --initial,
+that version is printed if no tag matches.
 
 Usage:
   svu latest [flags]
@@ -105,24 +119,29 @@ Aliases:
 
 Examples:
   svu latest                         # 1.3.0-rc-002
-  svu latest --release               # 1.2.0
+  svu latest --released              # 1.2.0
   svu latest --with-v-prefix         # v1.3.0-rc-002
+  svu latest --global                # including tags on other branches
+  svu latest --tag-prefix api/       # 0.4.0, from the tag api/v0.4.0
   svu l --directory path/to/repository
 
 Input:
-      --directory path  Read tags from the git repository containing path
+      --directory path     Read tags from the git repository containing path
+      --global             Read every tag in the repository, not only those on the checked-out commit's history
+      --tag-prefix prefix  Only read tags starting with prefix, such as api/ for api/v1.2.3
+      --initial version    Use version if no tag matches, as in a new repository
 
 Filter:
-      --release         Skip pre-releases, and print the latest release
+      --released           Skip pre-releases, and print the latest release
 
 Output:
-      --with-v-prefix   Print the version with a leading "v" (alias --vp)
+      --with-v-prefix      Print the version with a leading "v" (alias --vp)
 
 Other:
-  -h, --help            Show this help
+  -h, --help               Show this help
 
 Global flags:
-      --colour when     Use colour on stderr: auto (the default), always or never (alias --color)
+      --colour when        Use colour in help and errors: auto (the default), always or never (alias --color)
 `
 
 //nolint:misspell // The help names the --color alias.
@@ -135,7 +154,7 @@ Flags:
   -h, --help         Show this help
 
 Global flags:
-      --colour when  Use colour on stderr: auto (the default), always or never (alias --color)
+      --colour when  Use colour in help and errors: auto (the default), always or never (alias --color)
 `
 
 // Environment variables that other tools define, so they keep their spelling.
@@ -152,15 +171,17 @@ func TestHelp(t *testing.T) {
 		args []string
 		env  map[string]string
 		want string
+		// toStdout is true for the help command, whose main output is help.
+		toStdout bool
 	}{
 		{name: "shows general help with no command", args: nil, want: rootHelp},
 		{name: "shows general help for --help", args: []string{"--help"}, want: rootHelp},
 		{name: "shows general help for -h", args: []string{"-h"}, want: rootHelp},
-		{name: "shows general help for the help command", args: []string{"help"}, want: rootHelp},
+		{name: "shows general help for the help command", args: []string{"help"}, want: rootHelp, toStdout: true},
 		{name: "shows modify help for modify --help", args: []string{"modify", "--help"}, want: modifyHelp},
 		{name: "shows modify help for the alias", args: []string{"m", "-h"}, want: modifyHelp},
-		{name: "shows modify help for help modify", args: []string{"help", "modify"}, want: modifyHelp},
-		{name: "shows modify help for help with the alias", args: []string{"help", "m"}, want: modifyHelp},
+		{name: "shows modify help for help modify", args: []string{"help", "modify"}, want: modifyHelp, toStdout: true},
+		{name: "shows modify help for help with the alias", args: []string{"help", "m"}, want: modifyHelp, toStdout: true},
 		{
 			name: "shows help instead of modifying",
 			args: []string{"modify", "1.2.3", "--major", "--help"},
@@ -168,8 +189,8 @@ func TestHelp(t *testing.T) {
 		},
 		{name: "shows help for the version command", args: []string{"version", "--help"}, want: versionHelp},
 		{name: "shows help for the latest command", args: []string{"latest", "--help"}, want: latestHelp},
-		{name: "shows help for help l", args: []string{"help", "l"}, want: latestHelp},
-		{name: "shows help for help version", args: []string{"help", "version"}, want: versionHelp},
+		{name: "shows help for help l", args: []string{"help", "l"}, want: latestHelp, toStdout: true},
+		{name: "shows help for help version", args: []string{"help", "version"}, want: versionHelp, toStdout: true},
 		{
 			name: "leaves out colour when the environment turns it off",
 			args: []string{"--help"},
@@ -188,8 +209,12 @@ func TestHelp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := invoke(t, invocation{args: tt.args, env: tt.env})
-			assertResult(t, got, result{stderr: tt.want})
+			want := result{stderr: tt.want}
+			if tt.toStdout {
+				want = result{stdout: tt.want}
+			}
+
+			assertResult(t, invoke(t, invocation{args: tt.args, env: tt.env}), want)
 		})
 	}
 }
@@ -226,8 +251,8 @@ func TestHelpInColour(t *testing.T) {
 				"\x1b[1mStage modifiers (use at most one):\x1b[0m",
 				"  \x1b[36msvu modify\x1b[0m \x1b[2m[version] [flags]\x1b[0m",
 				"\x1b[1mAliases:\x1b[0m\n  \x1b[36mmodify, m\x1b[0m",
-				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m  Read",
-				"or \x1b[36m--directory\x1b[0m if given.",                  // Flags in descriptions are cyan,
+				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m     Read",
+				"\n\x1b[36m--hotfix\x1b[0m patches the latest release",     // Flags in descriptions are cyan,
 				"(alias \x1b[36m--vp\x1b[0m)",                              // in flag descriptions too,
 				"as in\n\x1b[36m--minor\x1b[0m \x1b[36m--alpha\x1b[0m, to", // even at the start of a line.
 			},
@@ -240,7 +265,7 @@ func TestHelpInColour(t *testing.T) {
 		},
 		{
 			name:  "uses colour when the environment forces it",
-			args:  []string{"help", "modify"},
+			args:  []string{"modify", "--help"},
 			env:   map[string]string{forceColour: "1"},
 			plain: modifyHelp,
 			spans: []string{"\x1b[1mUsage:\x1b[0m"},
@@ -274,6 +299,24 @@ func TestHelpInColour(t *testing.T) {
 				t.Errorf("stderr without colour = %q, want %q", plain, tt.plain)
 			}
 		})
+	}
+}
+
+func TestHelpCommandColoursStdout(t *testing.T) {
+	t.Parallel()
+
+	got := invoke(t, invocation{args: []string{"help", "--colour=always"}})
+
+	if got.code != ExitOK || got.stderr != "" {
+		t.Fatalf("exit code = %d, stderr = %q, want %d and empty", got.code, got.stderr, ExitOK)
+	}
+
+	if !strings.Contains(got.stdout, "\x1b[1mUsage:\x1b[0m") {
+		t.Errorf("stdout = %q, want coloured help", got.stdout)
+	}
+
+	if plain := stripANSI(got.stdout); plain != rootHelp {
+		t.Errorf("stdout without colour = %q, want %q", plain, rootHelp)
 	}
 }
 
@@ -316,7 +359,7 @@ func TestUnknownCommands(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			assertResult(t, run(t, tt.args...), result{code: ExitFailure, stderr: tt.want})
+			assertResult(t, run(t, tt.args...), result{code: ExitUsage, stderr: tt.want})
 		})
 	}
 }
@@ -325,7 +368,7 @@ func TestColourFlagRejectsUnknownModes(t *testing.T) {
 	t.Parallel()
 
 	assertResult(t, run(t, "modify", "1.2.3", "--colour=sometimes"), result{
-		code:   ExitFailure,
+		code:   ExitUsage,
 		stderr: "Error: \"sometimes\" is not a valid value for --colour.\n\n  --colour must be auto, always or never.\n",
 	})
 }
@@ -375,5 +418,59 @@ func TestHelpCommandCompletesCommandNames(t *testing.T) {
 	got = invoke(t, invocation{args: []string{"__complete", "help", "modify", ""}})
 	if strings.Contains(got.stdout, "modify\t") {
 		t.Errorf("completions after a command = %q, want no more command names", got.stdout)
+	}
+}
+
+// TestExamplesUseRealFlags parses every example in every command's help, so
+// that renaming a flag can't leave an example that no longer works.
+func TestExamplesUseRealFlags(t *testing.T) {
+	t.Parallel()
+
+	var colourMode colourFlag
+
+	root := newRootCommand(Streams{}, environment{info: testInfo}, &colourMode)
+
+	var commands []*cobra.Command
+
+	var collect func(*cobra.Command)
+	collect = func(c *cobra.Command) {
+		commands = append(commands, c)
+		for _, sub := range c.Commands() {
+			collect(sub)
+		}
+	}
+	collect(root)
+
+	checked := 0
+
+	for _, c := range commands {
+		for line := range strings.SplitSeq(c.Example, "\n") {
+			code, _, _ := strings.Cut(line, "#")
+			_, code, _ = strings.Cut(code, "svu ") // Skip anything piped in, as in "echo 1.2.3 |".
+
+			args := strings.Fields(code)
+			if len(args) == 0 {
+				continue
+			}
+
+			target, rest, err := root.Find(args)
+			if err != nil {
+				t.Errorf("example %q: %v", line, err)
+
+				continue
+			}
+
+			target.InitDefaultHelpFlag()
+
+			if err := target.ParseFlags(rest); err != nil {
+				t.Errorf("example %q doesn't parse: %v", strings.TrimSpace(line), err)
+			}
+
+			checked++
+		}
+	}
+
+	if checked < 10 {
+		t.Errorf("checked %d examples, want every command's examples", checked)
 	}
 }

@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/tedslittlerobot/svm/internal/buildinfo"
+	"github.com/tedslittlerobot/svu/internal/buildinfo"
 )
 
 func newVersionCommand(info buildinfo.Info) *cobra.Command {

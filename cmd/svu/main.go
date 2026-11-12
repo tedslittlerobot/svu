@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/tedslittlerobot/svm/internal/cli"
+	"github.com/tedslittlerobot/svu/internal/cli"
 )
 
 func main() {

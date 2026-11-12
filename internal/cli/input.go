@@ -8,16 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tedslittlerobot/svm/internal/semver"
+	"github.com/tedslittlerobot/svu/internal/semver"
 )
-
-// inputOptions are the flags that affect where svu reads its version from.
-type inputOptions struct {
-	// directory is the --directory flag.
-	directory string
-	// directorySet reports whether --directory was given at all.
-	directorySet bool
-}
 
 // stdinArgument is the argument that tells svu to read the version from
 // standard input.
@@ -26,34 +18,27 @@ const stdinArgument = "-"
 // readVersion works out which version svu starts from:
 //
 //  1. the version argument, or standard input if the argument is "-";
-//  2. with no argument, the latest git tag that is a valid version, in the
-//     repository containing the current directory or --directory.
+//  2. with no argument, the latest git tag that q matches.
 //
 // Standard input is only read when asked for with "-". Reading it whenever it
 // isn't a terminal would hang wherever stdin is a pipe that never closes (CI
 // runners, IDEs, subprocesses), and would consume input meant for something
 // else (git hooks, while-read loops).
 func readVersion(
-	ctx context.Context, args []string, stdin io.Reader, opts inputOptions, readTags tagReader,
+	ctx context.Context, args []string, stdin io.Reader, q tagQuery, readTags tagReader,
 ) (semver.Version, error) {
 	switch {
 	case len(args) == 0:
-		return latestTag(ctx, readTags, tagQuery{dir: opts.directory, fallback: true})
-	case opts.directorySet:
-		return semver.Version{}, &userError{
-			headline: "--directory can't be used when a version is given.",
-			detail:   "svu modify only reads git tags when no version is given.",
-			hint:     "Remove --directory, or remove the version.",
-		}
+		return latestTag(ctx, readTags, q)
 	case args[0] == stdinArgument:
 		input, err := readStdin(stdin)
 		if err != nil {
 			return semver.Version{}, err
 		}
 
-		return parseVersion(input, true)
+		return parseVersion(input, " on standard input")
 	default:
-		return parseVersion(args[0], false)
+		return parseVersion(args[0], "")
 	}
 }
 
@@ -63,6 +48,7 @@ func readStdin(stdin io.Reader) (string, error) {
 	b, err := io.ReadAll(stdin)
 	if err != nil {
 		return "", &userError{
+			code:     ExitInternal,
 			headline: "svu could not read standard input.",
 			hint:     reportHint,
 			err:      err,
@@ -74,12 +60,14 @@ func readStdin(stdin io.Reader) (string, error) {
 	switch {
 	case input == "":
 		return "", &userError{
+			code:     ExitInvalidVersion,
 			headline: "Standard input is empty.",
 			detail:   `With "-" as the argument, svu reads one version from standard input.`,
 			hint:     "Pipe a version into svu, as in `echo 1.2.3 | svu modify -`.",
 		}
 	case strings.ContainsAny(input, "\r\n"):
 		return "", &userError{
+			code:     ExitInvalidVersion,
 			headline: "Standard input has more than one line.",
 			detail:   `With "-" as the argument, svu reads one version from standard input.`,
 		}
@@ -88,8 +76,10 @@ func readStdin(stdin io.Reader) (string, error) {
 	return input, nil
 }
 
-// parseVersion parses a version given as an argument or on standard input.
-func parseVersion(input string, fromStdin bool) (semver.Version, error) {
+// parseVersion parses a version the user gave. where says where it came
+// from, for messages: "" for the version argument, or a phrase such as
+// " on standard input".
+func parseVersion(input, where string) (semver.Version, error) {
 	v, err := semver.Parse(input)
 	if err == nil {
 		return v, nil
@@ -97,10 +87,10 @@ func parseVersion(input string, fromStdin bool) (semver.Version, error) {
 
 	var perr *semver.ParseError
 	if !errors.As(err, &perr) {
-		return semver.Version{}, &userError{headline: "svu could not read the version.", hint: reportHint, err: err}
+		return semver.Version{}, &userError{code: ExitInternal, headline: "svu could not read the version.", hint: reportHint, err: err}
 	}
 
-	return semver.Version{}, parseError(perr, fromStdin)
+	return semver.Version{}, parseError(perr, where)
 }
 
 // ruleDetails explains each version rule in terms of conventions/semver.md.
@@ -121,17 +111,18 @@ var ruleDetails = map[semver.Rule]string{
 	semver.RuleExtraSuffix:         "A version can have only one stage and index, as in 1.2.3-rc-001.",
 }
 
-func parseError(perr *semver.ParseError, fromStdin bool) *userError {
+func parseError(perr *semver.ParseError, where string) *userError {
 	if perr.Rule == semver.RuleEmpty {
-		return &userError{headline: "The version is empty.", detail: ruleDetails[perr.Rule], err: perr}
-	}
-
-	where := ""
-	if fromStdin {
-		where = " on standard input"
+		return &userError{
+			code:     ExitInvalidVersion,
+			headline: "The version" + where + " is empty.",
+			detail:   ruleDetails[perr.Rule],
+			err:      perr,
+		}
 	}
 
 	ue := &userError{
+		code:     ExitInvalidVersion,
 		headline: fmt.Sprintf("%q%s is not a valid version.", perr.Input, where),
 		pointer:  &pointer{input: perr.Input, pos: perr.Pos},
 		detail:   ruleDetails[perr.Rule],
@@ -141,8 +132,8 @@ func parseError(perr *semver.ParseError, fromStdin bool) *userError {
 	switch {
 	case perr.Suggestion != "":
 		ue.hint = fmt.Sprintf("Did you mean %q?", perr.Suggestion)
-	case fromStdin:
-		// No hint: the input isn't something typed on the command line.
+	case where != "":
+		// No hint: the input isn't the version argument.
 	case slices.Contains(modifierNames(), perr.Input):
 		ue.hint = fmt.Sprintf("Did you mean `--%s`?", perr.Input)
 	case isWord(perr.Input):

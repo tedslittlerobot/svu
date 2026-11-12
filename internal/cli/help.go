@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svm/internal/colour"
+	"github.com/tedslittlerobot/svu/internal/colour"
 )
 
 // helpGroupAnnotation is the flag annotation that names a flag's group in
@@ -226,9 +226,10 @@ func newFlagLine(f *pflag.Flag) flagLine {
 	return flagLine{names: names, placeholder: placeholder, usage: usage}
 }
 
-// newHelpCommand returns svu's help command. It replaces cobra's, which
-// reports an unknown topic on stdout.
-func newHelpCommand() *cobra.Command {
+// newHelpCommand returns svu's help command. Unlike --help, it writes help to
+// stdout, because help is its main output. show renders help for a command
+// to a stream.
+func newHelpCommand(show func(w io.Writer, cmd *cobra.Command)) *cobra.Command {
 	return &cobra.Command{
 		Use:   "help [command]",
 		Short: "Show help for svu or one of its commands",
@@ -253,8 +254,9 @@ func newHelpCommand() *cobra.Command {
 			}
 
 			target.InitDefaultHelpFlag() // So that help lists --help.
+			show(cmd.OutOrStdout(), target)
 
-			return target.Help()
+			return nil
 		},
 	}
 }

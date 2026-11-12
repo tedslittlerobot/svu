@@ -14,7 +14,7 @@ import (
 
 // Link-time overrides, set with:
 //
-//	-ldflags "-X github.com/tedslittlerobot/svm/internal/buildinfo.version=1.2.3"
+//	-ldflags "-X github.com/tedslittlerobot/svu/internal/buildinfo.version=1.2.3"
 //
 // They are unexported so that nothing else in the program can change them.
 var (

@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svm/internal/git"
-	"github.com/tedslittlerobot/svm/internal/git/gittest"
+	"github.com/tedslittlerobot/svu/internal/git"
+	"github.com/tedslittlerobot/svu/internal/git/gittest"
 )
 
-const reportLine = "Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/svm/issues.\n"
+const reportLine = "Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/svu/issues.\n"
 
 func TestInput(t *testing.T) {
 	t.Parallel()
@@ -52,7 +52,7 @@ func TestInput(t *testing.T) {
 		{
 			name:     "rejects an invalid argument and points at the problem",
 			args:     []string{"1.2.3-alpha-1"},
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: "1.2.3-alpha-1" is not a valid version.
 
   1.2.3-alpha-1
@@ -65,7 +65,7 @@ Hint: Did you mean "1.2.3-alpha-001"?
 		{
 			name:     "rejects an invalid argument with no suggestion",
 			args:     []string{"1.2.3-dev-001"},
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: "1.2.3-dev-001" is not a valid version.
 
   1.2.3-dev-001
@@ -76,7 +76,7 @@ Hint: Did you mean "1.2.3-alpha-001"?
 		{
 			name:     "suggests help for an argument that looks like a word",
 			args:     []string{"frobnicate"},
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: "frobnicate" is not a valid version.
 
   frobnicate
@@ -89,7 +89,7 @@ Hint: To see what svu modify accepts, run svu modify --help.
 		{
 			name:     "leaves out the pointer for an argument it can't line up",
 			args:     []string{"1.2.3\t"},
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: "1.2.3\t" is not a valid version.
 
   A version looks like 1.2.3, or 1.2.3-rc-001 for a pre-release.
@@ -100,7 +100,7 @@ Hint: Did you mean "1.2.3"?
 		{
 			name:     "rejects an empty argument",
 			args:     []string{""},
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: The version is empty.
 
   A version looks like 1.2.3, or 1.2.3-rc-001 for a pre-release.
@@ -109,7 +109,7 @@ Hint: Did you mean "1.2.3"?
 		{
 			name:     "rejects more than one argument",
 			args:     []string{"1.2.3", "1.2.4"},
-			wantCode: ExitFailure,
+			wantCode: ExitUsage,
 			wantStderr: `Error: svu modify was given 2 versions, but it takes at most one.
 
 Hint: Give a single version, as in svu modify 1.2.3.
@@ -139,7 +139,7 @@ Hint: Give a single version, as in svu modify 1.2.3.
 			name:     "rejects an invalid version on standard input",
 			args:     []string{"-"},
 			stdin:    "V1.2.3\n",
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: "V1.2.3" on standard input is not a valid version.
 
   V1.2.3
@@ -153,7 +153,7 @@ Hint: Did you mean "v1.2.3"?
 			name:     "does not suggest help for a word on standard input",
 			args:     []string{"-"},
 			stdin:    "latest\n",
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: "latest" on standard input is not a valid version.
 
   latest
@@ -165,7 +165,7 @@ Hint: Did you mean "v1.2.3"?
 			name:     "rejects empty standard input",
 			args:     []string{"-"},
 			stdin:    " \n",
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: Standard input is empty.
 
   With "-" as the argument, svu reads one version from standard input.
@@ -177,7 +177,7 @@ Hint: Pipe a version into svu, as in echo 1.2.3 | svu modify -.
 			name:     "rejects more than one line on standard input",
 			args:     []string{"-"},
 			stdin:    "1.2.3\n1.2.4\n",
-			wantCode: ExitFailure,
+			wantCode: ExitInvalidVersion,
 			wantStderr: `Error: Standard input has more than one line.
 
   With "-" as the argument, svu reads one version from standard input.
@@ -186,7 +186,7 @@ Hint: Pipe a version into svu, as in echo 1.2.3 | svu modify -.
 		{
 			name:     "rejects --directory with an argument",
 			args:     []string{"--directory", ".", "1.2.3"},
-			wantCode: ExitFailure,
+			wantCode: ExitUsage,
 			wantStderr: `Error: --directory can't be used when a version is given.
 
   svu modify only reads git tags when no version is given.
@@ -198,7 +198,7 @@ Hint: Remove --directory, or remove the version.
 			name:     "rejects --directory with standard input",
 			args:     []string{"--directory", ".", "-"},
 			stdin:    "1.2.3",
-			wantCode: ExitFailure,
+			wantCode: ExitUsage,
 			wantStderr: `Error: --directory can't be used when a version is given.
 
   svu modify only reads git tags when no version is given.
@@ -242,7 +242,7 @@ Hint: Remove --directory, or remove the version.
 			tags: func(*testing.T) tagReader {
 				return failingTags(git.ErrNotRepository)
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitRepository,
 			wantStderr: `Error: svu has no valid input.
 
   No version was given, so svu reads the latest version from git tags,
@@ -257,7 +257,7 @@ Hint: Give a version, as in svu modify 1.2.3, or run svu inside a git repository
 			tags: func(*testing.T) tagReader {
 				return failingTags(git.ErrNotRepository)
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitRepository,
 			wantStderr: `Error: svu has no valid input.
 
   No version was given, so svu reads the latest version from git tags,
@@ -273,12 +273,12 @@ Hint: Give a version, as in svu modify 1.2.3, or set --directory to a git reposi
 
 				return fixedTags(t, "")
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitNoMatchingTag,
 			wantStderr: `Error: The git repository has no tags that are valid versions.
 
-  It has no tags.
+  It has no tags on the checked-out commit's history.
 
-Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.
+Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.
 `,
 		},
 		{
@@ -289,12 +289,12 @@ Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0
 
 				return fixedTags(t, "elsewhere", "nightly", "1.2")
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitNoMatchingTag,
 			wantStderr: `Error: The git repository at "elsewhere" has no tags that are valid versions.
 
-  None of its tags is a valid version, such as v1.2.3 or v1.2.3-rc-001.
+  None of its tags on the checked-out commit's history is a valid version, such as v1.2.3 or v1.2.3-rc-001.
 
-Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.
+Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.
 `,
 		},
 		{
@@ -303,7 +303,7 @@ Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0
 			tags: func(*testing.T) tagReader {
 				return failingTags(fmt.Errorf("%w: missing", git.ErrDirectoryNotFound))
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitRepository,
 			wantStderr: `Error: "missing" does not exist.
 
   --directory must be a directory in a git repository.
@@ -315,7 +315,7 @@ Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0
 			tags: func(*testing.T) tagReader {
 				return failingTags(fmt.Errorf("%w: go.mod", git.ErrNotDirectory))
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitRepository,
 			wantStderr: `Error: "go.mod" is not a directory.
 
   --directory must be a directory in a git repository.
@@ -326,7 +326,7 @@ Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0
 			tags: func(*testing.T) tagReader {
 				return failingTags(git.ErrNotInstalled)
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitGit,
 			wantStderr: `Error: svu could not find git.
 
   No version was given, so svu needs git to read the latest version from the tags.
@@ -339,7 +339,7 @@ Hint: Install git, or give a version, as in svu modify 1.2.3.
 			tags: func(*testing.T) tagReader {
 				return failingTags(&git.CommandError{Stderr: "fatal: detected dubious ownership", Err: errors.New("exit status 128")})
 			},
-			wantCode: ExitFailure,
+			wantCode: ExitGit,
 			wantStderr: `Error: git could not list the tags in the current directory.
 
   fatal: detected dubious ownership
@@ -351,7 +351,7 @@ Hint: Install git, or give a version, as in svu modify 1.2.3.
 			tags: func(*testing.T) tagReader {
 				return failingTags(errors.New("checking directory: permission denied"))
 			},
-			wantCode:   ExitFailure,
+			wantCode:   ExitInternal,
 			wantStderr: "Error: svu could not read the git tags in \"elsewhere\".\n\n" + reportLine,
 		},
 	}
@@ -395,15 +395,15 @@ func TestInputFromRealGitRepository(t *testing.T) {
 		{
 			name: "reports a repository with no tags",
 			args: []string{"--directory", empty},
-			want: result{code: ExitFailure, stderr: fmt.Sprintf(
+			want: result{code: ExitNoMatchingTag, stderr: fmt.Sprintf(
 				"Error: The git repository at %q has no tags that are valid versions.\n\n"+
-					"  It has no tags.\n\n"+
-					"Hint: Give a version, as in svu modify 0.1.0, or tag a release, as in git tag v0.1.0.\n", empty)},
+					"  It has no tags on the checked-out commit's history.\n\n"+
+					"Hint: Give a version, as in svu modify 0.1.0, tag a release, as in git tag v0.1.0, or use --initial 0.0.0.\n", empty)},
 		},
 		{
 			name: "reports a directory that is not in a repository",
 			args: []string{"--directory", notRepo},
-			want: result{code: ExitFailure, stderr: fmt.Sprintf("Error: svu has no valid input.\n\n"+
+			want: result{code: ExitRepository, stderr: fmt.Sprintf("Error: svu has no valid input.\n\n"+
 				"  No version was given, so svu reads the latest version from git tags,\n"+
 				"  but %q is not in a git repository.\n\n"+
 				"Hint: Give a version, as in svu modify 1.2.3, or set --directory to a git repository.\n", notRepo)},
@@ -489,7 +489,7 @@ func TestInputReportsUnreadableStdin(t *testing.T) {
 	got := invoke(t, invocation{args: modifyArgs("-"), stdin: errReader{}})
 
 	assertResult(t, got, result{
-		code:   ExitFailure,
+		code:   ExitInternal,
 		stderr: "Error: svu could not read standard input.\n\n" + reportLine,
 	})
 }
@@ -508,8 +508,8 @@ func TestOutputReportsWriteFailure(t *testing.T) {
 	want := "Error: svu could not write its output.\n\n" +
 		"  The output stream was closed before svu finished writing.\n\n" + reportLine
 
-	if code != ExitFailure {
-		t.Errorf("exit code = %d, want %d", code, ExitFailure)
+	if code != ExitInternal {
+		t.Errorf("exit code = %d, want %d", code, ExitInternal)
 	}
 
 	if stderr.String() != want {

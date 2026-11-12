@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tedslittlerobot/svm/internal/git"
-	"github.com/tedslittlerobot/svm/internal/git/gittest"
+	"github.com/tedslittlerobot/svu/internal/git"
+	"github.com/tedslittlerobot/svu/internal/git/gittest"
 )
 
 func TestLatest(t *testing.T) {
@@ -22,9 +22,9 @@ func TestLatest(t *testing.T) {
 	}{
 		{name: "prints the latest version, pre-releases included", args: []string{"latest"}, tags: tags, want: "2.0.0-alpha-001\n"},
 		{name: "answers to its alias", args: []string{"l"}, tags: tags, want: "2.0.0-alpha-001\n"},
-		{name: "prints the latest release with --release", args: []string{"latest", "--release"}, tags: tags, want: "1.10.0\n"},
+		{name: "prints the latest release with --released", args: []string{"latest", "--released"}, tags: tags, want: "1.10.0\n"},
 		{name: "adds a v prefix with --with-v-prefix", args: []string{"latest", "--with-v-prefix"}, tags: tags, want: "v2.0.0-alpha-001\n"},
-		{name: "accepts --vp with --release", args: []string{"l", "--release", "--vp"}, tags: tags, want: "v1.10.0\n"},
+		{name: "accepts --vp with --released", args: []string{"l", "--released", "--vp"}, tags: tags, want: "v1.10.0\n"},
 		{
 			name:    "reads tags in the directory given by --directory",
 			args:    []string{"l", "--directory", "path/to/repository"},
@@ -55,17 +55,20 @@ func TestLatestErrors(t *testing.T) {
 
 	tests := []struct {
 		name string
+		code int
 		args []string
 		tags func(t *testing.T) tagReader
 		want string
 	}{
 		{
 			name: "rejects arguments",
+			code: ExitUsage,
 			args: []string{"latest", "1.2.3"},
 			want: "Error: svu latest takes no arguments, but was given \"1.2.3\".\n\nHint: Run svu latest on its own.\n",
 		},
 		{
 			name: "reports a repository with no tags",
+			code: ExitNoMatchingTag,
 			args: []string{"latest"},
 			tags: func(t *testing.T) tagReader {
 				t.Helper()
@@ -73,11 +76,12 @@ func TestLatestErrors(t *testing.T) {
 				return fixedTags(t, "")
 			},
 			want: "Error: The git repository has no tags that are valid versions.\n\n" +
-				"  It has no tags.\n\n" +
-				"Hint: Tag a release, as in git tag v0.1.0.\n",
+				"  It has no tags on the checked-out commit's history.\n\n" +
+				"Hint: Tag a release, as in git tag v0.1.0, or use --initial 0.0.0 to start from scratch.\n",
 		},
 		{
 			name: "reports a repository with no valid tags",
+			code: ExitNoMatchingTag,
 			args: []string{"latest", "--directory", "elsewhere"},
 			tags: func(t *testing.T) tagReader {
 				t.Helper()
@@ -85,12 +89,13 @@ func TestLatestErrors(t *testing.T) {
 				return fixedTags(t, "elsewhere", "nightly")
 			},
 			want: "Error: The git repository at \"elsewhere\" has no tags that are valid versions.\n\n" +
-				"  None of its tags is a valid version, such as v1.2.3 or v1.2.3-rc-001.\n\n" +
-				"Hint: Tag a release, as in git tag v0.1.0.\n",
+				"  None of its tags on the checked-out commit's history is a valid version, such as v1.2.3 or v1.2.3-rc-001.\n\n" +
+				"Hint: Tag a release, as in git tag v0.1.0, or use --initial 0.0.0 to start from scratch.\n",
 		},
 		{
-			name: "reports a repository with only pre-releases for --release",
-			args: []string{"latest", "--release"},
+			name: "reports a repository with only pre-releases for --released",
+			code: ExitNoMatchingTag,
+			args: []string{"latest", "--released"},
 			tags: func(t *testing.T) tagReader {
 				t.Helper()
 
@@ -98,10 +103,11 @@ func TestLatestErrors(t *testing.T) {
 			},
 			want: "Error: The git repository has no released versions.\n\n" +
 				"  Its latest version, \"1.0.0-rc-001\", is a pre-release.\n\n" +
-				"Hint: Leave out --release to include pre-releases.\n",
+				"Hint: Leave out --released to use pre-releases too.\n",
 		},
 		{
 			name: "reports the current directory outside a repository",
+			code: ExitRepository,
 			args: []string{"latest"},
 			tags: func(*testing.T) tagReader { return failingTags(git.ErrNotRepository) },
 			want: "Error: The current directory is not in a git repository.\n\n" +
@@ -110,6 +116,7 @@ func TestLatestErrors(t *testing.T) {
 		},
 		{
 			name: "reports --directory outside a repository",
+			code: ExitRepository,
 			args: []string{"latest", "--directory", "elsewhere"},
 			tags: func(*testing.T) tagReader { return failingTags(git.ErrNotRepository) },
 			want: "Error: \"elsewhere\" is not in a git repository.\n\n" +
@@ -118,6 +125,7 @@ func TestLatestErrors(t *testing.T) {
 		},
 		{
 			name: "reports a missing --directory",
+			code: ExitRepository,
 			args: []string{"latest", "--directory", "missing"},
 			tags: func(*testing.T) tagReader {
 				return failingTags(fmt.Errorf("%w: missing", git.ErrDirectoryNotFound))
@@ -126,6 +134,7 @@ func TestLatestErrors(t *testing.T) {
 		},
 		{
 			name: "reports that git is not installed",
+			code: ExitGit,
 			args: []string{"latest"},
 			tags: func(*testing.T) tagReader { return failingTags(git.ErrNotInstalled) },
 			want: "Error: svu could not find git.\n\n" +
@@ -143,7 +152,7 @@ func TestLatestErrors(t *testing.T) {
 				inv.tags = tt.tags(t)
 			}
 
-			assertResult(t, invoke(t, inv), result{code: ExitFailure, stderr: tt.want})
+			assertResult(t, invoke(t, inv), result{code: tt.code, stderr: tt.want})
 		})
 	}
 }
@@ -159,7 +168,7 @@ func TestLatestFromRealGitRepository(t *testing.T) {
 		want string
 	}{
 		{name: "prints the latest tag", args: []string{"latest", "--directory", repo}, want: "0.10.0-rc-001\n"},
-		{name: "prints the latest release", args: []string{"l", "--directory", repo, "--release"}, want: "0.9.1\n"},
+		{name: "prints the latest release", args: []string{"l", "--directory", repo, "--released"}, want: "0.9.1\n"},
 	}
 
 	for _, tt := range tests {

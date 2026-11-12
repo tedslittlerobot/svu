@@ -3,11 +3,12 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/spf13/pflag"
 
-	"github.com/tedslittlerobot/svm/internal/semver"
+	"github.com/tedslittlerobot/svu/internal/semver"
 )
 
 // modifier is one flag that changes the version, such as --minor or --rc.
@@ -25,8 +26,14 @@ func newVersionModifiers() []*modifier[semver.Part] {
 		{flag: "major", value: semver.Major, usage: "Bump MAJOR, and reset MINOR and PATCH to 0"},
 		{flag: "minor", value: semver.Minor, usage: "Bump MINOR, and reset PATCH to 0"},
 		{flag: "patch", value: semver.Patch, usage: "Bump PATCH"},
+		{flag: hotfixFlag, value: semver.Patch, usage: "Bump PATCH of the latest release, skipping pre-releases"},
 	}
 }
+
+// hotfixFlag is the version modifier that patches the latest release. From
+// git tags, svu modify then reads the latest release rather than the latest
+// version, so a release candidate in progress doesn't get in the way.
+const hotfixFlag = "hotfix"
 
 func newStageModifiers() []*modifier[semver.Stage] {
 	return []*modifier[semver.Stage]{
@@ -99,6 +106,7 @@ func atMostOne[T any](group string, mods []*modifier[T]) error {
 	}
 
 	return &userError{
+		code:     ExitUsage,
 		headline: join(set, "and") + " can't be used together.",
 		detail:   fmt.Sprintf("Give at most one %s modifier: %s.", group, join(all, "or")),
 	}
@@ -117,11 +125,27 @@ func chosen[T any](mods []*modifier[T]) (T, bool) {
 	return zero, false
 }
 
+// hotfix reports whether --hotfix was given.
+func (m *modifiers) hotfix() bool {
+	return slices.ContainsFunc(m.versions, func(mod *modifier[semver.Part]) bool {
+		return mod.flag == hotfixFlag && mod.set
+	})
+}
+
 // apply changes v as the modifiers ask. It must only be called after
 // validate has passed.
 func (m *modifiers) apply(v semver.Version) (semver.Version, error) {
 	part, bump := chosen(m.versions)
 	stage, move := chosen(m.stages)
+
+	if m.hotfix() && !v.IsRelease() {
+		return semver.Version{}, &userError{
+			code:     ExitModification,
+			headline: fmt.Sprintf("%q is a pre-release, so it can't be hotfixed.", v.String()),
+			detail:   "--hotfix patches a released version.",
+			hint:     "Give the release to fix, as in `svu modify 1.2.3 --hotfix`, or use `--patch`.",
+		}
+	}
 
 	var (
 		next semver.Version
@@ -156,16 +180,21 @@ func (m *modifiers) modifyError(err error) *userError {
 		return m.stageError(serr)
 	case errors.As(err, &oerr):
 		return &userError{
+			code:     ExitModification,
 			headline: fmt.Sprintf("The %s version of %q can't be bumped.", oerr.Part, oerr.Version),
 			detail:   ruleDetails[semver.RuleNumberTooLarge],
 			err:      err,
 		}
 	default:
-		return &userError{headline: "svu could not modify the version.", hint: reportHint, err: err}
+		return &userError{code: ExitInternal, headline: "svu could not modify the version.", hint: reportHint, err: err}
 	}
 }
 
 const newVersionHint = "add `--major`, `--minor` or `--patch` to start a new version"
+
+// hotfixReleaseFlag names --hotfix where tag errors mention the flag that
+// asked for releases only.
+const hotfixReleaseFlag = "--" + hotfixFlag
 
 func (m *modifiers) stageError(err *semver.StageError) *userError {
 	v := err.Version.String()
@@ -173,6 +202,7 @@ func (m *modifiers) stageError(err *semver.StageError) *userError {
 	switch err.Problem {
 	case semver.ProblemAlreadyReleased:
 		return &userError{
+			code:     ExitModification,
 			headline: fmt.Sprintf("%q has already been released.", v),
 			detail:   "--release removes the stage from a pre-release, such as 1.2.3-rc-001.",
 			hint:     "To start a new version, use `--major`, `--minor` or `--patch`.",
@@ -180,6 +210,7 @@ func (m *modifiers) stageError(err *semver.StageError) *userError {
 		}
 	case semver.ProblemReleaseIsFinal:
 		return &userError{
+			code:     ExitModification,
 			headline: fmt.Sprintf("%q has been released, so it can't go back to %s.", v, err.To),
 			detail:   "Once a version is released, it can't go back into any stage.",
 			hint:     fmt.Sprintf("Add `--major`, `--minor` or `--patch` to start a new version at %s, as in `--patch --%s`.", err.To, err.To),
@@ -187,6 +218,7 @@ func (m *modifiers) stageError(err *semver.StageError) *userError {
 		}
 	case semver.ProblemBackwards:
 		return &userError{
+			code:     ExitModification,
 			headline: fmt.Sprintf("%q can't go back from %s to %s.", v, err.Version.Stage, err.To),
 			detail:   "Stages only move forward: alpha, then beta, then rc, then the release.",
 			hint:     fmt.Sprintf("Use %s, or %s.", join(m.stageFlags(err.Version.Stage, true), "or"), newVersionHint),
@@ -194,13 +226,14 @@ func (m *modifiers) stageError(err *semver.StageError) *userError {
 		}
 	case semver.ProblemIndexExhausted:
 		return &userError{
+			code:     ExitModification,
 			headline: fmt.Sprintf("%q is the last %s allowed.", v, err.To),
 			detail:   fmt.Sprintf("A stage allows at most %d iterations.", semver.MaxIndex),
 			hint:     fmt.Sprintf("Use %s, or %s.", join(m.stageFlags(err.Version.Stage, false), "or"), newVersionHint),
 			err:      err,
 		}
 	default:
-		return &userError{headline: "svu could not modify the version.", hint: reportHint, err: err}
+		return &userError{code: ExitInternal, headline: "svu could not modify the version.", hint: reportHint, err: err}
 	}
 }
 

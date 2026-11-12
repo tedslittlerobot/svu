@@ -5,10 +5,12 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
-	"github.com/tedslittlerobot/svm/internal/buildinfo"
+	"github.com/tedslittlerobot/svu/internal/buildinfo"
+	"github.com/tedslittlerobot/svu/internal/git"
 )
 
 // testInfo is fixed build information so command output is deterministic.
@@ -59,7 +61,7 @@ func invoke(t *testing.T, inv invocation) result {
 	}
 
 	if inv.tags == nil {
-		inv.tags = func(context.Context, string) ([]string, error) {
+		inv.tags = func(context.Context, string, git.TagOptions) ([]string, error) {
 			t.Error("svu read git tags, want it not to")
 
 			return nil, errors.New("unexpected call to read git tags")
@@ -77,23 +79,45 @@ func invoke(t *testing.T, inv invocation) result {
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
 }
 
-// fixedTags returns a tagReader that always returns tags, and checks that it
-// is asked about wantDir.
+// fixedTags returns a tagReader for a repository where every tag is
+// reachable from HEAD, and checks that it is asked about wantDir. Like git, it
+// applies the prefix option.
 func fixedTags(t *testing.T, wantDir string, tags ...string) tagReader {
 	t.Helper()
 
-	return func(_ context.Context, dir string) ([]string, error) {
+	return scopedTags(t, wantDir, tags, nil)
+}
+
+// scopedTags returns a tagReader for a repository where reachable tags are on
+// the checked-out commit's history and others are only on other branches.
+func scopedTags(t *testing.T, wantDir string, reachable, others []string) tagReader {
+	t.Helper()
+
+	return func(_ context.Context, dir string, opts git.TagOptions) ([]string, error) {
 		if dir != wantDir {
 			t.Errorf("read tags in %q, want %q", dir, wantDir)
 		}
 
-		return tags, nil
+		tags := slices.Clone(reachable)
+		if opts.All {
+			tags = append(tags, others...)
+		}
+
+		names := []string{}
+
+		for _, tag := range tags {
+			if rest, ok := strings.CutPrefix(tag, opts.Prefix); ok {
+				names = append(names, rest)
+			}
+		}
+
+		return names, nil
 	}
 }
 
 // failingTags returns a tagReader that always fails with err.
 func failingTags(err error) tagReader {
-	return func(context.Context, string) ([]string, error) {
+	return func(context.Context, string, git.TagOptions) ([]string, error) {
 		return nil, err
 	}
 }

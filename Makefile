@@ -1,5 +1,5 @@
 BINARY  := svu
-PKG     := github.com/tedslittlerobot/svm
+PKG     := github.com/tedslittlerobot/svu
 BIN_DIR := bin
 
 VERSION ?= $(or $(shell git describe --tags --always --dirty 2>/dev/null),dev)

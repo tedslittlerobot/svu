@@ -25,17 +25,21 @@ stdout **must** contain that and nothing else.
 | `svu --version` | svu's own version, bare, such as `1.4.0` |
 | `svu version` | svu's version with its build information, on one line |
 | `svu completion <shell>` | The completion script, as in `source <(svu completion bash)` |
+| `svu help [command]` | Help, so that `svu help \| less` works |
 
-Help is never a main output, not even for `svu help`. It always goes to
-stderr, so capturing a command's output can never capture help by mistake.
+Help asked for with the `--help` or `-h` flag is not a main output: the flag
+interrupts some other command. It goes to stderr. Only the `help` command
+writes help to stdout.
 
 - On success, stdout **must** contain the main output followed by a single
   newline (`\n`). For `svu modify` and `svu latest`, that is exactly one
   version.
 - stdout **must not** contain anything else: no labels, prompts, progress
   messages, warnings, blank lines or trailing whitespace.
-- stdout **must not** ever contain ANSI escape codes, even when it is a
-  terminal.
+- stdout **must not** contain ANSI escape codes, even when it is a terminal.
+  The one exception is `svu help`, whose output is for people: it follows the
+  [colour rules](#when-colour-is-used) for stdout, so it is plain whenever
+  stdout isn't a terminal.
 - On failure, stdout **must** be empty. svu never prints a partial or
   best-guess result before failing.
 
@@ -52,8 +56,28 @@ stderr **must** be used for all output that isn't a command's main output.
 That includes:
 
 - errors and warnings
-- help and usage text, from `svu help`, `--help` or `-h`
+- help and usage text from `--help` or `-h`, or from `svu` with no command
 - any diagnostic or explanatory message
+
+## Exit status
+
+Every kind of failure has its own exit status, so scripts can tell them apart
+without reading stderr. The numbers are part of svu's interface and **must
+not** change.
+
+| Status | Meaning | Examples |
+|---|---|---|
+| `0` | Success | |
+| `1` | Internal failure that the user can't fix | A bug; output couldn't be written; standard input couldn't be read |
+| `2` | Usage error | Unknown command or flag; bad flag value; flags that can't be used together; too many arguments |
+| `3` | Invalid version | An argument, standard input or `--initial` isn't a valid version |
+| `4` | The version can't be modified as asked | Going back a stage; releasing a release; hotfixing a pre-release; a number too large to bump |
+| `5` | No repository | Not in a git repository; `--directory` doesn't exist or isn't a directory |
+| `6` | No matching tag | No tag is a valid version, or none is a release when only releases are wanted |
+| `7` | git failed | git isn't installed, or reported an error |
+
+A new kind of failure gets a new number. A failure that fits an existing kind
+uses its number.
 
 ## Writing messages
 
@@ -107,7 +131,7 @@ Error: svu could not write its output.
 
   The output stream was closed before svu finished writing.
 
-Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/svm/issues.
+Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/svu/issues.
 ```
 
 ### Warnings
@@ -118,21 +142,21 @@ non-zero.
 
 ## Colour
 
-Colour is only used on **stderr**. It makes messages quicker to scan, but must
-never be needed to understand them. Every message has to make complete sense
-as plain text.
+Colour is used on **stderr**, and for `svu help` on stdout. It makes messages
+quicker to scan, but must never be needed to understand them. Every message
+has to make complete sense as plain text.
 
 ### When colour is used
 
-svu decides whether to use colour on stderr in this order. The first rule that
-applies wins:
+svu decides whether to use colour on a stream in this order. The first rule
+that applies wins:
 
 1. `--colour=always` or `--colour=never`, if given. `--color` is accepted as an
    alias.
 2. If [`NO_COLOR`][no-color] is set to any non-empty value, there's no colour.
 3. If `FORCE_COLOR` is set to any non-empty value, colour is used.
 4. If `TERM` is `dumb`, there's no colour.
-5. Otherwise, colour is used only if stderr is a terminal.
+5. Otherwise, colour is used only if the stream is a terminal.
 
 `--colour=auto` (the default) means "use rules 2 to 5".
 

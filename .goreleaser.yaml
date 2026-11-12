@@ -32,9 +32,9 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/tedslittlerobot/svm/internal/buildinfo.version={{ .Version }}
-      - -X github.com/tedslittlerobot/svm/internal/buildinfo.commit={{ .FullCommit }}
-      - -X github.com/tedslittlerobot/svm/internal/buildinfo.date={{ .CommitDate }}
+      - -X github.com/tedslittlerobot/svu/internal/buildinfo.version={{ .Version }}
+      - -X github.com/tedslittlerobot/svu/internal/buildinfo.commit={{ .FullCommit }}
+      - -X github.com/tedslittlerobot/svu/internal/buildinfo.date={{ .CommitDate }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
@@ -52,7 +52,7 @@ nfpms:
   - id: svu
     package_name: svu
     file_name_template: "{{ .ConventionalFileName }}"
-    homepage: https://github.com/tedslittlerobot/svm
+    homepage: https://github.com/tedslittlerobot/svu
     maintainer: Stefan Horner
     description: svu (Semantic Version Utilities) works with semantic versions.
     license: MIT
@@ -85,5 +85,5 @@ changelog:
 release:
   github:
     owner: tedslittlerobot
-    name: svm # The repository keeps the project's earlier name.
+    name: svu
   prerelease: auto
