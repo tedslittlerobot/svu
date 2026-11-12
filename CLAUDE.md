@@ -184,5 +184,12 @@ and of every command's success and failure paths.
 - Releases (`.github/workflows/release.yml`) run on `v*.*.*` tags: CI first,
   then GoReleaser publishes Linux (amd64, arm64, armv7, 386) and macOS (amd64,
   arm64) archives plus deb, rpm, apk and Arch packages to GitHub Releases.
+- Homebrew: the formula lives in
+  [tedslittlerobot/homebrew-tap](https://github.com/tedslittlerobot/homebrew-tap)
+  and builds from each release's source tarball. That repo's own workflows
+  bump it after a release (pre-releases are skipped) and build bottles, so
+  nothing here pushes to it. It hard-codes `./cmd/semvu` and the
+  `internal/buildinfo.version` ldflag, so moving either means updating
+  `Formula/semvu.rb` there too.
 - When changing `.goreleaser.yaml`, run `make snapshot` locally before pushing.
 - Keep README.md in step with user-facing changes (commands, flags, install).

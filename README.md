@@ -49,6 +49,19 @@ Pick whichever way suits you. Releases are listed on the
 [releases page](https://github.com/tedslittlerobot/semvu/releases). In the
 examples below, replace `0.1.0` with the version you want.
 
+### With Homebrew (macOS and Linux)
+
+```sh
+brew install tedslittlerobot/tap/semvu
+```
+
+This also installs shell completions for bash, zsh and fish, so you can skip
+[Shell completion](#shell-completion-optional). Upgrade with
+`brew upgrade semvu`. The formula lives in
+[tedslittlerobot/homebrew-tap](https://github.com/tedslittlerobot/homebrew-tap)
+and picks up each new release within a day. Release candidates aren't
+published there.
+
 ### Pre-built binary (Linux and macOS)
 
 | OS    | Architectures                              |
