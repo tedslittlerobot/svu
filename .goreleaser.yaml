@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: svm
+
+before:
+  hooks:
+    - go mod verify
+
+builds:
+  - id: svm
+    main: ./cmd/svm
+    binary: svm
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - "386"
+    goarm:
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: darwin
+        goarch: "386"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/tedslittlerobot/svm/internal/buildinfo.version={{ .Version }}
+      - -X github.com/tedslittlerobot/svm/internal/buildinfo.commit={{ .FullCommit }}
+      - -X github.com/tedslittlerobot/svm/internal/buildinfo.date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: svm
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}
+    files:
+      - LICENSE
+      - README.md
+
+# Native packages for the major Linux distribution families.
+nfpms:
+  - id: svm
+    package_name: svm
+    file_name_template: "{{ .ConventionalFileName }}"
+    homepage: https://github.com/tedslittlerobot/svm
+    maintainer: Stefan Horner
+    description: svm (SemVer Modifier) reads and modifies semantic version strings.
+    license: MIT
+    formats:
+      - deb       # Debian, Ubuntu
+      - rpm       # Fedora, RHEL, openSUSE
+      - apk       # Alpine
+      - archlinux # Arch, Manjaro
+    bindir: /usr/bin
+    contents:
+      - src: LICENSE
+        dst: /usr/share/licenses/svm/LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  github:
+    owner: tedslittlerobot
+    name: svm
+  prerelease: auto
