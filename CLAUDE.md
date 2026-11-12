@@ -113,9 +113,21 @@ and of every command's success and failure paths.
   consumed, and only when there is more than one implementation or a test needs it.
 - Add dependencies only when they clearly pay for themselves; prefer the
   standard library.
-- British English in all user-facing text and documentation. Go identifiers
-  follow the standard library and ecosystem (`Color`, not `Colour`), so they
-  read naturally next to the APIs they call.
+- **British English everywhere.** This covers identifiers (types, functions,
+  variables, constants, packages, files), comments, string literals, test
+  names, docs and commit messages. Write `colour`, `behaviour`, `initialise`,
+  `normalise`, `licence` (noun) and `cancelled`.
+  - The only exception is a name svm doesn't control: a standard-library or
+    third-party identifier (`context.Canceled`, `color.New`), a flag or
+    environment variable other tools define (`NO_COLOR`), or an alias kept
+    for compatibility (`--color`). Use it exactly as written there, and keep
+    svm's own wrappers and names British (`colourEnabled`, not
+    `colorEnabled`).
+  - `misspell` (UK locale) catches common American spellings in comments
+    and strings, but it doesn't check identifiers and its word list is
+    incomplete. Check identifiers by eye in review. If a string literal
+    must use an American spelling, add
+    `//nolint:misspell // <why the spelling is required>`.
 
 ## Commits and releases
 

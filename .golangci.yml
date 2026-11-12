@@ -18,6 +18,10 @@ linters:
     - usetesting
     - wrapcheck
   settings:
+    misspell:
+      # British English everywhere we choose the word. Where a library forces
+      # an American spelling, the linter still lets it through (see CLAUDE.md).
+      locale: UK
     nolintlint:
       require-explanation: true
       require-specific: true
