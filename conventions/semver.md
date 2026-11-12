@@ -17,7 +17,7 @@ In this document, **must**, **must not** and **may** are used as defined in
 |---|---|
 | `v` | Optional prefix. Lowercase only. |
 | `MAJOR`, `MINOR`, `PATCH` | Non-negative integers with no leading zeros, as in SemVer §2. `0` is allowed. `01` is not. |
-| `STAGE` | One of `alpha`, `beta`, `rc` or `ga`. Lowercase only. |
+| `STAGE` | One of `alpha`, `beta` or `rc`. Lowercase only. |
 | `INDEX` | Exactly three digits, zero-padded, from `001` to `999`. |
 
 The `-STAGE-INDEX` part is called the **suffix**. Hyphens are the only
@@ -25,10 +25,13 @@ separators allowed inside it.
 
 If a version has a suffix, it **must** have both a stage and an index.
 
+Build metadata (`+…`, SemVer §10) is **not** supported. Any version that
+contains a `+` is invalid.
+
 Whole-version pattern, for reference:
 
 ```text
-^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc|ga)-([0-9]{3}))?$
+^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)-([0-9]{3}))?$
 ```
 
 The pattern can't express one extra rule: an index of `000` is invalid.
@@ -48,15 +51,18 @@ Stages mark how far along a version is. Their order is fixed:
 | 1 | `alpha` | Early, incomplete, unstable |
 | 2 | `beta` | Feature-complete, still being tested |
 | 3 | `rc` | Release candidate |
-| 4 | `ga` | General availability |
-| 5 | *(none)* | Release version |
+| 4 | *(none)* | Release version |
+
+Stage names are deliberately in alphabetical order. That keeps svm's ordering
+the same as plain SemVer ordering (see [Precedence](#precedence)). Any new stage
+**must** fit into the alphabetical order where it belongs.
 
 ### Stage progression
 
 For a given `MAJOR.MINOR.PATCH`:
 
 - A version **may** skip any stage. For example, `alpha` can go straight to
-  `rc`, `ga` or the release, and the first pre-release can be any stage.
+  `rc` or the release, and the first pre-release can be any stage.
 - A version **must not** go back to an earlier stage. Once `1.2.3` has reached
   `beta`, `1.2.3-alpha-…` can't be produced.
 - Within a stage, the index **must** increase. The first index in a stage is
@@ -83,19 +89,19 @@ The `v` prefix is ignored. `v1.2.3` and `1.2.3` are equal.
 
 ```text
 1.2.3-alpha-001 < 1.2.3-alpha-002 < 1.2.3-beta-001 < 1.2.3-rc-001
-               < 1.2.3-ga-001 < 1.2.3 < 1.2.4-alpha-001
+               < 1.2.3 < 1.2.4-alpha-001
 ```
 
-> [!WARNING]
-> **This differs from SemVer precedence for `rc` and `ga`.**
-> In SemVer, `-rc-001` and `-ga-001` are each a single alphanumeric pre-release
-> identifier, and those are compared in ASCII order (SemVer §11.4). Because `g`
-> comes before `r`, other SemVer tools rank `1.2.3-ga-001` *below*
-> `1.2.3-rc-001`. That includes Go modules, `sort -V` and most package
-> registries.
+> [!NOTE]
+> **For any two svm versions, svm's ordering is the same as SemVer's.**
+> In SemVer, a suffix like `-alpha-001` is a single alphanumeric pre-release
+> identifier, and these are compared in ASCII order (SemVer §11.4). svm's stage
+> names sort alphabetically and its indexes have a fixed width, so ASCII order
+> and svm order always agree.
 >
-> svm ranks `ga` above `rc`. `alpha` < `beta` < `rc` is the same in both
-> systems.
+> This means other SemVer tools sort svm versions correctly, including Go
+> modules, `sort -V` and package registries. Keep it that way: don't add a stage
+> that would break the alphabetical order, or change the width of the index.
 
 ## Examples
 
@@ -108,7 +114,7 @@ The `v` prefix is ignored. `v1.2.3` and `1.2.3` are equal.
 | `0.0.0` | Zero is allowed |
 | `1.2.3-alpha-001` | First alpha |
 | `v2.3.4-rc-987` | Prefix and suffix together |
-| `10.20.30-ga-999` | Highest index allowed |
+| `10.20.30-beta-999` | Highest index allowed |
 
 ### Invalid
 
@@ -125,22 +131,17 @@ The `v` prefix is ignored. `v1.2.3` and `1.2.3` are equal.
 | `1.2.3-alpha001` | No separator between stage and index |
 | `1.2.3-Alpha-001` | Uppercase stage |
 | `1.2.3-dev-001` | Unknown stage |
+| `1.2.3-ga-001` | Unknown stage (`ga` isn't a stage) |
 | `1.2.3-001` | Index without a stage |
 | `1.2.3-rc-001-002` | More than one stage and index |
 | `1.2.3+build.5` | Build metadata isn't supported |
+| `1.2.3-rc-001+build.5` | Build metadata isn't supported |
 
-## Open questions
+## Out of scope
 
-These aren't settled yet. Until they are, the answers above are the working
-assumption.
-
-- **Prefix on output.** svm accepts both `v1.2.3` and `1.2.3`. It isn't decided
-  whether output keeps the input's form, always drops the `v`, or uses a flag.
-- **Build metadata.** SemVer allows `+metadata`, for example `1.2.3+sha.abc`.
-  It is rejected for now.
-- **`ga` and release versions.** Both mean "generally available". It isn't
-  decided whether `1.2.3-ga-002` to `1.2.3` is a normal path, or whether `ga`
-  versions are usually final.
+This document only defines which versions are valid and how they're ordered.
+How svm formats its output, including whether it prints a `v` prefix, will be
+set out with the command requirements.
 
 [semver]: https://semver.org/spec/v2.0.0.html
 [rfc2119]: https://www.rfc-editor.org/rfc/rfc2119

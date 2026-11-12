@@ -13,13 +13,15 @@ https://github.com/tedslittlerobot/svm.
 - CLI framework: [Cobra](https://github.com/spf13/cobra)
 - Spec: [`conventions/semver.md`](conventions/semver.md) defines the version
   format svm accepts: a strict subset of
-  [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html) with fixed stages
-  (`alpha` < `beta` < `rc` < `ga`), three-digit indexes, and its own
-  precedence rules. It is the source of truth for parsing, validation,
-  precedence and stage progression. Where it is silent, SemVer 2.0.0 applies.
-  Where they differ (notably `rc` vs `ga` ordering), the conventions file wins.
+  [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html): fixed stages
+  (`alpha` < `beta` < `rc`), three-digit indexes, and no build metadata.
+  It is the source of truth for parsing, validation, precedence and stage
+  progression. Where it is silent, SemVer 2.0.0 applies.
   Cite the relevant section in comments, and turn its valid/invalid example
   tables into test cases.
+- Invariant: for svm versions, svm's ordering must match plain SemVer
+  ordering. Stage names stay alphabetical and indexes stay fixed-width. Add a
+  test that checks this.
 - Changing `conventions/semver.md` changes behaviour. Update the doc and the
   code together, in the same commit.
 
