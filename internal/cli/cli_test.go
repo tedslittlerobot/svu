@@ -36,6 +36,9 @@ type invocation struct {
 	stdin io.Reader
 	// tags stands in for git. nil fails the test if svu reads git tags.
 	tags tagReader
+	// messages stands in for git's commit log. nil fails the test if svu
+	// reads it.
+	messages messageReader
 	// env is the environment variables svu sees. nil means none.
 	env map[string]string
 }
@@ -68,13 +71,21 @@ func invoke(t *testing.T, inv invocation) result {
 		}
 	}
 
+	if inv.messages == nil {
+		inv.messages = func(context.Context, string, string) ([]string, error) {
+			t.Error("svu read commit messages, want it not to")
+
+			return nil, errors.New("unexpected call to read commit messages")
+		}
+	}
+
 	var stdout, stderr bytes.Buffer
 
 	code := execute(t.Context(), inv.args, Streams{
 		In:  inv.stdin,
 		Out: &stdout,
 		Err: &stderr,
-	}, environment{info: testInfo, readTags: inv.tags, getenv: inv.getenv()})
+	}, environment{info: testInfo, readTags: inv.tags, readMessages: inv.messages, getenv: inv.getenv()})
 
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
 }

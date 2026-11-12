@@ -103,13 +103,58 @@ func tags(ctx context.Context, gitPath, dir string, opts TagOptions) ([]string, 
 
 	names := []string{}
 
-	for _, name := range strings.Fields(out) {
+	for name := range strings.FieldsSeq(out) {
 		if rest, ok := strings.CutPrefix(name, opts.Prefix); ok {
 			names = append(names, rest)
 		}
 	}
 
 	return names, nil
+}
+
+// Messages returns the full messages of the commits reachable from HEAD but
+// not from the tag since, newest first. Merge commits are left out. An empty
+// since means every commit reachable from HEAD. dir is as for Tags.
+func Messages(ctx context.Context, dir, since string) ([]string, error) {
+	return messages(ctx, "git", dir, since)
+}
+
+// messages is Messages with the git executable injected, for tests.
+func messages(ctx context.Context, gitPath, dir, since string) ([]string, error) {
+	if dir != "" {
+		if err := checkDirectory(dir); err != nil {
+			return nil, err
+		}
+	}
+
+	revisions := "HEAD"
+	if since != "" {
+		// The full ref, so a branch with the same name can't be picked instead.
+		revisions = "refs/tags/" + since + "..HEAD"
+	}
+
+	// Each message ends with a NUL, which can't appear in a commit message.
+	out, err := run(ctx, gitPath, dir, "log", "--no-merges", "--format=%B%x00", revisions, "--")
+
+	var cmdErr *CommandError
+
+	switch {
+	case since == "" && errors.As(err, &cmdErr) && strings.Contains(cmdErr.Stderr, "'HEAD'"):
+		// A repository with no commits yet has no history to read.
+		return []string{}, nil
+	case err != nil:
+		return nil, err
+	}
+
+	list := []string{}
+
+	for message := range strings.SplitSeq(out, "\x00") {
+		if message = strings.TrimSpace(message); message != "" {
+			list = append(list, message)
+		}
+	}
+
+	return list, nil
 }
 
 func checkDirectory(dir string) error {

@@ -158,17 +158,25 @@ func (q tagQuery) pick(tags []string) (semver.Version, bool) {
 // latestTag returns the latest git tag that is a valid version: the same
 // filtering and ordering for every command that reads tags.
 func latestTag(ctx context.Context, readTags tagReader, q tagQuery) (semver.Version, error) {
+	v, _, err := latestNamedTag(ctx, readTags, q)
+
+	return v, err
+}
+
+// latestNamedTag is latestTag, and also returns the name of the tag, such as
+// "v1.2.3" or "api/v1.2.3". The name is "" when the version is --initial.
+func latestNamedTag(ctx context.Context, readTags tagReader, q tagQuery) (semver.Version, string, error) {
 	tags, err := readTags(ctx, q.dir, q.options())
 	if err != nil {
-		return semver.Version{}, tagsError(err, q)
+		return semver.Version{}, "", tagsError(err, q)
 	}
 
 	if v, ok := q.pick(tags); ok {
-		return v, nil
+		return v, q.prefix + tagName(tags, v), nil
 	}
 
 	if q.initial != nil {
-		return *q.initial, nil
+		return *q.initial, "", nil
 	}
 
 	var ue *userError
@@ -202,7 +210,18 @@ func latestTag(ctx context.Context, readTags tagReader, q tagQuery) (semver.Vers
 		}
 	}
 
-	return semver.Version{}, ue
+	return semver.Version{}, "", ue
+}
+
+// tagName returns the first of tags that is version v.
+func tagName(tags []string, v semver.Version) string {
+	for _, tag := range tags {
+		if t, err := semver.Parse(tag); err == nil && semver.Compare(t, v) == 0 {
+			return tag
+		}
+	}
+
+	return ""
 }
 
 func noVersionTagsError(q tagQuery, count int) *userError {

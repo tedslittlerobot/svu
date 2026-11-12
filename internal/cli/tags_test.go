@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -273,11 +274,14 @@ func TestTagFlagsInRealGitRepository(t *testing.T) {
 func TestExitCodes(t *testing.T) {
 	t.Parallel()
 
+	noCommits := func(context.Context, string, string) ([]string, error) { return nil, nil }
+
 	tests := []struct {
-		name string
-		args []string
-		tags tagReader
-		want int
+		name     string
+		args     []string
+		tags     tagReader
+		messages messageReader
+		want     int
 	}{
 		{name: "success", args: []string{"modify", "1.2.3"}, want: ExitOK},
 		{name: "internal failure", args: []string{"latest"}, tags: failingTags(errors.New("boom")), want: ExitInternal},
@@ -287,6 +291,10 @@ func TestExitCodes(t *testing.T) {
 		{name: "no repository", args: []string{"latest"}, tags: failingTags(git.ErrNotRepository), want: ExitRepository},
 		{name: "no matching tag", args: []string{"latest"}, tags: failingTags(nil), want: ExitNoMatchingTag},
 		{name: "git failed", args: []string{"latest"}, tags: failingTags(git.ErrNotInstalled), want: ExitGit},
+		{
+			name: "nothing to release", args: []string{"modify", "--auto"},
+			tags: scopedTags(t, "", []string{"v1.0.0"}, nil), messages: noCommits, want: ExitNothingToRelease,
+		},
 	}
 
 	seen := map[int]string{}
@@ -301,7 +309,7 @@ func TestExitCodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := invoke(t, invocation{args: tt.args, tags: tt.tags}).code; got != tt.want {
+			if got := invoke(t, invocation{args: tt.args, tags: tt.tags, messages: tt.messages}).code; got != tt.want {
 				t.Errorf("exit code = %d, want %d", got, tt.want)
 			}
 		})

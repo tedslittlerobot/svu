@@ -45,6 +45,9 @@ const (
 	ExitNoMatchingTag = 6
 	// ExitGit means git is not installed, or failed.
 	ExitGit = 7
+	// ExitNothingToRelease means svu modify --auto found no commits since
+	// the latest tag that need a new version.
+	ExitNothingToRelease = 8
 )
 
 // Streams holds the I/O handles available to commands.
@@ -59,6 +62,8 @@ type Streams struct {
 type environment struct {
 	info     buildinfo.Info
 	readTags tagReader
+	// readMessages reads commit messages, for svu modify --auto.
+	readMessages messageReader
 	// getenv returns an environment variable, or "" if it is unset.
 	getenv func(string) string
 }
@@ -67,9 +72,10 @@ type environment struct {
 // returns the process exit code.
 func Execute(ctx context.Context, args []string, streams Streams) int {
 	return execute(ctx, args, streams, environment{
-		info:     buildinfo.Get(),
-		readTags: git.Tags,
-		getenv:   os.Getenv,
+		info:         buildinfo.Get(),
+		readTags:     git.Tags,
+		readMessages: git.Messages,
+		getenv:       os.Getenv,
 	})
 }
 

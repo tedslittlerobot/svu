@@ -199,3 +199,80 @@ func TestTagsInARepositoryWithNoCommits(t *testing.T) {
 		}
 	}
 }
+
+func TestMessages(t *testing.T) {
+	t.Parallel()
+
+	dir := gittest.NewRepository(t, "v1.0.0")
+	gittest.Run(t, dir, "commit", "--quiet", "--allow-empty", "--message", "fix: handle empty input")
+	gittest.Run(t, dir, "commit", "--quiet", "--allow-empty", "--message", "feat(api)!: rename flags\n\nBREAKING CHANGE: --x is now --y")
+
+	// A merge commit, which is left out.
+	gittest.Run(t, dir, "checkout", "--quiet", "-b", "side")
+	gittest.Run(t, dir, "commit", "--quiet", "--allow-empty", "--message", "docs: explain")
+	gittest.Run(t, dir, "checkout", "--quiet", "-")
+	gittest.Run(t, dir, "merge", "--quiet", "--no-ff", "--message", "Merge branch 'side'", "side")
+
+	tests := []struct {
+		name  string
+		since string
+		want  []string
+	}{
+		{
+			name:  "lists messages since a tag, newest first, without merges",
+			since: "v1.0.0",
+			want:  []string{"docs: explain", "feat(api)!: rename flags\n\nBREAKING CHANGE: --x is now --y", "fix: handle empty input"},
+		},
+		{
+			name: "lists every message with no tag",
+			want: []string{"docs: explain", "feat(api)!: rename flags\n\nBREAKING CHANGE: --x is now --y", "fix: handle empty input", "Initial commit"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := Messages(t.Context(), dir, tt.since)
+			if err != nil {
+				t.Fatalf("Messages() error = %v, want nil", err)
+			}
+
+			// The merge brings in the docs commit, so its place in the order
+			// depends on commit times; compare as sets.
+			slices.Sort(got)
+			want := slices.Sorted(slices.Values(tt.want))
+
+			if !slices.Equal(got, want) {
+				t.Errorf("Messages(%q) = %q, want %q", tt.since, got, want)
+			}
+		})
+	}
+}
+
+func TestMessagesEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	empty := t.TempDir()
+	gittest.Run(t, empty, "init", "--quiet")
+
+	got, err := Messages(t.Context(), empty, "")
+	if err != nil || len(got) != 0 {
+		t.Errorf("Messages() with no commits = %q, %v, want none and no error", got, err)
+	}
+
+	if _, err := Messages(t.Context(), t.TempDir(), ""); !errors.Is(err, ErrNotRepository) {
+		t.Errorf("Messages() outside a repository error = %v, want ErrNotRepository", err)
+	}
+
+	if _, err := Messages(t.Context(), filepath.Join(t.TempDir(), "missing"), ""); !errors.Is(err, ErrDirectoryNotFound) {
+		t.Errorf("Messages() in a missing directory error = %v, want ErrDirectoryNotFound", err)
+	}
+
+	repo := gittest.NewRepository(t)
+
+	var cmdErr *CommandError
+	if _, err := Messages(t.Context(), repo, "v9.9.9"); !errors.As(err, &cmdErr) {
+		t.Errorf("Messages() since a missing tag error = %v, want a CommandError", err)
+	}
+}

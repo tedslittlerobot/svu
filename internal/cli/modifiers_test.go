@@ -86,7 +86,7 @@ func TestModifierErrors(t *testing.T) {
 			args: []string{"1.2.3", "--major", "--minor"},
 			want: `Error: --major and --minor can't be used together.
 
-  Give at most one version modifier: --major, --minor, --patch or --hotfix.
+  Give at most one version modifier: --major, --minor, --patch, --hotfix or --auto.
 `,
 		},
 		{
@@ -95,7 +95,7 @@ func TestModifierErrors(t *testing.T) {
 			args: []string{"1.2.3", "--patch", "--minor", "--major"},
 			want: `Error: --major, --minor and --patch can't be used together.
 
-  Give at most one version modifier: --major, --minor, --patch or --hotfix.
+  Give at most one version modifier: --major, --minor, --patch, --hotfix or --auto.
 `,
 		},
 		{

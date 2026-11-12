@@ -56,7 +56,7 @@ https://github.com/tedslittlerobot/svu.
 make check      # tidy, format, lint, test: must pass before any commit
 make test       # go test -race -shuffle=on ./...
 make cover-check  # tests with coverage; fails below 95% total (CI runs this)
-make fuzz       # fuzz the version parser for 30s (CI runs this)
+make fuzz       # fuzz the version and commit parsers for 30s each (CI runs this)
 make lint       # golangci-lint run (config: .golangci.yml)
 make fmt        # golangci-lint fmt (gofmt + goimports)
 make build      # ./bin/svu with version info linked in
@@ -75,10 +75,11 @@ internal/cli/         One file per command (<name>.go + <name>_test.go).
                       cli.go holds Execute, the root command and Streams.
                       modify.go is svu modify; modifiers.go and input.go support it.
                       latest.go is svu latest. tags.go reads git tags for both.
-                      validate.go is svu validate.
+                      validate.go is svu validate. auto.go is svu modify --auto.
 internal/buildinfo/   Version metadata from ldflags, falling back to debug.ReadBuildInfo.
 internal/semver/      Parsing, ordering, formatting and modifying versions.
-internal/git/         Reads tags by running the git command.
+internal/commits/     Reads Conventional Commits messages and works out the bump.
+internal/git/         Reads tags and commit messages by running the git command.
 internal/colour/      Decides when stderr uses colour, and applies it.
 action.yml            The GitHub Action that installs svu (runs scripts/install-svu.sh).
 scripts/              Shell scripts for installing svu and checking release tags.

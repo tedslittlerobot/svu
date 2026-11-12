@@ -62,6 +62,8 @@ That includes:
 
 - errors and warnings
 - help and usage text from `--help` or `-h`
+- explanations a flag asks for, such as `svu modify --auto --explain`. These
+  are plain sentences with no label, and are only written when asked for
 - any diagnostic or explanatory message
 
 ## Exit status
@@ -80,6 +82,7 @@ not** change.
 | `5` | No repository | Not in a git repository; `--directory` doesn't exist or isn't a directory |
 | `6` | No matching tag | No tag is a valid version, or none is a release when only releases are wanted |
 | `7` | git failed | git isn't installed, or reported an error |
+| `8` | Nothing to release | `svu modify --auto` found no commits since the latest tag that need a new version |
 
 A new kind of failure gets a new number. A failure that fits an existing kind
 uses its number.

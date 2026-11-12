@@ -27,6 +27,7 @@ func newVersionModifiers() []*modifier[semver.Part] {
 		{flag: "minor", value: semver.Minor, usage: "Bump MINOR, and reset PATCH to 0"},
 		{flag: "patch", value: semver.Patch, usage: "Bump PATCH"},
 		{flag: hotfixFlag, value: semver.Patch, usage: "Bump PATCH of the latest release, skipping pre-releases"},
+		{flag: autoFlag, usage: "Work out the bump from the Conventional Commits since the latest tag"},
 	}
 }
 
@@ -130,6 +131,20 @@ func (m *modifiers) hotfix() bool {
 	return slices.ContainsFunc(m.versions, func(mod *modifier[semver.Part]) bool {
 		return mod.flag == hotfixFlag && mod.set
 	})
+}
+
+// auto reports whether --auto was given.
+func (m *modifiers) auto() bool {
+	return slices.ContainsFunc(m.versions, func(mod *modifier[semver.Part]) bool {
+		return mod.flag == autoFlag && mod.set
+	})
+}
+
+// stage returns the stage modifier given, or Release if none was.
+func (m *modifiers) stage() semver.Stage {
+	stage, _ := chosen(m.stages)
+
+	return stage
 }
 
 // apply changes v as the modifiers ask. It must only be called after

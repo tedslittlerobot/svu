@@ -48,7 +48,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Fuzz the version parser
+      - name: Fuzz the version and commit parsers
         run: make fuzz
 
       # A failing input is saved under testdata. Keep it, so it can be added
@@ -58,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: fuzz-failure
-          path: internal/semver/testdata/fuzz
+          path: internal/*/testdata/fuzz
 
   lint:
     name: Lint

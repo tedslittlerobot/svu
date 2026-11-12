@@ -310,6 +310,7 @@ Use at most one version modifier and at most one stage modifier.
 | `--minor` | Bump MINOR, reset PATCH to 0 | `1.2.3` → `1.3.0` |
 | `--patch` | Bump PATCH | `1.2.3` → `1.2.4` |
 | `--hotfix` | Bump PATCH of the latest release, skipping pre-releases | tags `v1.2.3`, `v1.3.0-rc-001` → `1.2.4` |
+| `--auto` | Work out the bump from the [Conventional Commits](#bumping-from-commit-messages) since the latest tag | `fix:` and `feat:` since `v1.2.3` → `1.3.0` |
 | `--alpha`, `--beta`, `--rc` | Move to that stage at `001`, or to the next index if already there | `1.2.3-alpha-099` → `1.2.3-rc-001`<br>`1.2.3-rc-001` → `1.2.3-rc-002` |
 | `--release` | Remove the stage from a pre-release | `1.2.3-rc-001` → `1.2.3` |
 
@@ -323,6 +324,38 @@ Use at most one version modifier and at most one stage modifier.
   directly, it must be a release.
 - With **no modifiers**, svu prints the version as it is. That's useful for
   checking or normalising one (`v1.2.3` → `1.2.3`).
+
+#### Bumping from commit messages
+
+If your commit messages follow [Conventional Commits](https://www.conventionalcommits.org),
+`--auto` works out the bump for you from the commits since the latest tag:
+
+| Commits since the latest tag include | Bump |
+|---|---|
+| A breaking change: `!` before the colon, as in `feat!: …`, or a `BREAKING CHANGE:` footer | MAJOR (MINOR before 1.0.0) |
+| `feat: …` | MINOR |
+| `fix: …` or `perf: …` | PATCH |
+| Only other types, such as `docs:` or `chore:`, or messages that don't follow the convention | None: svu fails with exit status `8` |
+
+```sh
+svu modify --auto                 # 1.3.0, for a feat since v1.2.3
+svu modify --auto --rc --vp       # v1.3.0-rc-001
+svu modify --auto --explain       # the same, saying why on stderr:
+# 4 commits since v1.2.3: 1 feat, 1 fix, 1 docs and 1 not following Conventional Commits.
+# That's a minor bump, from 1.2.3 to 1.3.0.
+```
+
+- **Before 1.0.0**, a breaking change bumps MINOR, because anything may change
+  in `0.y.z`. Moving to 1.0.0 is a deliberate step: use `--major`.
+- **When the latest tag is a pre-release**, svu checks whether it already
+  covers the bump. If `v1.3.0-rc-001` is out and only fixes have landed
+  since, `--auto --rc` gives `1.3.0-rc-002`, and `--auto` alone releases
+  `1.3.0`. A breaking change instead gives `2.0.0-rc-001`.
+- Merge commits are skipped. With `--tag-prefix`, commits are counted from the
+  prefixed tag, but include changes anywhere in the repository.
+- `--auto` reads tags, so it takes [the tag flags](#which-tags-svu-reads) and
+  can't be used with a version. `--initial` works too, to count every commit
+  in a repository with no tags yet.
 
 Stages only move forward, as set out in
 [`conventions/semver.md`](conventions/semver.md#stage-progression). svu
@@ -339,6 +372,7 @@ Other flags:
 | Flag | Meaning |
 |---|---|
 | `--with-v-prefix`, `--vp` | Print a leading `v` |
+| `--explain` | With `--auto`, say on stderr how the bump was chosen |
 
 With no version given, it also takes [the tag flags](#which-tags-svu-reads).
 They can't be used with a version, because there are no tags to read.
@@ -411,6 +445,19 @@ else
 fi
 ```
 
+### Release whatever the commits call for
+
+```sh
+# Exit status 8 means no commit since the latest tag needs a release.
+status=0
+next="$(svu modify --auto --vp)" || status=$?
+if [ "$status" -eq 8 ]; then echo "Nothing to release."; exit 0; fi
+if [ "$status" -ne 0 ]; then exit "$status"; fi
+
+git tag -a "$next" -m "$next"
+git push origin "$next"
+```
+
 ### Hotfix a release while a release candidate is in progress
 
 ```sh
@@ -470,6 +517,7 @@ svu is built to be captured with `$(…)`:
 | `5` | No git repository where svu looked |
 | `6` | No tag that is a version of the kind asked for |
 | `7` | git isn't installed, or failed |
+| `8` | Nothing to release: `svu modify --auto` found no commits that need a new version |
 
 So this either gives a valid version, or stops the script with an empty
 variable:
@@ -528,7 +576,7 @@ make help              # list all targets
 make build             # build ./bin/svu
 make test              # run tests with the race detector, in random order
 make cover-check       # run tests, and fail if coverage is below 95% (CI runs this)
-make fuzz              # fuzz the version parser for 30 seconds (CI runs this)
+make fuzz              # fuzz the version and commit parsers, 30 seconds each (CI runs this)
 make cover             # run tests and open a coverage report
 make lint              # run golangci-lint
 make vuln              # check for known vulnerabilities that svu's code can reach
@@ -545,7 +593,8 @@ cmd/svu/            Entry point. Wires OS streams and signals into the CLI; no l
 internal/cli/       Cobra commands. Parses input, calls domain code, formats output.
 internal/buildinfo/ Version, commit and build date of the running binary.
 internal/semver/    Parsing, ordering, formatting and modifying svu versions.
-internal/git/       Reads tags by running the git command.
+internal/commits/   Reads Conventional Commits messages and works out the bump.
+internal/git/       Reads tags and commit messages by running the git command.
 internal/colour/    Decides when stderr uses colour, and applies it.
 ```
 

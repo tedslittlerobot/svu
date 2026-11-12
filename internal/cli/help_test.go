@@ -55,6 +55,12 @@ version modifier on its own removes any stage. Add a stage modifier, as in
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
 
+--auto works out the bump from the Conventional Commits since the latest tag:
+a breaking change bumps MAJOR (MINOR before 1.0.0), feat bumps MINOR, and fix
+and perf bump PATCH. If the latest tag is a pre-release that already covers
+the bump, it carries on from it. If no commit needs a new version, svu modify
+fails with exit status 8. --explain says on stderr how the bump was chosen.
+
 Usage:
   svu modify [version] [flags]
 
@@ -70,6 +76,8 @@ Examples:
   svu m --patch --with-v-prefix       # the latest git tag, bumped, as in v1.2.4
   svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
   svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
+  svu m --auto --explain              # the bump the commits since the latest tag need
+  svu m --auto --rc                   # the same, as a release candidate
 
 Input:
       --directory path     Read tags from the git repository containing path
@@ -82,6 +90,7 @@ Version modifiers (use at most one):
       --minor              Bump MINOR, and reset PATCH to 0
       --patch              Bump PATCH
       --hotfix             Bump PATCH of the latest release, skipping pre-releases
+      --auto               Work out the bump from the Conventional Commits since the latest tag
 
 Stage modifiers (use at most one):
       --alpha              Move to alpha-001, or to the next alpha
@@ -91,6 +100,7 @@ Stage modifiers (use at most one):
 
 Output:
       --with-v-prefix      Print the version with a leading "v" (alias --vp)
+      --explain            With --auto, say on stderr how the bump was chosen
 
 Other:
   -h, --help               Show this help

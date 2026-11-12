@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -22,7 +23,13 @@ version modifier on its own removes any stage. Add a stage modifier, as in
 --minor --alpha, to start that stage at 001. Stages never go backwards.
 
 --hotfix patches the latest release, skipping pre-releases, to fix what's
-already out while a pre-release is in progress.`
+already out while a pre-release is in progress.
+
+--auto works out the bump from the Conventional Commits since the latest tag:
+a breaking change bumps MAJOR (MINOR before 1.0.0), feat bumps MINOR, and fix
+and perf bump PATCH. If the latest tag is a pre-release that already covers
+the bump, it carries on from it. If no commit needs a new version, svu modify
+fails with exit status 8. --explain says on stderr how the bump was chosen.`
 
 const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
   svu modify 1.2.3 --minor --alpha    # 1.3.0-alpha-001
@@ -31,13 +38,16 @@ const modifyExample = `  svu modify 1.2.3 --minor            # 1.3.0
   echo v1.2.3 | svu modify - --patch  # 1.2.4
   svu m --patch --with-v-prefix       # the latest git tag, bumped, as in v1.2.4
   svu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
-  svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet`
+  svu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
+  svu m --auto --explain              # the bump the commits since the latest tag need
+  svu m --auto --rc                   # the same, as a release candidate`
 
 func newModifyCommand(env environment) *cobra.Command {
 	var (
-		tags   tagFlags
-		prefix vPrefix
-		mods   *modifiers
+		tags    tagFlags
+		prefix  vPrefix
+		explain bool
+		mods    *modifiers
 	)
 
 	cmd := &cobra.Command{
@@ -68,6 +78,19 @@ func newModifyCommand(env environment) *cobra.Command {
 				return err
 			}
 
+			if mods.auto() {
+				return runAuto(cmd, args, env, q, mods, explain, prefix)
+			}
+
+			if explain {
+				return &userError{
+					code:     ExitUsage,
+					headline: "--explain only works with --auto.",
+					detail:   "--explain says how --auto chose the bump from the commits.",
+					hint:     "Add `--auto`, or remove `--explain`.",
+				}
+			}
+
 			v, err := readVersion(cmd.Context(), args, cmd.InOrStdin(), q, env.readTags)
 			if err != nil {
 				return err
@@ -92,7 +115,42 @@ func newModifyCommand(env environment) *cobra.Command {
 
 	prefix.addFlag(cmd)
 
+	flags.BoolVar(&explain, "explain", false, "With --auto, say on stderr how the bump was chosen")
+	setHelpGroup(flags, "explain", groupOutput)
+
 	return cmd
+}
+
+// runAuto runs svu modify --auto: the bump comes from the Conventional
+// Commits since the latest tag.
+func runAuto(
+	cmd *cobra.Command, args []string, env environment, q tagQuery, mods *modifiers, explain bool, prefix vPrefix,
+) error {
+	if len(args) > 0 {
+		return &userError{
+			code:     ExitUsage,
+			headline: "--auto can't be used when a version is given.",
+			detail:   "--auto works out the bump from the commits since the latest tag, so it reads the tags itself.",
+			hint:     "Remove the version, or choose the bump with `--major`, `--minor` or `--patch`.",
+		}
+	}
+
+	var out io.Writer
+	if explain {
+		out = cmd.ErrOrStderr()
+	}
+
+	v, err := autoVersion(cmd.Context(), env, q, mods.stage(), out)
+	if err != nil {
+		var ue *userError
+		if errors.As(err, &ue) {
+			return ue
+		}
+
+		return mods.modifyError(err)
+	}
+
+	return writeResult(cmd.OutOrStdout(), prefix.format(v))
 }
 
 // atMostOneVersion checks that svu modify was given no more than one version.

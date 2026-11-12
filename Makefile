@@ -50,8 +50,9 @@ cover-check: ## Run tests with coverage, and fail if the total is below MIN_COVE
 FUZZ_TIME ?= 30s
 
 .PHONY: fuzz
-fuzz: ## Fuzz the version parser for FUZZ_TIME (30s)
+fuzz: ## Fuzz the version and commit parsers for FUZZ_TIME (30s) each
 	go test -run='^$$' -fuzz=FuzzParse -fuzztime=$(FUZZ_TIME) ./internal/semver
+	go test -run='^$$' -fuzz=FuzzParse -fuzztime=$(FUZZ_TIME) ./internal/commits
 
 .PHONY: lint
 lint: ## Run golangci-lint
