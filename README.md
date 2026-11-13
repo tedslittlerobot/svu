@@ -690,6 +690,7 @@ make go-latest         # move go.mod and .go-version to the latest Go release
 make go-version-check  # check .go-version matches go.mod
 make check             # tidy, format, lint and test: run this before pushing
 make snapshot          # build every release artefact into ./dist without publishing
+make archive-check     # build from a source tarball, as Homebrew does, and check semvu knows its commit
 ```
 
 ### Project layout

@@ -66,6 +66,7 @@ make go-latest  # move go.mod and .go-version to the latest Go release (see Proj
 make go-version-check  # .go-version matches go.mod (part of make check)
 make vuln       # govulncheck: known vulnerabilities semvu's code can reach (CI runs it too)
 make snapshot   # goreleaser release --snapshot --clean (validates release config)
+make archive-check  # build from git archive, as Homebrew does, and check the commit and date (CI runs this)
 go test ./internal/cli -run TestVersionCommand   # run a single test
 ```
 
@@ -190,6 +191,9 @@ and of every command's success and failure paths.
   bump it after a release (pre-releases are skipped) and build bottles, so
   nothing here pushes to it. It hard-codes `./cmd/semvu` and the
   `internal/buildinfo.version` ldflag, so moving either means updating
-  `Formula/semvu.rb` there too.
+  `Formula/semvu.rb` there too. A tarball has no git metadata, so the commit
+  and date come from `internal/buildinfo/archive.go`, which git archive fills
+  in (`.gitattributes` marks it `export-subst`). Keep its placeholders and
+  that attribute; `make archive-check` (CI runs it) fails if either breaks.
 - When changing `.goreleaser.yaml`, run `make snapshot` locally before pushing.
 - Keep README.md in step with user-facing changes (commands, flags, install).

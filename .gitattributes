@@ -1,0 +1,3 @@
+# git archive fills in the commit and its date, for builds from a source
+# tarball such as Homebrew's. See internal/buildinfo/archive.go.
+internal/buildinfo/archive.go export-subst

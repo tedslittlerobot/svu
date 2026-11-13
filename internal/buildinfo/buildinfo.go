@@ -2,7 +2,9 @@
 //
 // Release builds inject values at link time (see .goreleaser.yaml). Builds
 // made with plain `go build` or `go install` fall back to the metadata the Go
-// toolchain embeds, so every binary can describe where it came from.
+// toolchain embeds. Builds from a source tarball, which has no git metadata,
+// fall back to the commit and date that git archive filled in (archive.go), so
+// every binary can describe where it came from.
 package buildinfo
 
 import (
@@ -40,13 +42,14 @@ type Info struct {
 
 // Get returns the build information for the running binary.
 func Get() Info {
-	return resolve(version, commit, date, debug.ReadBuildInfo)
+	return resolve(version, commit, date, debug.ReadBuildInfo, archived(archiveCommit, archiveDate))
 }
 
-// resolve merges link-time values with toolchain metadata. Link-time values
-// win; anything still missing is filled with a placeholder. The reader is
-// injected so tests can simulate any build.
-func resolve(ver, rev, built string, read func() (*debug.BuildInfo, bool)) Info {
+// resolve merges link-time values, toolchain metadata and what git archive
+// filled in, in that order of precedence. Anything still missing is filled
+// with a placeholder. The reader and archive are injected so tests can
+// simulate any build.
+func resolve(ver, rev, built string, read func() (*debug.BuildInfo, bool), arc archive) Info {
 	info := Info{
 		Version:   ver,
 		Commit:    rev,
@@ -71,8 +74,8 @@ func resolve(ver, rev, built string, read func() (*debug.BuildInfo, bool)) Info 
 	}
 
 	info.Version = firstNonEmpty(strings.TrimPrefix(info.Version, "v"), DevVersion)
-	info.Commit = firstNonEmpty(info.Commit, Unknown)
-	info.Date = firstNonEmpty(info.Date, Unknown)
+	info.Commit = firstNonEmpty(info.Commit, arc.commit, Unknown)
+	info.Date = firstNonEmpty(info.Date, arc.date, Unknown)
 
 	return info
 }

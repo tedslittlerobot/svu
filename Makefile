@@ -90,6 +90,22 @@ vuln: ## Check for known vulnerabilities that semvu's code can reach (needs netw
 .PHONY: check
 check: go-version-check tidy fmt lint test ## Tidy, format, lint and test; do this before pushing
 
+ARCHIVE_REF ?= HEAD
+ARCHIVE_DIR := $(BIN_DIR)/archive-check
+
+.PHONY: archive-check
+archive-check: ## Build from git archive of ARCHIVE_REF, as Homebrew does, and check semvu knows its commit
+	@mkdir -p $(ARCHIVE_DIR)
+	@git archive --format=tar $(ARCHIVE_REF) | tar -x -C $(ARCHIVE_DIR)
+	@# -buildvcs=false: this directory is inside the checkout, but a tarball has no git.
+	@cd $(ARCHIVE_DIR) && go build -trimpath -buildvcs=false -ldflags "-X $(PKG)/internal/buildinfo.version=0.0.0-archive" -o semvu ./cmd/semvu
+	@got="$$($(ARCHIVE_DIR)/semvu version)"; \
+	want="semvu 0.0.0-archive (commit $$(git rev-parse '$(ARCHIVE_REF)^{commit}'), built $$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ $(ARCHIVE_REF)),"; \
+	case "$$got" in \
+		"$$want"*) echo "$$got" ;; \
+		*) echo "A build from git archive gave: $$got" >&2; echo "want it to start: $$want" >&2; exit 1 ;; \
+	esac
+
 .PHONY: snapshot
 snapshot: ## Build release artefacts locally without publishing
 	goreleaser release --snapshot --clean

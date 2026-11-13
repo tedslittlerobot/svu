@@ -31,6 +31,7 @@ func TestResolve(t *testing.T) {
 		commit  string
 		date    string
 		read    func() (*debug.BuildInfo, bool)
+		archive archive
 		want    Info
 	}{
 		{
@@ -69,6 +70,20 @@ func TestResolve(t *testing.T) {
 			want: Info{Version: DevVersion, Commit: Unknown, Date: Unknown},
 		},
 		{
+			name:    "a source tarball's commit and date fill in when nothing else has them",
+			version: "1.2.3",
+			read:    toolchain("(devel)"),
+			archive: archive{commit: "archive-sha", date: "2026-03-03T00:00:00Z"},
+			want:    Info{Version: "1.2.3", Commit: "archive-sha", Date: "2026-03-03T00:00:00Z"},
+		},
+		{
+			name:    "link-time and toolchain values take precedence over the archive",
+			commit:  "linker-sha",
+			read:    toolchain("v1.4.0", vcs...),
+			archive: archive{commit: "archive-sha", date: "2026-03-03T00:00:00Z"},
+			want:    Info{Version: "1.4.0", Commit: "linker-sha", Date: "2026-01-01T00:00:00Z"},
+		},
+		{
 			name: "nil build info is tolerated",
 			read: func() (*debug.BuildInfo, bool) { return nil, true },
 			want: Info{Version: DevVersion, Commit: Unknown, Date: Unknown},
@@ -79,7 +94,7 @@ func TestResolve(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := resolve(tt.version, tt.commit, tt.date, tt.read)
+			got := resolve(tt.version, tt.commit, tt.date, tt.read, tt.archive)
 
 			want := tt.want
 			want.GoVersion = runtime.Version()
@@ -87,6 +102,52 @@ func TestResolve(t *testing.T) {
 
 			if got != want {
 				t.Errorf("resolve() = %+v, want %+v", got, want)
+			}
+		})
+	}
+}
+
+func TestArchived(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		commit string
+		date   string
+		want   archive
+	}{
+		{
+			name:   "ignores placeholders git archive didn't fill in",
+			commit: "$Format:%H$",
+			date:   "$Format:%cI$",
+			want:   archive{},
+		},
+		{
+			name:   "keeps the commit and a UTC date",
+			commit: "0d9b9122cad62a80ffc02b45c5cf318f539e6623",
+			date:   "2026-11-12T21:56:47Z",
+			want:   archive{commit: "0d9b9122cad62a80ffc02b45c5cf318f539e6623", date: "2026-11-12T21:56:47Z"},
+		},
+		{
+			name:   "normalises the date to UTC",
+			commit: "abc",
+			date:   "2026-11-12T21:56:47+01:00",
+			want:   archive{commit: "abc", date: "2026-11-12T20:56:47Z"},
+		},
+		{
+			name:   "ignores a date that isn't RFC 3339",
+			commit: "abc",
+			date:   "Thu Nov 12 21:56:47 2026",
+			want:   archive{commit: "abc"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := archived(tt.commit, tt.date); got != tt.want {
+				t.Errorf("archived(%q, %q) = %+v, want %+v", tt.commit, tt.date, got, tt.want)
 			}
 		})
 	}

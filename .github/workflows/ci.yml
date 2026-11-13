@@ -101,3 +101,8 @@ jobs:
           distribution: goreleaser
           version: "~> v2"
           args: release --snapshot --clean
+
+      # Homebrew builds from GitHub's source tarball, which has no git
+      # metadata. Check that git archive still fills in the commit and date.
+      - name: Check a build from a source tarball
+        run: make archive-check
