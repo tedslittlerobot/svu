@@ -50,7 +50,12 @@ semvu modify reads one version:
 
 It applies any modifiers, then prints the result on standard output. A
 version modifier on its own removes any stage. Add a stage modifier, as in
---minor --alpha, to start that stage at 001. Stages never go backwards.
+--minor --alpha, to start that stage at 001. Stages never go backwards,
+unless --allow-stage-regression is given: then --alpha, --beta or --rc may
+move a pre-release back to an earlier stage. Read from git tags, it carries
+on after the highest index already tagged at that stage, so 1.2.3-rc-001
+goes back to 1.2.3-alpha-003 if 1.2.3-alpha-002 is tagged. A release still
+can't go back into a stage.
 
 The result keeps the "v" of the version it read, from the argument, standard
 input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
@@ -58,6 +63,11 @@ input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
 
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
+
+--for-major reads only the tags with that MAJOR version, to work on an older
+major version: with v1.4.2 and v2.0.0 tagged, --for-major 1 --patch gives
+v1.4.3. The result must stay in that major version, so --major can't be used
+with it.
 
 --auto works out the bump from the Conventional Commits since the latest tag:
 a breaking change bumps MAJOR (MINOR before 1.0.0), feat bumps MINOR, and fix
@@ -86,44 +96,52 @@ Examples:
   semvu modify v1.2.3 --without-v       # 1.2.3
   semvu m --patch                       # the latest git tag, bumped, as in v1.2.4
   semvu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
+  semvu m --for-major 1 --patch         # v1.4.3, while v2.0.0 is out
   semvu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
   semvu m --auto --explain              # the bump the commits since the latest tag need
   semvu m --auto --rc                   # the same, as a release candidate
   semvu m --auto --apply                # tag the checked-out commit with it
+  semvu modify 1.2.3-rc-001 --alpha --allow-stage-regression   # 1.2.3-alpha-001
 
 Input:
-      --directory path     Read tags from the git repository containing path
-      --global             Read every tag in the repository, not only those on the checked-out commit's history
-      --tag-prefix prefix  Only read tags starting with prefix, such as api/ for api/v1.2.3
-      --initial version    Use version if no tag matches, as in a new repository
+      --directory path          Read tags from the git repository containing path
+      --global                  Read every tag in the repository, not only those on the checked-out commit's history
+      --tag-prefix prefix       Only read tags starting with prefix, such as api/ for api/v1.2.3
+      --initial version         Use version if no tag matches, as in a new repository
+
+Filter:
+      --for-major major         Only read tags with this MAJOR version, as in 1 for v1.4.2
 
 Version modifiers (use at most one):
-      --major              Bump MAJOR, and reset MINOR and PATCH to 0
-      --minor              Bump MINOR, and reset PATCH to 0
-      --patch              Bump PATCH
-      --hotfix             Bump PATCH of the latest release, skipping pre-releases
-      --auto               Work out the bump from the Conventional Commits since the latest tag
+      --major                   Bump MAJOR, and reset MINOR and PATCH to 0
+      --minor                   Bump MINOR, and reset PATCH to 0
+      --patch                   Bump PATCH
+      --hotfix                  Bump PATCH of the latest release, skipping pre-releases
+      --auto                    Work out the bump from the Conventional Commits since the latest tag
 
 Stage modifiers (use at most one):
-      --alpha              Move to alpha-001, or to the next alpha
-      --beta               Move to beta-001, or to the next beta
-      --rc                 Move to rc-001, or to the next rc
-      --release            Remove the stage from a pre-release
+      --alpha                   Move to alpha-001, or to the next alpha
+      --beta                    Move to beta-001, or to the next beta
+      --rc                      Move to rc-001, or to the next rc
+      --release                 Remove the stage from a pre-release
+
+Stage options:
+      --allow-stage-regression  Let --alpha, --beta or --rc go back to an earlier stage
 
 Output:
-      --with-v             Always print the version with a leading "v"
-      --without-v          Never print a leading "v"
-      --explain            With --auto, say on stderr how the bump was chosen
+      --with-v                  Always print the version with a leading "v"
+      --without-v               Never print a leading "v"
+      --explain                 With --auto, say on stderr how the bump was chosen
 
 Tagging:
-      --apply              Tag the checked-out commit with the new version, as git tag does
-      --apply-annotate     Make an annotated tag, writing its message in your editor, as git tag --annotate does
+      --apply                   Tag the checked-out commit with the new version, as git tag does
+      --apply-annotate          Make an annotated tag, writing its message in your editor, as git tag --annotate does
 
 Other:
-  -h, --help               Show this help
+  -h, --help                    Show this help
 
 Global flags:
-      --colour when        Use colour in help and errors: auto (the default), always or never (alias --color)
+      --colour when             Use colour in help and errors: auto (the default), always or never (alias --color)
 `
 
 //nolint:misspell // The help names the --color alias.
@@ -136,8 +154,9 @@ version, ignores a leading "v", and prints the latest by semvu's ordering.
 semvu modify reads tags the same way when given no version.
 
 With --tag-prefix, only tags starting with the prefix count, and the prefix
-is ignored. With --released, pre-releases are skipped too. With --initial,
-that version is printed if no tag matches.
+is ignored. With --for-major, only tags with that MAJOR version count. With
+--released, pre-releases are skipped too. With --initial, that version is
+printed if no tag matches.
 
 It prints the version as the tag has it, with or without a "v", unless
 --with-v or --without-v says otherwise.
@@ -158,6 +177,7 @@ Examples:
   semvu latest --without-v             # 1.3.0-rc-002
   semvu latest --global                # including tags on other branches
   semvu latest --tag-prefix api/       # v0.4.0, from the tag api/v0.4.0
+  semvu latest --for-major 1           # v1.4.2, while v2.0.0 is out
   semvu latest --at-head               # fails if the checked-out commit has no version tag
   semvu l --directory path/to/repository
 
@@ -168,6 +188,7 @@ Input:
       --initial version    Use version if no tag matches, as in a new repository
 
 Filter:
+      --for-major major    Only read tags with this MAJOR version, as in 1 for v1.4.2
       --released           Skip pre-releases, and print the latest release
       --at-head            Only read tags on the checked-out commit itself, as in a check for whether it's tagged yet
 
@@ -316,7 +337,7 @@ func TestHelpInColour(t *testing.T) {
 				"\x1b[1mStage modifiers (use at most one):\x1b[0m",
 				"  \x1b[36msemvu modify\x1b[0m \x1b[2m[version] [flags]\x1b[0m",
 				"\x1b[1mAliases:\x1b[0m\n  \x1b[36mmodify, m\x1b[0m",
-				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m     Read",
+				"      \x1b[36m--directory\x1b[0m \x1b[2mpath\x1b[0m          Read",
 				"\n\x1b[36m--hotfix\x1b[0m patches the latest release",     // Flags in descriptions are cyan,
 				"as in\n\x1b[36m--minor\x1b[0m \x1b[36m--alpha\x1b[0m, to", // even at the start of a line.
 			},

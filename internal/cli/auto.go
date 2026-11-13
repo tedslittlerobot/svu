@@ -58,12 +58,16 @@ func autoVersion(
 			return semver.Version{}, "", tagsError(err, q)
 		}
 
-		release, _ = semver.LatestRelease(tags)
+		release, _ = q.latestRelease(tags)
 	}
 
 	plan, err := semver.Auto(latest, release, bumpPart(summary.Bump), stage)
 	if err != nil {
 		return semver.Version{}, "", fmt.Errorf("working out the next version: %w", err)
+	}
+
+	if !q.inMajor(plan.Next) {
+		return semver.Version{}, "", leavesMajorError(q, since, plan.Next)
 	}
 
 	if explain != nil {
@@ -191,6 +195,19 @@ func nothingToReleaseError(s commits.Summary, since string) *userError {
 	}
 
 	return ue
+}
+
+// leavesMajorError reports that the commits since a tag need a major bump,
+// which --for-major doesn't allow.
+func leavesMajorError(q tagQuery, since string, next semver.Version) *userError {
+	return &userError{
+		code:     ExitModification,
+		headline: fmt.Sprintf("The commits %s need a new major version, but --for-major is %d.", since, *q.major),
+		detail: fmt.Sprintf("A breaking change bumps MAJOR, to %s, so it can't be released with major version %d.",
+			next, *q.major),
+		hint: "To choose the bump yourself, use `--minor` or `--patch`. To start a new major version, " +
+			"remove `--for-major`.",
+	}
 }
 
 // historyError reports a failure to read the commit history.

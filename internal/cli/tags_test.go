@@ -47,6 +47,38 @@ func TestTagFlags(t *testing.T) {
 
 		// Initial is ignored when a tag matches.
 		{name: "initial is unused when a tag matches", args: []string{"latest", "--initial", "9.9.9"}, want: "v1.3.0-rc-001\n"},
+
+		// Major version.
+		{
+			name: "latest reads only one major version with --for-major",
+			args: []string{"latest", "--global", "--for-major", "1"},
+			want: "v1.3.0-rc-001\n",
+		},
+		{
+			name: "latest combines --for-major with --released",
+			args: []string{"latest", "--global", "--for-major=1", "--released"},
+			want: "v1.2.3\n",
+		},
+		{
+			name: "modify bumps the latest version in an older major version",
+			args: []string{"modify", "--global", "--for-major", "1", "--patch"},
+			want: "v1.3.1\n",
+		},
+		{
+			name: "hotfix patches the latest release in an older major version",
+			args: []string{"m", "--global", "--for-major", "1", "--hotfix"},
+			want: "v1.2.4\n",
+		},
+		{
+			name: "modify moves a stage in an older major version",
+			args: []string{"m", "--global", "--for-major", "1", "--rc"},
+			want: "v1.3.0-rc-002\n",
+		},
+		{
+			name: "--for-major works with a prefix",
+			args: []string{"latest", "--tag-prefix", "api/", "--global", "--for-major", "0"},
+			want: "v0.6.0\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -106,6 +138,12 @@ func TestInitial(t *testing.T) {
 			tags: []string{"v2.0.0-rc-001"},
 			want: "1.0.1\n",
 		},
+		{
+			name: "uses the initial version when no tag has the major version",
+			args: []string{"m", "--for-major", "3", "--initial", "3.0.0", "--patch"},
+			tags: []string{"v2.0.0"},
+			want: "3.0.1\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -153,6 +191,75 @@ func TestTagFlagErrors(t *testing.T) {
 			want: "Error: --initial can't be used when a version is given.\n\n" +
 				"  semvu modify only reads git tags when no version is given.\n\n" +
 				"Hint: Remove --initial, or remove the version.\n",
+		},
+		{
+			name: "rejects --for-major with a version",
+			args: []string{"modify", "1.2.3", "--for-major", "1"},
+			code: ExitUsage,
+			want: "Error: --for-major can't be used when a version is given.\n\n" +
+				"  semvu modify only reads git tags when no version is given.\n\n" +
+				"Hint: Remove --for-major, or remove the version.\n",
+		},
+		{
+			name: "rejects --for-major with --major",
+			args: []string{"modify", "--for-major", "1", "--major"},
+			code: ExitUsage,
+			want: "Error: --major can't be used with --for-major.\n\n" +
+				"  --for-major 1 works within major version 1, and --major would leave it.\n\n" +
+				"Hint: To start a new major version, remove --for-major.\n",
+		},
+		{
+			name: "rejects a --for-major that isn't a number",
+			args: []string{"latest", "--for-major", "v1"},
+			code: ExitUsage,
+			want: "Error: \"v1\" is not a valid value for --for-major.\n\n" +
+				"  --for-major must be a MAJOR version number with no leading zeros, as in 1.\n",
+		},
+		{
+			name: "rejects a --for-major with a leading zero",
+			args: []string{"latest", "--for-major", "01"},
+			code: ExitUsage,
+			want: "Error: \"01\" is not a valid value for --for-major.\n\n" +
+				"  --for-major must be a MAJOR version number with no leading zeros, as in 1.\n",
+		},
+		{
+			name: "rejects an initial version outside --for-major",
+			args: []string{"latest", "--for-major", "1", "--initial", "0.0.0"},
+			code: ExitUsage,
+			want: "Error: \"0.0.0\" can't be the --initial version with --for-major 1.\n\n" +
+				"  --for-major 1 only gives versions with major version 1, so --initial must have it too.\n\n" +
+				"Hint: Give one, as in --initial 1.0.0.\n",
+		},
+		{
+			name:      "reports no versions in the major version",
+			args:      []string{"modify", "--for-major", "3", "--patch", "--global"},
+			reachable: []string{"v1.0.0", "v2.1.0"},
+			readsTags: true,
+			code:      ExitNoMatchingTag,
+			want: "Error: The git repository has no versions with major version 3.\n\n" +
+				"  Its latest version, \"2.1.0\", has major version 2.\n\n" +
+				"Hint: Choose a major version that has tags, as in --for-major 2.\n",
+		},
+		{
+			name:      "reports no released versions in the major version",
+			args:      []string{"latest", "--for-major", "1", "--released", "--global"},
+			reachable: []string{"v1.0.0-rc-001", "v2.0.0"},
+			readsTags: true,
+			code:      ExitNoMatchingTag,
+			want: "Error: The git repository has no released versions with major version 1.\n\n" +
+				"  Its latest version with major version 1, \"1.0.0-rc-001\", is a pre-release.\n\n" +
+				"Hint: Leave out --released to use pre-releases too.\n",
+		},
+		{
+			name:      "points to --global when another branch has the major version",
+			args:      []string{"latest", "--for-major", "1"},
+			reachable: []string{"v2.0.0"},
+			others:    []string{"v1.4.2"},
+			readsTags: true,
+			code:      ExitNoMatchingTag,
+			want: "Error: The git repository has no versions with major version 1.\n\n" +
+				"  Its latest version, \"2.0.0\", has major version 2.\n\n" +
+				"Hint: Tags that aren't on the checked-out commit's history have versions. To include them, use --global.\n",
 		},
 		{
 			name: "rejects an invalid initial version",
@@ -271,6 +378,45 @@ func TestTagFlagsInRealGitRepository(t *testing.T) {
 
 // TestExitCodes pins one example of each exit code, because scripts depend
 // on them.
+func TestForMajorAndStageRegressionInRealGitRepository(t *testing.T) {
+	t.Parallel()
+
+	// main: v1.4.2, v1.5.0-alpha-001, v1.5.0-rc-001, v2.0.0. A branch from
+	// v1.5.0-rc-001 has v1.5.0-alpha-002.
+	dir := gittest.NewRepository(t, "v1.4.2", "v1.5.0-alpha-001", "v1.5.0-rc-001")
+	gittest.Run(t, dir, "branch", "-M", "main")
+	gittest.Run(t, dir, "checkout", "--quiet", "-b", "rework")
+	gittest.Run(t, dir, "commit", "--quiet", "--allow-empty", "--message", "Rework")
+	gittest.Run(t, dir, "tag", "v1.5.0-alpha-002")
+	gittest.Run(t, dir, "checkout", "--quiet", "main")
+	gittest.Run(t, dir, "commit", "--quiet", "--allow-empty", "--message", "Breaking")
+	gittest.Run(t, dir, "tag", "v2.0.0")
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "latest reads one major version", args: []string{"latest", "--for-major", "1"}, want: "v1.5.0-rc-001\n"},
+		{name: "a patch stays in that major version", args: []string{"modify", "--for-major", "1", "--patch"}, want: "v1.5.1\n"},
+		{name: "a hotfix stays in that major version", args: []string{"modify", "--for-major", "1", "--hotfix"}, want: "v1.4.3\n"},
+		{
+			name: "going back a stage carries on after every branch's tags",
+			args: []string{"modify", "--for-major", "1", "--alpha", "--allow-stage-regression"},
+			want: "v1.5.0-alpha-003\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			args := slices.Concat(tt.args, []string{"--directory", dir})
+			assertResult(t, invoke(t, invocation{args: args, tags: git.Tags}), result{stdout: tt.want})
+		})
+	}
+}
+
 func TestExitCodes(t *testing.T) {
 	t.Parallel()
 
@@ -317,5 +463,22 @@ func TestExitCodes(t *testing.T) {
 				t.Errorf("exit code = %d, want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestMajorFlagString(t *testing.T) {
+	t.Parallel()
+
+	var f majorFlag
+	if got := f.String(); got != "" {
+		t.Errorf("String() before Set = %q, want %q", got, "")
+	}
+
+	if err := f.Set("12"); err != nil {
+		t.Fatalf("Set(%q) error = %v, want nil", "12", err)
+	}
+
+	if got := f.String(); got != "12" {
+		t.Errorf("String() = %q, want %q", got, "12")
 	}
 }

@@ -115,6 +115,30 @@ func TestAuto(t *testing.T) {
 			wantStderr: "2 commits in the repository: 1 feat and 1 fix.\nThat's a minor bump, from 0.0.0 to 0.1.0.\n",
 		},
 		{
+			name:       "reads commits since the latest tag in --for-major",
+			args:       []string{"modify", "--auto", "--for-major", "1"},
+			tags:       []string{"v1.4.2", "v2.0.0"},
+			since:      "v1.4.2",
+			messages:   []string{"feat: a"},
+			wantStdout: "v1.5.0\n",
+		},
+		{
+			name:       "works out a pre-release's bump from the last release in --for-major",
+			args:       []string{"modify", "--auto", "--for-major", "1", "--rc"},
+			tags:       []string{"v1.2.0", "v1.2.1-rc-001", "v2.0.0"},
+			since:      "v1.2.1-rc-001",
+			messages:   []string{"feat: a"},
+			wantStdout: "v1.3.0-rc-001\n",
+		},
+		{
+			name:       "keeps a breaking change before 1.0.0 in --for-major 0",
+			args:       []string{"modify", "--auto", "--for-major", "0"},
+			tags:       []string{"v0.4.0", "v1.0.0"},
+			since:      "v0.4.0",
+			messages:   []string{"feat!: a"},
+			wantStdout: "v0.5.0\n",
+		},
+		{
 			name:       "reads commits since a prefixed tag",
 			args:       []string{"modify", "--auto", "--tag-prefix", "api/"},
 			tags:       []string{"api/v0.4.0", "v9.0.0"},
@@ -157,6 +181,15 @@ func TestAutoErrors(t *testing.T) {
 			code: ExitNothingToRelease,
 			want: "Error: There are no commits since v1.2.3.\n\n" +
 				"  --auto works out the next version from the commits since the latest tag.\n" + chooseHint,
+		},
+		{
+			name: "refuses a breaking change with --for-major",
+			args: []string{"modify", "--auto", "--for-major", "1"}, tags: []string{"v1.4.2", "v2.0.0"},
+			messages: fixedMessages(t, "v1.4.2", "fix!: a"),
+			code:     ExitModification,
+			want: "Error: The commits since v1.4.2 need a new major version, but --for-major is 1.\n\n" +
+				"  A breaking change bumps MAJOR, to 2.0.0, so it can't be released with major version 1.\n\n" +
+				"Hint: To choose the bump yourself, use --minor or --patch. To start a new major version, remove --for-major.\n",
 		},
 		{
 			name: "reports commits that need no new version",

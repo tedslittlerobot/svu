@@ -353,3 +353,60 @@ func ExampleLatest() {
 	// Output:
 	// 1.10.0 true
 }
+
+func TestLatestMatching(t *testing.T) {
+	t.Parallel()
+
+	inMajor := func(major uint64) func(Version) bool {
+		return func(v Version) bool { return v.Major == major }
+	}
+
+	tests := []struct {
+		name       string
+		candidates []string
+		keep       func(Version) bool
+		want       string
+		wantFound  bool
+	}{
+		{name: "finds nothing in an empty list", keep: inMajor(1)},
+		{name: "finds nothing when no version is kept", candidates: []string{"v2.0.0", "v0.1.0"}, keep: inMajor(1)},
+		{
+			name:       "picks the highest version that is kept",
+			candidates: []string{"v1.4.2", "v2.0.0", "v1.10.0-rc-001", "v1.9.0", "nightly"},
+			keep:       inMajor(1),
+			want:       "1.10.0-rc-001",
+			wantFound:  true,
+		},
+		{
+			name:       "can combine conditions",
+			candidates: []string{"v1.4.2", "v2.0.0", "v1.10.0-rc-001"},
+			keep:       func(v Version) bool { return v.Major == 1 && v.IsRelease() },
+			want:       "1.4.2",
+			wantFound:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, found := LatestMatching(tt.candidates, tt.keep)
+			if found != tt.wantFound {
+				t.Fatalf("LatestMatching(%q) found = %t, want %t", tt.candidates, found, tt.wantFound)
+			}
+
+			if found && got.String() != tt.want {
+				t.Errorf("LatestMatching(%q) = %s, want %s", tt.candidates, got, tt.want)
+			}
+		})
+	}
+}
+
+func ExampleLatestMatching() {
+	tags := []string{"v1.4.2", "v2.0.0", "v1.5.0-rc-001"}
+
+	v, ok := LatestMatching(tags, func(v Version) bool { return v.Major == 1 && v.IsRelease() })
+	fmt.Println(v, ok)
+	// Output:
+	// 1.4.2 true
+}

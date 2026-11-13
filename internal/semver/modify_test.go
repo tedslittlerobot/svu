@@ -254,3 +254,131 @@ func ExampleVersion_Advance() {
 	// true
 	// moving 1.2.3-rc-001 to alpha: can't go back to an earlier stage
 }
+
+func TestRegress(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		from  string
+		to    Stage
+		taken []string
+		want  string
+	}{
+		{name: "goes back from rc to alpha at 001", from: "1.2.3-rc-001", to: Alpha, want: "1.2.3-alpha-001"},
+		{name: "goes back from rc to beta at 001", from: "1.2.3-rc-004", to: Beta, want: "1.2.3-beta-001"},
+		{name: "goes back from beta to alpha at 001", from: "1.2.3-beta-002", to: Alpha, want: "1.2.3-alpha-001"},
+		{
+			name: "carries on after the highest index taken at that stage",
+			from: "1.2.3-rc-001", to: Alpha,
+			taken: []string{"v1.2.3-alpha-001", "v1.2.3-alpha-002", "v1.2.3-rc-001"},
+			want:  "1.2.3-alpha-003",
+		},
+		{
+			name: "ignores taken versions of other stages and versions",
+			from: "1.2.3-rc-001", to: Alpha,
+			taken: []string{"v1.2.3-beta-005", "v1.2.4-alpha-007", "v1.3.3-alpha-001", "v2.2.3-alpha-001", "1.2.3"},
+			want:  "1.2.3-alpha-001",
+		},
+		{
+			name: "skips taken entries that aren't versions",
+			from: "1.2.3-rc-001", to: Beta,
+			taken: []string{"nightly", "1.2.3-beta-1", "v1.2.3-beta-002"},
+			want:  "1.2.3-beta-003",
+		},
+		{
+			name: "moves forward as Advance does",
+			from: "1.2.3-alpha-001", to: RC,
+			taken: []string{"1.2.3-rc-005"},
+			want:  "1.2.3-rc-001",
+		},
+		{name: "increments the index within a stage as Advance does", from: "1.2.3-rc-001", to: RC, want: "1.2.3-rc-002"},
+		{name: "releases as Advance does", from: "1.2.3-beta-001", to: Release, want: "1.2.3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := mustParse(t, tt.from).Regress(tt.to, tt.taken)
+			if err != nil {
+				t.Fatalf("%s.Regress(%s, %q) error = %v, want nil", tt.from, tt.to.name(), tt.taken, err)
+			}
+
+			if got.String() != tt.want {
+				t.Errorf("%s.Regress(%s, %q) = %s, want %s", tt.from, tt.to.name(), tt.taken, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRegressErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		from  string
+		to    Stage
+		taken []string
+		want  StageError
+	}{
+		{
+			name: "refuses to take a release back to a stage",
+			from: "1.2.3", to: Alpha,
+			want: StageError{Version: Version{Major: 1, Minor: 2, Patch: 3}, To: Alpha, Problem: ProblemReleaseIsFinal},
+		},
+		{
+			name: "refuses to release a release",
+			from: "1.2.3", to: Release,
+			want: StageError{Version: Version{Major: 1, Minor: 2, Patch: 3}, To: Release, Problem: ProblemAlreadyReleased},
+		},
+		{
+			name: "refuses to go past the last index taken",
+			from: "1.2.3-rc-001", to: Alpha,
+			taken: []string{"1.2.3-alpha-999"},
+			want: StageError{
+				Version: Version{Major: 1, Minor: 2, Patch: 3, Stage: Alpha, Index: MaxIndex},
+				To:      Alpha,
+				Problem: ProblemIndexExhausted,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := mustParse(t, tt.from).Regress(tt.to, tt.taken)
+
+			var serr *StageError
+			if !errors.As(err, &serr) {
+				t.Fatalf("%s.Regress(%s) = %v, %v, want a *StageError", tt.from, tt.to.name(), got, err)
+			}
+
+			if *serr != tt.want {
+				t.Errorf("%s.Regress(%s) error = %#v, want %#v", tt.from, tt.to.name(), *serr, tt.want)
+			}
+		})
+	}
+}
+
+func TestRegressRejectsUnknownStages(t *testing.T) {
+	t.Parallel()
+
+	if _, err := mustParse(t, "1.2.3-rc-001").Regress(Stage(99), nil); err == nil {
+		t.Error("Regress(Stage(99)) error = nil, want an error")
+	}
+}
+
+func ExampleVersion_Regress() {
+	v := Version{Major: 1, Minor: 2, Patch: 3, Stage: RC, Index: 1}
+
+	first, _ := v.Regress(Alpha, nil)
+	fmt.Println(first)
+
+	next, _ := v.Regress(Alpha, []string{"v1.2.3-alpha-001", "v1.2.3-rc-001"})
+	fmt.Println(next)
+	// Output:
+	// 1.2.3-alpha-001
+	// 1.2.3-alpha-002
+}

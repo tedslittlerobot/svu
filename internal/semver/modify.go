@@ -175,3 +175,43 @@ func (v Version) Advance(to Stage) (Version, error) {
 
 	return next, nil
 }
+
+// Regress is like Advance, except that a pre-release may also go back to an
+// earlier pre-release stage. That breaks the §Stage progression rule that
+// stages only move forward, as §Going back a stage allows when asked for
+// explicitly. A release still can't go back into any stage.
+//
+// Going back, the result is at the index after the highest one that taken
+// already has for v's MAJOR.MINOR.PATCH at stage to, so that it doesn't repeat
+// a version that has been used. If taken has none, the index is MinIndex.
+// taken is a list such as git tag names; invalid entries are skipped. For
+// example, from 1.2.3-rc-001 to Alpha:
+//
+//   - with no taken versions, the result is 1.2.3-alpha-001;
+//   - with 1.2.3-alpha-001 and 1.2.3-alpha-002 taken, it is 1.2.3-alpha-003.
+//
+// It returns a *StageError for the same problems as Advance, and if the
+// highest taken index is already MaxIndex.
+func (v Version) Regress(to Stage, taken []string) (Version, error) {
+	if !to.valid() {
+		return Version{}, fmt.Errorf("moving %s back: unknown stage %d", v, int(to))
+	}
+
+	if v.Stage == Release || to == Release || to.rank() >= v.Stage.rank() {
+		return v.Advance(to)
+	}
+
+	used, ok := latest(taken, func(t Version) bool {
+		return t.Major == v.Major && t.Minor == v.Minor && t.Patch == v.Patch && t.Stage == to
+	})
+	if !ok {
+		next := v
+		next.Stage, next.Index = to, MinIndex
+
+		return next, nil
+	}
+
+	// Within one stage, Advance increments the index, or reports that it
+	// can't.
+	return used.Advance(to)
+}

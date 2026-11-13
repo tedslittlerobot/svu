@@ -139,6 +139,12 @@ func LatestRelease(candidates []string) (Version, bool) {
 	return latest(candidates, Version.IsRelease)
 }
 
+// LatestMatching is like Latest, but only considers versions for which keep
+// returns true.
+func LatestMatching(candidates []string, keep func(Version) bool) (Version, bool) {
+	return latest(candidates, keep)
+}
+
 // IsRelease reports whether v is a release version, with no suffix
 // (§Release versions).
 func (v Version) IsRelease() bool {

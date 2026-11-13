@@ -19,15 +19,18 @@ const helpGroupAnnotation = "semvu_help_group"
 // Flag groups, in the order help shows them. Flags without a group are shown
 // last.
 const (
-	groupInput   = "Input"
-	groupFilter  = "Filter"
-	groupVersion = "Version modifiers (use at most one)"
-	groupStage   = "Stage modifiers (use at most one)"
-	groupOutput  = "Output"
-	groupTagging = "Tagging"
+	groupInput        = "Input"
+	groupFilter       = "Filter"
+	groupVersion      = "Version modifiers (use at most one)"
+	groupStage        = "Stage modifiers (use at most one)"
+	groupStageOptions = "Stage options"
+	groupOutput       = "Output"
+	groupTagging      = "Tagging"
 )
 
-var helpGroups = []string{groupInput, groupFilter, groupVersion, groupStage, groupOutput, groupTagging}
+var helpGroups = []string{
+	groupInput, groupFilter, groupVersion, groupStage, groupStageOptions, groupOutput, groupTagging,
+}
 
 // setHelpGroup puts a flag in a help group. The flag must exist.
 func setHelpGroup(flags *pflag.FlagSet, name, group string) {

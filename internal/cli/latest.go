@@ -13,8 +13,9 @@ version, ignores a leading "v", and prints the latest by semvu's ordering.
 semvu modify reads tags the same way when given no version.
 
 With --tag-prefix, only tags starting with the prefix count, and the prefix
-is ignored. With --released, pre-releases are skipped too. With --initial,
-that version is printed if no tag matches.
+is ignored. With --for-major, only tags with that MAJOR version count. With
+--released, pre-releases are skipped too. With --initial, that version is
+printed if no tag matches.
 
 It prints the version as the tag has it, with or without a "v", unless
 --with-v or --without-v says otherwise.
@@ -28,6 +29,7 @@ const latestExample = `  semvu latest                         # v1.3.0-rc-002, f
   semvu latest --without-v             # 1.3.0-rc-002
   semvu latest --global                # including tags on other branches
   semvu latest --tag-prefix api/       # v0.4.0, from the tag api/v0.4.0
+  semvu latest --for-major 1           # v1.4.2, while v2.0.0 is out
   semvu latest --at-head               # fails if the checked-out commit has no version tag
   semvu l --directory path/to/repository`
 

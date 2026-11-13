@@ -76,6 +76,23 @@ For a given `MAJOR.MINOR.PATCH`:
 These rules only apply within one `MAJOR.MINOR.PATCH`. `1.2.4-alpha-001` is a
 valid successor to `1.2.3-rc-004`.
 
+### Going back a stage
+
+The rule that a version must not go back to an earlier stage has one
+exception. When explicitly asked to (`semvu modify --allow-stage-regression`),
+a pre-release **may** go back to an earlier pre-release stage of the same
+`MAJOR.MINOR.PATCH`, as when a release candidate turns out to need more work.
+
+- The index in the earlier stage **must** follow the highest index that
+  version already has in that stage, so that no version is produced twice.
+  With `1.2.3-alpha-001` and `1.2.3-rc-001` already out, going back to `alpha`
+  gives `1.2.3-alpha-002`. If none is known, the index starts at `001`.
+- Every other rule still applies. A release can't go back into any stage, and
+  a stage allows at most 999 iterations.
+
+Going back doesn't change [Precedence](#precedence): `1.2.3-alpha-002` still
+ranks below `1.2.3-rc-001`, so the latest version stays the release candidate.
+
 ## Precedence
 
 Versions are compared in this order:

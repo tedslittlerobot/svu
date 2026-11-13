@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/tedslittlerobot/semvu/internal/git"
 	"github.com/tedslittlerobot/semvu/internal/semver"
 )
 
@@ -21,7 +22,12 @@ semvu modify reads one version:
 
 It applies any modifiers, then prints the result on standard output. A
 version modifier on its own removes any stage. Add a stage modifier, as in
---minor --alpha, to start that stage at 001. Stages never go backwards.
+--minor --alpha, to start that stage at 001. Stages never go backwards,
+unless --allow-stage-regression is given: then --alpha, --beta or --rc may
+move a pre-release back to an earlier stage. Read from git tags, it carries
+on after the highest index already tagged at that stage, so 1.2.3-rc-001
+goes back to 1.2.3-alpha-003 if 1.2.3-alpha-002 is tagged. A release still
+can't go back into a stage.
 
 The result keeps the "v" of the version it read, from the argument, standard
 input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
@@ -29,6 +35,11 @@ input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
 
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
+
+--for-major reads only the tags with that MAJOR version, to work on an older
+major version: with v1.4.2 and v2.0.0 tagged, --for-major 1 --patch gives
+v1.4.3. The result must stay in that major version, so --major can't be used
+with it.
 
 --auto works out the bump from the Conventional Commits since the latest tag:
 a breaking change bumps MAJOR (MINOR before 1.0.0), feat bumps MINOR, and fix
@@ -50,10 +61,12 @@ const modifyExample = `  semvu modify 1.2.3 --minor            # 1.3.0
   semvu modify v1.2.3 --without-v       # 1.2.3
   semvu m --patch                       # the latest git tag, bumped, as in v1.2.4
   semvu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
+  semvu m --for-major 1 --patch         # v1.4.3, while v2.0.0 is out
   semvu m --initial 0.0.0 --minor       # 0.1.0 in a repository with no tags yet
   semvu m --auto --explain              # the bump the commits since the latest tag need
   semvu m --auto --rc                   # the same, as a release candidate
-  semvu m --auto --apply                # tag the checked-out commit with it`
+  semvu m --auto --apply                # tag the checked-out commit with it
+  semvu modify 1.2.3-rc-001 --alpha --allow-stage-regression   # 1.2.3-alpha-001`
 
 func newModifyCommand(env environment) *cobra.Command {
 	var (
@@ -86,6 +99,16 @@ func newModifyCommand(env environment) *cobra.Command {
 				return gitFlagWithVersionError(flag)
 			}
 
+			if tags.forMajor.set && mods.bumpsMajor() {
+				return &userError{
+					code:     ExitUsage,
+					headline: "--major can't be used with --for-major.",
+					detail: fmt.Sprintf("--for-major %d works within major version %d, and --major would leave it.",
+						tags.forMajor.major, tags.forMajor.major),
+					hint: "To start a new major version, remove `--for-major`.",
+				}
+			}
+
 			releaseFlag := ""
 			if mods.hotfix() {
 				releaseFlag = hotfixReleaseFlag
@@ -113,10 +136,7 @@ func newModifyCommand(env environment) *cobra.Command {
 			if mods.auto() {
 				v, source, err = runAuto(cmd, args, env, q, mods, explain)
 			} else {
-				v, source, err = readVersion(cmd.Context(), args, cmd.InOrStdin(), q, env.readTags)
-				if err == nil {
-					v, err = mods.apply(v)
-				}
+				v, source, err = modifyVersion(cmd, args, env, q, mods)
 			}
 
 			if err != nil {
@@ -150,6 +170,33 @@ func newModifyCommand(env environment) *cobra.Command {
 	apply.add(cmd)
 
 	return cmd
+}
+
+// modifyVersion reads the version semvu modify starts from, and applies the
+// modifiers to it. It also returns the text the version came from, as
+// readVersion does.
+func modifyVersion(
+	cmd *cobra.Command, args []string, env environment, q tagQuery, mods *modifiers,
+) (semver.Version, string, error) {
+	v, source, err := readVersion(cmd.Context(), args, cmd.InOrStdin(), q, env.readTags)
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+
+	// Going back a stage carries on from the versions already tagged, on any
+	// branch, so as not to repeat one. A version given directly has no tags.
+	var taken []string
+
+	if mods.regresses() && len(args) == 0 {
+		taken, err = env.readTags(cmd.Context(), q.dir, git.TagOptions{All: true, Prefix: q.prefix})
+		if err != nil {
+			return semver.Version{}, "", tagsError(err, q)
+		}
+	}
+
+	v, err = mods.apply(v, taken)
+
+	return v, source, err
 }
 
 // runAuto works out the version for semvu modify --auto: the bump comes from

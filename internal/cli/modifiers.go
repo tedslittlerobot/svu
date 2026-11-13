@@ -60,10 +60,15 @@ func modifierNames() []string {
 	return names
 }
 
+// regressionFlag lets a stage modifier go back to an earlier stage.
+const regressionFlag = "allow-stage-regression"
+
 // modifiers holds the modifier flags for one run of semvu.
 type modifiers struct {
 	versions []*modifier[semver.Part]
 	stages   []*modifier[semver.Stage]
+	// regress is --allow-stage-regression.
+	regress bool
 }
 
 func newModifiers(flags *pflag.FlagSet) *modifiers {
@@ -79,16 +84,68 @@ func newModifiers(flags *pflag.FlagSet) *modifiers {
 		setHelpGroup(flags, s.flag, groupStage)
 	}
 
+	flags.BoolVar(&m.regress, regressionFlag, false,
+		"Let --alpha, --beta or --rc go back to an earlier stage")
+	setHelpGroup(flags, regressionFlag, groupStageOptions)
+
 	return m
 }
 
-// validate checks that at most one modifier from each group was given.
+// validate checks that at most one modifier from each group was given, and
+// that --allow-stage-regression has a stage to go back to.
 func (m *modifiers) validate() error {
 	if err := atMostOne("version", m.versions); err != nil {
 		return err
 	}
 
-	return atMostOne("stage", m.stages)
+	if err := atMostOne("stage", m.stages); err != nil {
+		return err
+	}
+
+	return m.validateRegression()
+}
+
+// validateRegression checks that --allow-stage-regression, if given, comes
+// with a pre-release stage modifier and no version modifier.
+func (m *modifiers) validateRegression() error {
+	if !m.regress {
+		return nil
+	}
+
+	for _, v := range m.versions {
+		if v.set {
+			return &userError{
+				code:     ExitUsage,
+				headline: fmt.Sprintf("--%s can't be used with --%s.", regressionFlag, v.flag),
+				detail: fmt.Sprintf("--%s moves a pre-release back to an earlier stage of the same version,\n"+
+					"and --%s changes the version.", regressionFlag, v.flag),
+				hint: fmt.Sprintf("Remove `--%s`.", regressionFlag),
+			}
+		}
+	}
+
+	if stage, ok := chosen(m.stages); !ok || stage == semver.Release {
+		return &userError{
+			code:     ExitUsage,
+			headline: fmt.Sprintf("--%s only works with --alpha, --beta or --rc.", regressionFlag),
+			detail:   "It lets a pre-release go back to an earlier stage, as in 1.2.3-rc-001 --alpha.",
+			hint:     fmt.Sprintf("Add `--alpha`, `--beta` or `--rc`, or remove `--%s`.", regressionFlag),
+		}
+	}
+
+	return nil
+}
+
+// bumpsMajor reports whether --major was given.
+func (m *modifiers) bumpsMajor() bool {
+	part, bump := chosen(m.versions)
+
+	return bump && part == semver.Major
+}
+
+// regresses reports whether --allow-stage-regression was given.
+func (m *modifiers) regresses() bool {
+	return m.regress
 }
 
 func atMostOne[T any](group string, mods []*modifier[T]) error {
@@ -148,8 +205,10 @@ func (m *modifiers) stage() semver.Stage {
 }
 
 // apply changes v as the modifiers ask. It must only be called after
-// validate has passed.
-func (m *modifiers) apply(v semver.Version) (semver.Version, error) {
+// validate has passed. taken are the versions already tagged, such as git
+// tag names, which --allow-stage-regression carries on from; nil if the
+// version wasn't read from tags.
+func (m *modifiers) apply(v semver.Version, taken []string) (semver.Version, error) {
 	part, bump := chosen(m.versions)
 	stage, move := chosen(m.stages)
 
@@ -171,6 +230,8 @@ func (m *modifiers) apply(v semver.Version) (semver.Version, error) {
 	case bump:
 		// With no stage modifier, stage is Release: any suffix is removed.
 		next, err = v.Bump(part, stage)
+	case move && m.regress:
+		next, err = v.Regress(stage, taken)
 	case move:
 		next, err = v.Advance(stage)
 	default:
@@ -224,13 +285,22 @@ func (m *modifiers) stageError(err *semver.StageError) *userError {
 			err:      err,
 		}
 	case semver.ProblemReleaseIsFinal:
-		return &userError{
+		ue := &userError{
 			code:     ExitModification,
 			headline: fmt.Sprintf("%q has been released, so it can't go back to %s.", v, err.To),
 			detail:   "Once a version is released, it can't go back into any stage.",
 			hint:     fmt.Sprintf("Add `--major`, `--minor` or `--patch` to start a new version at %s, as in `--patch --%s`.", err.To, err.To),
 			err:      err,
 		}
+
+		if m.regress {
+			ue.detail = fmt.Sprintf("Once a version is released, it can't go back into any stage, even with --%s.",
+				regressionFlag)
+			ue.hint = fmt.Sprintf("To start a new version at %s, remove `--%s` and add `--major`, `--minor` or "+
+				"`--patch`, as in `--patch --%s`.", err.To, regressionFlag, err.To)
+		}
+
+		return ue
 	case semver.ProblemBackwards:
 		return &userError{
 			code:     ExitModification,

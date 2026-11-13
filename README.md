@@ -260,6 +260,8 @@ command.
 - **Only tags on the checked-out commit's history count**, so on a
   maintenance branch semvu sees that branch's versions, not newer ones from
   `main`. Add `--global` to read every tag in the repository.
+- **`--for-major` keeps to one major version**, so `--for-major 1` reads
+  `v1.4.2` and ignores `v2.0.0`.
 - **Tags that aren't valid versions are skipped** (such as `nightly`), and any
   `v` is ignored.
 - **The latest is chosen by semvu's ordering**, not by tag date or name.
@@ -272,6 +274,7 @@ These flags apply to both commands:
 | `--global` | Read every tag, not only those on the checked-out commit's history |
 | `--tag-prefix prefix` | Only read tags starting with `prefix`, and ignore the prefix: with `--tag-prefix api/`, the tag `api/v1.2.3` is version `1.2.3` |
 | `--initial version` | Use `version` if no tag matches, as in a new repository, instead of failing |
+| `--for-major major` | Only read tags with that MAJOR version: with `--for-major 1`, the tags `v1.4.2` and `v2.0.0` give `v1.4.2` |
 
 ### semvu latest
 
@@ -283,6 +286,7 @@ semvu latest --released          # v1.2.0           the latest release, skipping
 semvu latest --without-v         # 1.3.0-rc-002
 semvu latest --global            # including tags on other branches
 semvu latest --tag-prefix api/   # the latest api/… tag, as a version
+semvu latest --for-major 1       # v1.4.2           the latest 1.x version, while v2.0.0 is out
 semvu latest --initial 0.0.0     # 0.0.0 if there are no matching tags yet
 semvu l --directory ../app       # the latest version in the repository at ../app
 ```
@@ -337,6 +341,11 @@ Use at most one version modifier and at most one stage modifier.
   progress. From git tags, it reads the latest *release*, so `v1.3.0-rc-001`
   doesn't get in the way. `--patch` there would give `1.3.1`. Given a version
   directly, it must be a release.
+- **`--for-major`** works on an older major version: with `v1.4.2` and
+  `v2.0.0` tagged, `semvu modify --for-major 1 --patch` gives `v1.4.3`. The
+  result must stay in that major version, so `--major` can't be used with it,
+  and `--auto` fails (exit status `4`) if the commits contain a breaking
+  change.
 - With **no modifiers**, semvu prints the version as it is. That's useful for
   checking or normalising one (`v1.2.3` → `1.2.3`).
 
@@ -422,14 +431,35 @@ refuses to:
 - release a version that is already released (`1.2.3 --release`)
 - put a release back into a stage (`1.2.3 --alpha`). Start a new version
   instead, as in `--patch --alpha`.
-- go back to an earlier stage (`1.2.3-rc-001 --alpha`)
+- go back to an earlier stage (`1.2.3-rc-001 --alpha`), unless you add
+  `--allow-stage-regression`
 - go past index `999`
+
+#### Going back a stage
+
+If a release candidate turns out to need more work, `--allow-stage-regression`
+lets `--alpha`, `--beta` or `--rc` move a pre-release back to an earlier stage:
+
+```sh
+semvu modify 1.2.3-rc-001 --alpha --allow-stage-regression   # 1.2.3-alpha-001
+semvu modify --alpha --allow-stage-regression                # v1.2.3-alpha-002, with v1.2.3-alpha-001 and v1.2.3-rc-001 tagged
+```
+
+- **From git tags, it carries on after the highest index already tagged** in
+  that stage, on any branch, so it never repeats a version. Given a version
+  directly, there are no tags to check, so the stage starts at `001`.
+- **The latest version doesn't change.** `v1.2.3-alpha-002` still ranks below
+  `v1.2.3-rc-001`, so the next `semvu modify --alpha` fails as usual. Add
+  `--allow-stage-regression` again each time.
+- **A release still can't go back into a stage**, and the flag only works with
+  `--alpha`, `--beta` or `--rc`, not with a version modifier.
 
 Other flags:
 
 | Flag | Meaning |
 |---|---|
 | `--with-v`, `--without-v` | Always, or never, print a leading `v` (see [the `v`](#the-v)) |
+| `--allow-stage-regression` | Let `--alpha`, `--beta` or `--rc` [go back to an earlier stage](#going-back-a-stage) |
 | `--explain` | With `--auto`, say on stderr how the bump was chosen |
 | `--apply` | Also [tag the checked-out commit](#tagging-the-new-version) with the new version |
 | `--apply-annotate` | The same, as an annotated tag, writing its message in your editor |
@@ -554,6 +584,16 @@ git switch support/1.x
 semvu latest                         # v1.2.5   this branch's latest, not main's v2.0.0
 semvu m --patch --apply              # tags v1.2.6
 ```
+
+### Patch an older major version
+
+```sh
+semvu latest                         # v2.0.0
+semvu m --for-major 1 --patch        # v1.4.3   the next 1.x patch, from v1.4.2
+```
+
+To tag it, check out the commit to fix first, as for a hotfix: `--apply` tags
+the checked-out commit.
 
 ### Version a project in another directory
 
