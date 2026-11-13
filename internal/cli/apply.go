@@ -16,10 +16,14 @@ import (
 // the user's editor. git.CreateTag is the real implementation.
 type tagCreator func(ctx context.Context, dir, name string, editor *git.Editor) error
 
-// applyFlags are semvu modify's flags for tagging the new version.
+// applyFlags are semvu modify's flags for tagging the new version, and
+// pushing the tag.
 type applyFlags struct {
 	apply    bool
 	annotate bool
+	push     bool
+	// remote is --remote: the remote to push to, or "" to choose one.
+	remote string
 }
 
 // add adds --apply and --apply-annotate to cmd.
@@ -29,6 +33,8 @@ func (f *applyFlags) add(cmd *cobra.Command) {
 	flags.BoolVar(&f.apply, "apply", false, "Tag the checked-out commit with the new version, as git tag does")
 	flags.BoolVar(&f.annotate, "apply-annotate", false,
 		"Make an annotated tag, writing its message in your editor, as git tag --annotate does")
+
+	f.addPush(cmd)
 
 	setHelpGroup(flags, "apply", groupTagging)
 	setHelpGroup(flags, "apply-annotate", groupTagging)
@@ -60,6 +66,13 @@ func (f *applyFlags) tag(cmd *cobra.Command, env environment, q tagQuery, v semv
 		}
 	}
 
+	// Choose the remote before tagging, so that nothing is tagged if there
+	// is no remote to push to.
+	remote, err := f.chooseRemote(cmd.Context(), env, q)
+	if err != nil {
+		return err
+	}
+
 	name := q.prefix + printed
 
 	var editor *git.Editor
@@ -71,6 +84,14 @@ func (f *applyFlags) tag(cmd *cobra.Command, env environment, q tagQuery, v semv
 
 	if err := env.createTag(cmd.Context(), q.dir, name, editor); err != nil {
 		return applyError(err, q, name, f.annotate)
+	}
+
+	if !f.push {
+		return nil
+	}
+
+	if err := env.pushTag(cmd.Context(), q.dir, remote, name); err != nil {
+		return pushError(err, q, remote, name)
 	}
 
 	return nil

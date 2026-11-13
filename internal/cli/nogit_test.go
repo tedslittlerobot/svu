@@ -119,6 +119,8 @@ func TestNoGitRejectsEveryGitFlag(t *testing.T) {
 		skipReleaseFlag:  {"--" + skipReleaseFlag, "--minor"},
 		"apply":          {"--apply"},
 		"apply-annotate": {"--apply-annotate"},
+		pushFlag:         {"--" + pushFlag},
+		remoteFlag:       {"--" + remoteFlag, "origin"},
 	}
 
 	for _, name := range gitFlags() {
@@ -156,5 +158,13 @@ func TestWithoutGitNeverRunsGit(t *testing.T) {
 
 	if err := env.createTag(t.Context(), "", "v1.2.3", nil); !errors.Is(err, errGitDisabled) {
 		t.Errorf("createTag() error = %v, want %v", err, errGitDisabled)
+	}
+
+	if _, err := env.listRemotes(t.Context(), ""); !errors.Is(err, errGitDisabled) {
+		t.Errorf("listRemotes() error = %v, want %v", err, errGitDisabled)
+	}
+
+	if err := env.pushTag(t.Context(), "", "origin", "v1.2.3"); !errors.Is(err, errGitDisabled) {
+		t.Errorf("pushTag() error = %v, want %v", err, errGitDisabled)
 	}
 }

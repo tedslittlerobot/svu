@@ -91,6 +91,7 @@ not** change.
 | `7` | git failed | git isn't installed, or reported an error |
 | `8` | Nothing to release | `semvu modify --auto` found no commits since the latest tag that need a new version |
 | `9` | Tag already exists | `semvu modify --apply` was asked to tag a version that is already tagged |
+| `10` | No remote to push to | `semvu modify --push` found no remotes, several and none called `origin`, or not the one `--remote` names |
 
 A new kind of failure gets a new number. A failure that fits an existing kind
 uses its number.

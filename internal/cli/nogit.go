@@ -17,7 +17,8 @@ const noGitFlag = "no-git"
 // gitFlags are semvu modify's flags that need git, in the order help shows
 // them. --no-git can't be used with any of them.
 func gitFlags() []string {
-	return append(append([]string{}, tagFlagNames...), autoFlag, skipReleaseFlag, "apply", "apply-annotate")
+	return append(append([]string{}, tagFlagNames...), autoFlag, skipReleaseFlag, "apply", "apply-annotate",
+		pushFlag, remoteFlag)
 }
 
 // addNoGit adds --no-git to cmd.
@@ -71,6 +72,12 @@ func (env environment) withoutGit() environment {
 		return nil, errGitDisabled
 	}
 	env.createTag = func(context.Context, string, string, *git.Editor) error {
+		return errGitDisabled
+	}
+	env.listRemotes = func(context.Context, string) ([]string, error) {
+		return nil, errGitDisabled
+	}
+	env.pushTag = func(context.Context, string, string, string) error {
 		return errGitDisabled
 	}
 

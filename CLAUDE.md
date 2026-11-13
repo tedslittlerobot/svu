@@ -79,7 +79,8 @@ internal/cli/         One file per command (<name>.go + <name>_test.go).
                       modify.go is semvu modify; modifiers.go and input.go support it.
                       latest.go is semvu latest. tags.go reads git tags for both.
                       validate.go is semvu validate. auto.go is semvu modify --auto,
-                      apply.go is semvu modify --apply, and nogit.go is --no-git.
+                      apply.go is semvu modify --apply, push.go is --push, and
+                      nogit.go is --no-git.
 internal/buildinfo/   Version metadata from ldflags, falling back to debug.ReadBuildInfo.
 internal/semver/      Parsing, ordering, formatting and modifying versions.
 internal/commits/     Reads Conventional Commits messages and works out the bump.

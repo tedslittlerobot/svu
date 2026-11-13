@@ -85,9 +85,12 @@ fails with exit status 8. --explain says on stderr how the bump was chosen.
 
 --apply also tags the checked-out commit with the new version, exactly as
 it's printed (after any --tag-prefix). --apply-annotate makes an annotated
-tag, and opens your editor for its message. Neither pushes the tag. If the
-version is already tagged, nothing is tagged or printed, and semvu modify fails
-with exit status 9.
+tag, and opens your editor for its message. If the version is already tagged,
+nothing is tagged or printed, and semvu modify fails with exit status 9.
+
+--push also pushes the new tag: to the only remote, to origin if there are
+several, or to the one --remote names. semvu checks the remote before making
+the tag, and fails with exit status 10 if it can't choose one.
 
 Usage:
   semvu modify [version] [flags]
@@ -110,6 +113,7 @@ Examples:
   semvu m --auto --explain              # the bump the commits since the latest tag need
   semvu m --auto --rc                   # the same, as a release candidate
   semvu m --auto --apply                # tag the checked-out commit with it
+  semvu m --patch --apply --push        # and push the tag to origin
   semvu modify 1.2.3-rc-001 --alpha --allow-stage-regression   # 1.2.3-alpha-001
 
 Input:
@@ -149,6 +153,8 @@ Output:
 Tagging:
       --apply                   Tag the checked-out commit with the new version, as git tag does
       --apply-annotate          Make an annotated tag, writing its message in your editor, as git tag --annotate does
+      --push                    Push the new tag to the only remote, or to origin if there are several
+      --remote name             Push to the remote called name instead
 
 Other:
   -h, --help                    Show this help

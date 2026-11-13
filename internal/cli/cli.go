@@ -51,6 +51,10 @@ const (
 	// ExitTagExists means semvu modify --apply was asked to make a tag that
 	// already exists.
 	ExitTagExists = 9
+	// ExitNoRemote means semvu modify --push couldn't choose a remote: the
+	// repository has none, or several and none called origin, or --remote
+	// names one it doesn't have.
+	ExitNoRemote = 10
 )
 
 // Streams holds the I/O handles available to commands.
@@ -69,6 +73,10 @@ type environment struct {
 	readMessages messageReader
 	// createTag tags a commit, for semvu modify --apply.
 	createTag tagCreator
+	// listRemotes lists the remotes, for semvu modify --push.
+	listRemotes remoteLister
+	// pushTag pushes a tag to a remote, for semvu modify --push.
+	pushTag tagPusher
 	// getenv returns an environment variable, or "" if it is unset.
 	getenv func(string) string
 }
@@ -81,6 +89,8 @@ func Execute(ctx context.Context, args []string, streams Streams) int {
 		readTags:     git.Tags,
 		readMessages: git.Messages,
 		createTag:    git.CreateTag,
+		listRemotes:  git.Remotes,
+		pushTag:      git.PushTag,
 		getenv:       os.Getenv,
 	})
 }

@@ -404,7 +404,7 @@ does: git opens your editor for the tag's message.
 ```sh
 semvu modify --patch --apply              # prints v1.2.4, and tags v1.2.4
 semvu modify --auto --rc --apply-annotate # opens your editor, then tags v1.3.0-rc-001
-git push origin v1.2.4                  # semvu never pushes
+semvu modify --patch --apply --push       # tags v1.2.4, and pushes it
 ```
 
 - **The tag is exactly what's printed**, after any `--tag-prefix`. Read from
@@ -423,6 +423,25 @@ git push origin v1.2.4                  # semvu never pushes
 - If the editor fails, or you leave the message empty, git doesn't make the
   tag. semvu exits with status `7`. git picks the editor from `GIT_EDITOR`, the
   `core.editor` setting, `VISUAL` or `EDITOR`.
+
+#### Pushing the tag
+
+`--push`, with `--apply` or `--apply-annotate`, also pushes the new tag, and
+only that tag. semvu picks the remote:
+
+1. `--remote <name>`, if given, as in `--push --remote upstream`;
+2. otherwise the only remote, if there is one;
+3. otherwise `origin`, if there are several.
+
+- **The remote is checked before anything is tagged.** If there is no remote,
+  several and none called `origin`, or `--remote` names one that doesn't
+  exist, semvu makes no tag, prints nothing, and exits with status `10`.
+- **If the push fails, the tag has still been made.** semvu prints nothing,
+  exits with status `7`, and says how to push the tag by hand, as in
+  `git push origin v1.2.4`. Don't just re-run semvu: it would see the new tag
+  and make the next version.
+- **git can't prompt for a password.** Pushing to a remote that needs
+  credentials relies on a credential helper or SSH, as in CI.
 
 #### The `v`
 
@@ -501,6 +520,8 @@ Other flags:
 | `--explain` | With `--auto`, say on stderr how the bump was chosen |
 | `--apply` | Also [tag the checked-out commit](#tagging-the-new-version) with the new version |
 | `--apply-annotate` | The same, as an annotated tag, writing its message in your editor |
+| `--push` | With `--apply` or `--apply-annotate`, [push the new tag](#pushing-the-tag) |
+| `--remote <name>` | With `--push`, push to that remote, not the only one or `origin` |
 
 With no version given, it also takes [the tag flags](#which-tags-semvu-reads).
 They can't be used with a version, because there are no tags to read.
@@ -555,8 +576,7 @@ semvu latest --at-head > /dev/null 2>&1 || status=$?
 if [ "$status" -eq 0 ]; then echo "Already tagged."; exit 0; fi
 if [ "$status" -ne 6 ]; then exit "$status"; fi   # 6: no version tag yet
 
-next="$(semvu modify --patch --apply)" || exit 1
-git push origin "$next"
+semvu modify --patch --apply --push || exit 1
 ```
 
 Without the check, re-running the job would tag the same commit a second
@@ -662,6 +682,7 @@ semvu is built to be captured with `$(…)`:
 | `7` | git isn't installed, or failed |
 | `8` | Nothing to release: `semvu modify --auto` found no commits that need a new version |
 | `9` | The tag already exists: `semvu modify --apply` was asked to tag a version that's already tagged |
+| `10` | No remote to push to: `semvu modify --push` found none, several and none called `origin`, or not the one `--remote` names |
 
 So this either gives a valid version, or stops the script with an empty
 variable:

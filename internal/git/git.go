@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -281,4 +282,83 @@ func runWithEnv(ctx context.Context, gitPath, dir string, env []string, args ...
 	default:
 		return "", &CommandError{Args: args, Stderr: strings.TrimSpace(stderr.String()), Err: err}
 	}
+}
+
+// Remotes returns the names of the git repository's remotes, as git remote
+// lists them, in the repository that contains dir. dir is as for Tags.
+func Remotes(ctx context.Context, dir string) ([]string, error) {
+	return remotes(ctx, "git", dir)
+}
+
+// remotes is Remotes with the git executable injected, for tests.
+func remotes(ctx context.Context, gitPath, dir string) ([]string, error) {
+	if dir != "" {
+		if err := checkDirectory(dir); err != nil {
+			return nil, err
+		}
+	}
+
+	out, err := run(ctx, gitPath, dir, "remote")
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Fields(out), nil
+}
+
+// DefaultRemote is the remote ChooseRemote picks when there are several.
+const DefaultRemote = "origin"
+
+// Errors returned by ChooseRemote. Use errors.Is to check for them.
+var (
+	// ErrNoRemotes means the repository has no remotes.
+	ErrNoRemotes = errors.New("no remotes")
+	// ErrAmbiguousRemote means the repository has several remotes, and none
+	// is DefaultRemote.
+	ErrAmbiguousRemote = errors.New("several remotes, and none is " + DefaultRemote)
+	// ErrUnknownRemote means the remote asked for isn't one of the
+	// repository's.
+	ErrUnknownRemote = errors.New("no such remote")
+)
+
+// ChooseRemote picks the remote to push to from a repository's remotes. If
+// name isn't "", it's that remote, which must be one of them. Otherwise it's
+// the only remote, or DefaultRemote if there are several.
+func ChooseRemote(remotes []string, name string) (string, error) {
+	switch {
+	case name != "" && slices.Contains(remotes, name):
+		return name, nil
+	case name != "":
+		return "", fmt.Errorf("%w: %s", ErrUnknownRemote, name)
+	case len(remotes) == 0:
+		return "", ErrNoRemotes
+	case len(remotes) == 1:
+		return remotes[0], nil
+	case slices.Contains(remotes, DefaultRemote):
+		return DefaultRemote, nil
+	default:
+		return "", ErrAmbiguousRemote
+	}
+}
+
+// PushTag pushes the tag name to remote, from the repository that contains
+// dir. dir is as for Tags. git can't prompt for credentials, so pushing to a
+// remote that needs them relies on a credential helper or SSH.
+func PushTag(ctx context.Context, dir, remote, name string) error {
+	return pushTag(ctx, "git", dir, remote, name, nil)
+}
+
+// pushTag is PushTag with the git executable and extra environment variables
+// for git injected, for tests.
+func pushTag(ctx context.Context, gitPath, dir, remote, name string, env []string) error {
+	if dir != "" {
+		if err := checkDirectory(dir); err != nil {
+			return err
+		}
+	}
+
+	// The full ref, so a branch with the same name can't be pushed instead.
+	_, err := runWithEnv(ctx, gitPath, dir, env, "push", "--quiet", remote, "refs/tags/"+name)
+
+	return err
 }

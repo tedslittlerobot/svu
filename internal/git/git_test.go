@@ -415,3 +415,104 @@ func TestCreateTag(t *testing.T) {
 		}
 	})
 }
+
+func TestRemotes(t *testing.T) {
+	t.Parallel()
+
+	dir := gittest.NewRepository(t)
+
+	got, err := Remotes(t.Context(), dir)
+	if err != nil || len(got) != 0 {
+		t.Errorf("Remotes() with none = %q, %v, want none", got, err)
+	}
+
+	gittest.Run(t, dir, "remote", "add", "upstream", "https://example.com/upstream.git")
+	gittest.Run(t, dir, "remote", "add", "origin", "https://example.com/origin.git")
+
+	got, err = Remotes(t.Context(), dir)
+	slices.Sort(got)
+
+	if want := []string{"origin", "upstream"}; err != nil || !slices.Equal(got, want) {
+		t.Errorf("Remotes() = %q, %v, want %q", got, err, want)
+	}
+
+	if _, err := Remotes(t.Context(), t.TempDir()); !errors.Is(err, ErrNotRepository) {
+		t.Errorf("Remotes() outside a repository error = %v, want ErrNotRepository", err)
+	}
+
+	if _, err := Remotes(t.Context(), filepath.Join(t.TempDir(), "missing")); !errors.Is(err, ErrDirectoryNotFound) {
+		t.Errorf("Remotes() in a missing directory error = %v, want ErrDirectoryNotFound", err)
+	}
+}
+
+func TestChooseRemote(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		remotes []string
+		ask     string
+		want    string
+		wantErr error
+	}{
+		{name: "picks the only remote", remotes: []string{"upstream"}, want: "upstream"},
+		{name: "picks origin from several", remotes: []string{"fork", "origin", "upstream"}, want: "origin"},
+		{name: "picks the remote asked for", remotes: []string{"origin", "upstream"}, ask: "upstream", want: "upstream"},
+		{name: "picks the remote asked for when it's the only one", remotes: []string{"upstream"}, ask: "upstream", want: "upstream"},
+		{name: "refuses no remotes", remotes: nil, wantErr: ErrNoRemotes},
+		{name: "refuses several remotes without origin", remotes: []string{"fork", "upstream"}, wantErr: ErrAmbiguousRemote},
+		{name: "refuses a remote that doesn't exist", remotes: []string{"origin"}, ask: "upstream", wantErr: ErrUnknownRemote},
+		{name: "refuses a remote asked for with no remotes", remotes: nil, ask: "origin", wantErr: ErrUnknownRemote},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := ChooseRemote(tt.remotes, tt.ask)
+			if got != tt.want || !errors.Is(err, tt.wantErr) {
+				t.Errorf("ChooseRemote(%q, %q) = %q, %v, want %q, %v", tt.remotes, tt.ask, got, err, tt.want, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPushTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("pushes the tag, and not a branch with the same name", func(t *testing.T) {
+		t.Parallel()
+
+		remote := t.TempDir()
+		gittest.Run(t, remote, "init", "--quiet", "--bare")
+
+		dir := gittest.NewRepository(t, "v1.0.0")
+		gittest.Run(t, dir, "branch", "v1.0.0")
+		gittest.Run(t, dir, "remote", "add", "origin", remote)
+
+		if err := pushTag(t.Context(), "git", dir, "origin", "v1.0.0", isolated("false")); err != nil {
+			t.Fatalf("pushTag() error = %v, want nil", err)
+		}
+
+		if got := tagOutput(t, remote, "for-each-ref", "--format=%(refname)"); got != "refs/tags/v1.0.0" {
+			t.Errorf("remote refs = %q, want only refs/tags/v1.0.0", got)
+		}
+	})
+
+	t.Run("reports errors from git", func(t *testing.T) {
+		t.Parallel()
+
+		if err := PushTag(t.Context(), t.TempDir(), "origin", "v1.0.0"); !errors.Is(err, ErrNotRepository) {
+			t.Errorf("PushTag() outside a repository error = %v, want ErrNotRepository", err)
+		}
+
+		if err := PushTag(t.Context(), filepath.Join(t.TempDir(), "missing"), "origin", "v1.0.0"); !errors.Is(err, ErrDirectoryNotFound) {
+			t.Errorf("PushTag() in a missing directory error = %v, want ErrDirectoryNotFound", err)
+		}
+
+		var cmdErr *CommandError
+		if err := PushTag(t.Context(), gittest.NewRepository(t, "v1.0.0"), "nowhere", "v1.0.0"); !errors.As(err, &cmdErr) || cmdErr.Stderr == "" {
+			t.Errorf("PushTag() to a missing remote error = %v, want a CommandError with git's explanation", err)
+		}
+	})
+}

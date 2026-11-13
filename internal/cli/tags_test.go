@@ -435,6 +435,7 @@ func TestExitCodes(t *testing.T) {
 		args     []string
 		tags     tagReader
 		messages messageReader
+		remotes  remoteLister
 		want     int
 	}{
 		{name: "success", args: []string{"modify", "1.2.3"}, want: ExitOK},
@@ -453,6 +454,10 @@ func TestExitCodes(t *testing.T) {
 			name: "tag exists", args: []string{"modify", "1.0.0", "--apply"},
 			tags: scopedTags(t, "", []string{"v1.0.0"}, nil), want: ExitTagExists,
 		},
+		{
+			name: "no remote", args: []string{"modify", "1.0.0", "--apply", "--push"},
+			tags: scopedTags(t, "", nil, nil), remotes: fixedRemotes(), want: ExitNoRemote,
+		},
 	}
 
 	seen := map[int]string{}
@@ -467,7 +472,8 @@ func TestExitCodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := invoke(t, invocation{args: tt.args, tags: tt.tags, messages: tt.messages}).code; got != tt.want {
+			inv := invocation{args: tt.args, tags: tt.tags, messages: tt.messages, remotes: tt.remotes}
+			if got := invoke(t, inv).code; got != tt.want {
 				t.Errorf("exit code = %d, want %d", got, tt.want)
 			}
 		})

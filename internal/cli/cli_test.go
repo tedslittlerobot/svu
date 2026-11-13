@@ -41,6 +41,11 @@ type invocation struct {
 	messages messageReader
 	// createTag stands in for git tag. nil fails the test if semvu tags.
 	createTag tagCreator
+	// remotes stands in for git remote. nil fails the test if semvu lists
+	// the remotes.
+	remotes remoteLister
+	// push stands in for git push. nil fails the test if semvu pushes.
+	push tagPusher
 	// env is the environment variables semvu sees. nil means none.
 	env map[string]string
 }
@@ -89,13 +94,37 @@ func invoke(t *testing.T, inv invocation) result {
 		}
 	}
 
+	if inv.remotes == nil {
+		inv.remotes = func(context.Context, string) ([]string, error) {
+			t.Error("semvu listed the remotes, want it not to")
+
+			return nil, errors.New("unexpected call to list the remotes")
+		}
+	}
+
+	if inv.push == nil {
+		inv.push = func(context.Context, string, string, string) error {
+			t.Error("semvu pushed a tag, want it not to")
+
+			return errors.New("unexpected call to push a tag")
+		}
+	}
+
 	var stdout, stderr bytes.Buffer
 
 	code := execute(t.Context(), inv.args, Streams{
 		In:  inv.stdin,
 		Out: &stdout,
 		Err: &stderr,
-	}, environment{info: testInfo, readTags: inv.tags, readMessages: inv.messages, createTag: inv.createTag, getenv: inv.getenv()})
+	}, environment{
+		info:         testInfo,
+		readTags:     inv.tags,
+		readMessages: inv.messages,
+		createTag:    inv.createTag,
+		listRemotes:  inv.remotes,
+		pushTag:      inv.push,
+		getenv:       inv.getenv(),
+	})
 
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
 }
