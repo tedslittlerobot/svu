@@ -34,6 +34,9 @@ The result keeps the "v" of the version it read, from the argument, standard
 input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
 --with-v or --without-v to choose instead.
 
+--no-git makes sure semvu modify never uses git: a version must be given, and
+flags that read or make tags, such as --auto and --apply, can't be used.
+
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
 
@@ -65,6 +68,7 @@ const modifyExample = `  semvu modify 1.2.3 --minor            # 1.3.0
   semvu modify 1.2.3-rc-001 --release   # 1.2.3
   echo v1.2.3 | semvu modify - --patch  # v1.2.4
   semvu modify v1.2.3 --without-v       # 1.2.3
+  semvu modify "$VERSION" --patch --no-git   # never falls back to the git tags
   semvu m --patch                       # the latest git tag, bumped, as in v1.2.4
   semvu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
   semvu m --for-major 1 --patch         # v1.4.3, while v2.0.0 is out
@@ -79,6 +83,7 @@ func newModifyCommand(env environment) *cobra.Command {
 		tags    tagFlags
 		vstyle  vFlags
 		explain bool
+		noGit   bool
 		apply   applyFlags
 		mods    *modifiers
 	)
@@ -99,6 +104,15 @@ func newModifyCommand(env environment) *cobra.Command {
 
 			if err := vstyle.validate(); err != nil {
 				return err
+			}
+
+			runEnv := env
+			if noGit {
+				if err := validateNoGit(cmd, args); err != nil {
+					return err
+				}
+
+				runEnv = env.withoutGit()
 			}
 
 			if flag := tags.changed(cmd); flag != "" && len(args) > 0 {
@@ -144,9 +158,9 @@ func newModifyCommand(env environment) *cobra.Command {
 			)
 
 			if mods.auto() {
-				v, source, err = runAuto(cmd, args, env, q, mods, explain)
+				v, source, err = runAuto(cmd, args, runEnv, q, mods, explain)
 			} else {
-				v, source, err = modifyVersion(cmd, args, env, q, mods)
+				v, source, err = modifyVersion(cmd, args, runEnv, q, mods)
 			}
 
 			if err != nil {
@@ -156,7 +170,7 @@ func newModifyCommand(env environment) *cobra.Command {
 			out := vstyle.format(v, source)
 
 			// Tag before printing: on failure, stdout must stay empty.
-			if err := apply.tag(cmd, env, q, v, out); err != nil {
+			if err := apply.tag(cmd, runEnv, q, v, out); err != nil {
 				return err
 			}
 
@@ -169,6 +183,7 @@ func newModifyCommand(env environment) *cobra.Command {
 	flags.SortFlags = false
 
 	tags.add(cmd)
+	addNoGit(cmd, &noGit)
 
 	mods = newModifiers(flags)
 

@@ -61,6 +61,9 @@ The result keeps the "v" of the version it read, from the argument, standard
 input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
 --with-v or --without-v to choose instead.
 
+--no-git makes sure semvu modify never uses git: a version must be given, and
+flags that read or make tags, such as --auto and --apply, can't be used.
+
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
 
@@ -99,6 +102,7 @@ Examples:
   semvu modify 1.2.3-rc-001 --release   # 1.2.3
   echo v1.2.3 | semvu modify - --patch  # v1.2.4
   semvu modify v1.2.3 --without-v       # 1.2.3
+  semvu modify "$VERSION" --patch --no-git   # never falls back to the git tags
   semvu m --patch                       # the latest git tag, bumped, as in v1.2.4
   semvu m --hotfix                      # 1.2.4, while 1.3.0-rc-002 is in progress
   semvu m --for-major 1 --patch         # v1.4.3, while v2.0.0 is out
@@ -113,6 +117,7 @@ Input:
       --global                  Read every tag in the repository, not only those on the checked-out commit's history
       --tag-prefix prefix       Only read tags starting with prefix, such as api/ for api/v1.2.3
       --initial version         Use version if no tag matches, as in a new repository
+      --no-git                  Never use git: read no tags or commits, and make no tags
 
 Filter:
       --for-major major         Only read tags with this MAJOR version, as in 1 for v1.4.2

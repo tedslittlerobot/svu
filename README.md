@@ -319,6 +319,15 @@ semvu only reads standard input when you pass `-`. It never reads it otherwise,
 so it can't hang in CI jobs, git hooks or loops where standard input is open
 but not meant for semvu.
 
+`--no-git` makes sure semvu never uses git: it needs a version, from the
+argument or `-`, and fails with exit status `2` instead of falling back to the
+git tags. Flags that read or make tags (the tag flags, `--auto`,
+`--skip-release`, `--apply` and `--apply-annotate`) can't be used with it.
+
+```sh
+semvu modify "$VERSION" --patch --no-git   # fails, rather than reading the tags, if $VERSION is empty
+```
+
 #### Modifiers
 
 Use at most one version modifier and at most one stage modifier.
@@ -488,6 +497,7 @@ Other flags:
 | `--with-v`, `--without-v` | Always, or never, print a leading `v` (see [the `v`](#the-v)) |
 | `--allow-stage-regression` | Let `--alpha`, `--beta` or `--rc` [go back to an earlier stage](#going-back-a-stage) |
 | `--skip-release` | Let `--major`, `--minor`, `--patch` or `--auto` [move on from an unreleased pre-release](#skipping-a-release) |
+| `--no-git` | [Never use git](#where-the-version-comes-from): a version must be given |
 | `--explain` | With `--auto`, say on stderr how the bump was chosen |
 | `--apply` | Also [tag the checked-out commit](#tagging-the-new-version) with the new version |
 | `--apply-annotate` | The same, as an annotated tag, writing its message in your editor |
