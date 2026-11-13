@@ -457,3 +457,221 @@ func TestStageRegressionReportsTagFailure(t *testing.T) {
 			"Hint: Install git, or give a version, as in semvu modify 1.2.3.\n",
 	})
 }
+
+func TestSkipRelease(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		args      []string
+		reachable []string
+		others    []string
+		want      string
+	}{
+		{
+			name:      "moves on from an unreleased pre-release with --skip-release",
+			args:      []string{"--minor", "--rc", "--skip-release"},
+			reachable: []string{"v1.2.3-rc-001"},
+			want:      "v1.3.0-rc-001\n",
+		},
+		{
+			name:      "moves on from a pre-release released on another branch",
+			args:      []string{"--minor"},
+			reachable: []string{"v1.2.3-rc-001"},
+			others:    []string{"v1.2.3"},
+			want:      "v1.3.0\n",
+		},
+		{
+			name:      "counts only releases with the prefix",
+			args:      []string{"--patch", "--tag-prefix", "api/"},
+			reachable: []string{"api/v0.5.0-beta-002"},
+			others:    []string{"api/v0.5.0"},
+			want:      "v0.5.1\n",
+		},
+		{
+			name:      "bumps a release as usual",
+			args:      []string{"--minor", "--rc"},
+			reachable: []string{"v1.2.2-rc-001", "v1.2.3"},
+			want:      "v1.3.0-rc-001\n",
+		},
+		{
+			name:      "moves to the next stage of the same version",
+			args:      []string{"--rc"},
+			reachable: []string{"v1.2.3-beta-002"},
+			want:      "v1.2.3-rc-001\n",
+		},
+		{
+			name:      "releases the pre-release",
+			args:      []string{"--release"},
+			reachable: []string{"v1.2.3-rc-001"},
+			want:      "v1.2.3\n",
+		},
+		{
+			name:      "hotfixes the latest release while a pre-release is in progress",
+			args:      []string{"--hotfix"},
+			reachable: []string{"v1.2.3", "v1.3.0-rc-001"},
+			want:      "v1.2.4\n",
+		},
+		{
+			name: "never checks a version given directly",
+			args: []string{"1.2.3-rc-001", "--minor", "--rc"},
+			want: "1.3.0-rc-001\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			inv := invocation{args: modifyArgs(tt.args...)}
+			if tt.reachable != nil {
+				inv.tags = scopedTags(t, "", tt.reachable, tt.others)
+			}
+
+			assertResult(t, invoke(t, inv), result{stdout: tt.want})
+		})
+	}
+}
+
+func TestSkipReleaseErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		args      []string
+		reachable []string
+		others    []string
+		code      int
+		want      string
+	}{
+		{
+			name:      "refuses to skip a release with a new version and stage",
+			args:      []string{"--rc", "--minor"},
+			reachable: []string{"v1.2.3-rc-001"},
+			code:      ExitModification,
+			want: `Error: "1.2.3" has not been released yet.
+
+  The latest version is the pre-release "1.2.3-rc-001", and "1.3.0-rc-001" would move on without releasing it.
+
+Hint: Release it first with --release, or add --skip-release to move on anyway.
+`,
+		},
+		{
+			name:      "refuses to skip a release with a patch",
+			args:      []string{"--patch"},
+			reachable: []string{"v1.2.2", "v1.2.3-alpha-002"},
+			code:      ExitModification,
+			want: `Error: "1.2.3" has not been released yet.
+
+  The latest version is the pre-release "1.2.3-alpha-002", and "1.2.4" would move on without releasing it.
+
+Hint: Release it first with --release, or add --skip-release to move on anyway.
+`,
+		},
+		{
+			name:      "ignores a release with another prefix",
+			args:      []string{"--major", "--tag-prefix", "api/"},
+			reachable: []string{"api/v1.2.3-rc-001", "v1.2.3"},
+			code:      ExitModification,
+			want: `Error: "1.2.3" has not been released yet.
+
+  The latest version is the pre-release "1.2.3-rc-001", and "2.0.0" would move on without releasing it.
+
+Hint: Release it first with --release, or add --skip-release to move on anyway.
+`,
+		},
+		{
+			name:      "refuses to skip a release in --for-major",
+			args:      []string{"--minor", "--for-major", "1"},
+			reachable: []string{"v1.2.3-rc-001", "v2.0.0"},
+			code:      ExitModification,
+			want: `Error: "1.2.3" has not been released yet.
+
+  The latest version is the pre-release "1.2.3-rc-001", and "1.3.0" would move on without releasing it.
+
+Hint: Release it first with --release, or add --skip-release to move on anyway.
+`,
+		},
+		{
+			name:      "refuses to skip the release of a pre-release --initial version",
+			args:      []string{"--minor", "--initial", "0.1.0-alpha-001"},
+			reachable: []string{},
+			code:      ExitModification,
+			want: `Error: "0.1.0" has not been released yet.
+
+  The latest version is the pre-release "0.1.0-alpha-001", and "0.2.0" would move on without releasing it.
+
+Hint: Release it first with --release, or add --skip-release to move on anyway.
+`,
+		},
+		{
+			name: "rejects --skip-release with a version",
+			args: []string{"1.2.3-rc-001", "--minor", "--skip-release"},
+			code: ExitUsage,
+			want: `Error: --skip-release can't be used when a version is given.
+
+  semvu modify only reads git tags when no version is given.
+
+Hint: Remove --skip-release, or remove the version.
+`,
+		},
+		{
+			name: "needs a version modifier",
+			args: []string{"--rc", "--skip-release"},
+			code: ExitUsage,
+			want: `Error: --skip-release only works with --major, --minor, --patch or --auto.
+
+  It lets a new version start before the latest pre-release is released,
+  as in 1.2.3-rc-001 --minor.
+
+Hint: Add --major, --minor, --patch or --auto, or remove --skip-release.
+`,
+		},
+		{
+			name: "rejects --hotfix, which starts from a release",
+			args: []string{"--hotfix", "--skip-release"},
+			code: ExitUsage,
+			want: `Error: --skip-release only works with --major, --minor, --patch or --auto.
+
+  It lets a new version start before the latest pre-release is released,
+  as in 1.2.3-rc-001 --minor.
+
+Hint: Add --major, --minor, --patch or --auto, or remove --skip-release.
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			inv := invocation{args: modifyArgs(tt.args...)}
+			if tt.reachable != nil {
+				inv.tags = scopedTags(t, "", tt.reachable, tt.others)
+			}
+
+			assertResult(t, invoke(t, inv), result{code: tt.code, stderr: tt.want})
+		})
+	}
+}
+
+func TestSkipReleaseReportsTagFailure(t *testing.T) {
+	t.Parallel()
+
+	// The latest tag reads fine, but reading every tag fails.
+	tags := func(_ context.Context, _ string, opts git.TagOptions) ([]string, error) {
+		if opts.All {
+			return nil, git.ErrNotInstalled
+		}
+
+		return []string{"v1.2.3-rc-001"}, nil
+	}
+
+	got := invoke(t, invocation{args: modifyArgs("--minor"), tags: tags})
+	assertResult(t, got, result{
+		code: ExitGit,
+		stderr: "Error: semvu could not find git.\n\n" +
+			"  No version was given, so semvu needs git to read the latest version from the tags.\n\n" +
+			"Hint: Install git, or give a version, as in semvu modify 1.2.3.\n",
+	})
+}

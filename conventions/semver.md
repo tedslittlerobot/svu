@@ -74,7 +74,8 @@ For a given `MAJOR.MINOR.PATCH`:
   must start on a new `MAJOR.MINOR.PATCH`.
 
 These rules only apply within one `MAJOR.MINOR.PATCH`. `1.2.4-alpha-001` is a
-valid successor to `1.2.3-rc-004`.
+valid successor to `1.2.3-rc-004`, though it
+[skips the release](#skipping-a-release) of `1.2.3`.
 
 ### Going back a stage
 
@@ -92,6 +93,20 @@ a pre-release **may** go back to an earlier pre-release stage of the same
 
 Going back doesn't change [Precedence](#precedence): `1.2.3-alpha-002` still
 ranks below `1.2.3-rc-001`, so the latest version stays the release candidate.
+
+### Skipping a release
+
+A pre-release leads to its release. Moving from a pre-release to a different
+`MAJOR.MINOR.PATCH` **skips** that release: from `1.2.3-rc-001`, both
+`1.3.0-rc-001` and `1.2.4` skip `1.2.3`. Moving within the same
+`MAJOR.MINOR.PATCH`, to a later index, a later stage or the release itself,
+never does.
+
+- When semvu reads the version from git tags (`semvu modify` with no
+  version), it **must not** skip a release that hasn't been tagged, unless
+  explicitly asked to (`semvu modify --skip-release`). A release tagged on any
+  branch counts.
+- A version given directly has no tags to check, so it **may** skip a release.
 
 ## Precedence
 

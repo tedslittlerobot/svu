@@ -98,7 +98,7 @@ func TestAuto(t *testing.T) {
 		},
 		{
 			name:       "bumps the release when a pre-release doesn't cover the bump",
-			args:       []string{"modify", "--auto", "--rc", "--explain"},
+			args:       []string{"modify", "--auto", "--rc", "--explain", "--skip-release"},
 			tags:       []string{"v1.2.3", "v1.3.0-rc-001"},
 			since:      "v1.3.0-rc-001",
 			messages:   []string{"feat!: a"},
@@ -124,7 +124,7 @@ func TestAuto(t *testing.T) {
 		},
 		{
 			name:       "works out a pre-release's bump from the last release in --for-major",
-			args:       []string{"modify", "--auto", "--for-major", "1", "--rc"},
+			args:       []string{"modify", "--auto", "--for-major", "1", "--rc", "--skip-release"},
 			tags:       []string{"v1.2.0", "v1.2.1-rc-001", "v2.0.0"},
 			since:      "v1.2.1-rc-001",
 			messages:   []string{"feat: a"},
@@ -268,6 +268,15 @@ func TestAutoErrors(t *testing.T) {
 			want: "Error: \"1.3.0-rc-001\" can't go back from rc to alpha.\n\n" +
 				"  Stages only move forward: alpha, then beta, then rc, then the release.\n\n" +
 				"Hint: Use --rc or --release, or add --major, --minor or --patch to start a new version.\n",
+		},
+		{
+			name: "refuses to skip a pending pre-release's release",
+			args: []string{"modify", "--auto", "--rc"}, tags: []string{"v1.2.3", "v1.3.0-rc-001"},
+			messages: fixedMessages(t, "v1.3.0-rc-001", "feat!: a"),
+			code:     ExitModification,
+			want: "Error: \"1.3.0\" has not been released yet.\n\n" +
+				"  The latest version is the pre-release \"1.3.0-rc-001\", and \"2.0.0-rc-001\" would move on without releasing it.\n\n" +
+				"Hint: Release it first with --release, or add --skip-release to move on anyway.\n",
 		},
 		{
 			name: "reports a failure to read the commits",

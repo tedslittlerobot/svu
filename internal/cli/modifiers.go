@@ -63,12 +63,18 @@ func modifierNames() []string {
 // regressionFlag lets a stage modifier go back to an earlier stage.
 const regressionFlag = "allow-stage-regression"
 
+// skipReleaseFlag lets a version modifier move on from a pre-release that
+// hasn't been released.
+const skipReleaseFlag = "skip-release"
+
 // modifiers holds the modifier flags for one run of semvu.
 type modifiers struct {
 	versions []*modifier[semver.Part]
 	stages   []*modifier[semver.Stage]
 	// regress is --allow-stage-regression.
 	regress bool
+	// skipRelease is --skip-release.
+	skipRelease bool
 }
 
 func newModifiers(flags *pflag.FlagSet) *modifiers {
@@ -78,6 +84,10 @@ func newModifiers(flags *pflag.FlagSet) *modifiers {
 		flags.BoolVar(&v.set, v.flag, false, v.usage)
 		setHelpGroup(flags, v.flag, groupVersion)
 	}
+
+	flags.BoolVar(&m.skipRelease, skipReleaseFlag, false,
+		"Let a new version start before the latest pre-release is released")
+	setHelpGroup(flags, skipReleaseFlag, groupVersionOptions)
 
 	for _, s := range m.stages {
 		flags.BoolVar(&s.set, s.flag, false, s.usage)
@@ -91,8 +101,9 @@ func newModifiers(flags *pflag.FlagSet) *modifiers {
 	return m
 }
 
-// validate checks that at most one modifier from each group was given, and
-// that --allow-stage-regression has a stage to go back to.
+// validate checks that at most one modifier from each group was given, that
+// --allow-stage-regression has a stage to go back to, and that --skip-release
+// has a new version to move on to.
 func (m *modifiers) validate() error {
 	if err := atMostOne("version", m.versions); err != nil {
 		return err
@@ -102,7 +113,32 @@ func (m *modifiers) validate() error {
 		return err
 	}
 
-	return m.validateRegression()
+	if err := m.validateRegression(); err != nil {
+		return err
+	}
+
+	return m.validateSkipRelease()
+}
+
+// validateSkipRelease checks that --skip-release, if given, comes with a
+// version modifier that can move on from a pre-release: --major, --minor,
+// --patch or --auto. --hotfix always starts from a release.
+func (m *modifiers) validateSkipRelease() error {
+	if !m.skipRelease {
+		return nil
+	}
+
+	if _, ok := chosen(m.versions); ok && !m.hotfix() {
+		return nil
+	}
+
+	return &userError{
+		code:     ExitUsage,
+		headline: fmt.Sprintf("--%s only works with --major, --minor, --patch or --auto.", skipReleaseFlag),
+		detail: "It lets a new version start before the latest pre-release is released,\n" +
+			"as in 1.2.3-rc-001 --minor.",
+		hint: fmt.Sprintf("Add `--major`, `--minor`, `--patch` or `--auto`, or remove `--%s`.", skipReleaseFlag),
+	}
 }
 
 // validateRegression checks that --allow-stage-regression, if given, comes
@@ -141,6 +177,11 @@ func (m *modifiers) bumpsMajor() bool {
 	part, bump := chosen(m.versions)
 
 	return bump && part == semver.Major
+}
+
+// skipsRelease reports whether --skip-release was given.
+func (m *modifiers) skipsRelease() bool {
+	return m.skipRelease
 }
 
 // regresses reports whether --allow-stage-regression was given.

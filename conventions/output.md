@@ -85,7 +85,7 @@ not** change.
 | `1` | Internal failure that the user can't fix | A bug; output couldn't be written; standard input couldn't be read |
 | `2` | Usage error | Unknown command or flag; bad flag value; flags that can't be used together; too many arguments |
 | `3` | Invalid version | An argument, standard input or `--initial` isn't a valid version |
-| `4` | The version can't be modified as asked | Going back a stage; releasing a release; hotfixing a pre-release; a number too large to bump; `--auto` needing a new major version with `--for-major` |
+| `4` | The version can't be modified as asked | Going back a stage; releasing a release; hotfixing a pre-release; a number too large to bump; `--auto` needing a new major version with `--for-major`; skipping the release of a pre-release in the git tags |
 | `5` | No repository | Not in a git repository; `--directory` doesn't exist or isn't a directory |
 | `6` | No matching tag | No tag is a valid version, or none is a release when only releases are wanted |
 | `7` | git failed | git isn't installed, or reported an error |

@@ -337,10 +337,13 @@ Use at most one version modifier and at most one stage modifier.
   gives `1.2.4`. To release `1.2.3-rc-004` as `1.2.3`, use `--release`.
 - A version modifier **with a stage modifier** bumps the version and starts
   that stage at `001`: `1.2.3 --minor --alpha` gives `1.3.0-alpha-001`.
+- **From git tags, a version modifier won't [skip a release](#skipping-a-release).**
+  With `v1.2.3-rc-001` the latest tag, `--minor` fails until `v1.2.3` is
+  tagged. Add `--skip-release` to move on anyway.
 - **`--hotfix`** is for fixing what's already out while a pre-release is in
   progress. From git tags, it reads the latest *release*, so `v1.3.0-rc-001`
-  doesn't get in the way. `--patch` there would give `1.3.1`. Given a version
-  directly, it must be a release.
+  doesn't get in the way. `--patch` there would fail, because `1.3.0` hasn't
+  been released. Given a version directly, it must be a release.
 - **`--for-major`** works on an older major version: with `v1.4.2` and
   `v2.0.0` tagged, `semvu modify --for-major 1 --patch` gives `v1.4.3`. The
   result must stay in that major version, so `--major` can't be used with it,
@@ -374,7 +377,9 @@ semvu modify --auto --explain       # the same, saying why on stderr:
 - **When the latest tag is a pre-release**, semvu checks whether it already
   covers the bump. If `v1.3.0-rc-001` is out and only fixes have landed
   since, `--auto --rc` gives `1.3.0-rc-002`, and `--auto` alone releases
-  `1.3.0`. A breaking change instead gives `2.0.0-rc-001`.
+  `1.3.0`. A breaking change would need `2.0.0-rc-001`, which
+  [skips the release](#skipping-a-release) of `1.3.0`, so semvu fails unless
+  you add `--skip-release`.
 - Merge commits are skipped. With `--tag-prefix`, commits are counted from the
   prefixed tag, but include changes anywhere in the repository.
 - `--auto` reads tags, so it takes [the tag flags](#which-tags-semvu-reads) and
@@ -454,12 +459,35 @@ semvu modify --alpha --allow-stage-regression                # v1.2.3-alpha-002,
 - **A release still can't go back into a stage**, and the flag only works with
   `--alpha`, `--beta` or `--rc`, not with a version modifier.
 
+#### Skipping a release
+
+A pre-release leads to its release. Reading from git tags, semvu won't start a
+new version until the latest pre-release has been released, so a release can't
+be skipped by accident:
+
+```sh
+semvu latest                       # v1.2.3-rc-001
+semvu modify --minor --rc          # fails with exit status 4: "1.2.3" has not been released yet
+semvu modify --release             # v1.2.3, so release it first
+semvu modify --minor --rc --skip-release   # v1.3.0-rc-001, or skip it on purpose
+```
+
+- **It applies to `--major`, `--minor`, `--patch` and `--auto`.** Stage
+  modifiers stay within the same version, and `--hotfix` starts from a
+  release, so they never skip one.
+- **A release tagged on any branch counts**, with the same `--tag-prefix`, as
+  when `v1.2.3` was tagged on a release branch.
+- **Given a version directly, there are no tags to check**, so
+  `semvu modify 1.2.3-rc-001 --minor` gives `1.3.0`, and `--skip-release` can't
+  be used.
+
 Other flags:
 
 | Flag | Meaning |
 |---|---|
 | `--with-v`, `--without-v` | Always, or never, print a leading `v` (see [the `v`](#the-v)) |
 | `--allow-stage-regression` | Let `--alpha`, `--beta` or `--rc` [go back to an earlier stage](#going-back-a-stage) |
+| `--skip-release` | Let `--major`, `--minor`, `--patch` or `--auto` [move on from an unreleased pre-release](#skipping-a-release) |
 | `--explain` | With `--auto`, say on stderr how the bump was chosen |
 | `--apply` | Also [tag the checked-out commit](#tagging-the-new-version) with the new version |
 | `--apply-annotate` | The same, as an annotated tag, writing its message in your editor |
@@ -618,7 +646,7 @@ semvu is built to be captured with `$(…)`:
 | `1` | Internal failure, such as a bug; please report it |
 | `2` | Usage error: unknown command or flag, bad flag value, conflicting flags |
 | `3` | Invalid version |
-| `4` | The version can't be modified as asked, such as going back a stage |
+| `4` | The version can't be modified as asked, such as going back a stage or skipping a release |
 | `5` | No git repository where semvu looked |
 | `6` | No tag that is a version of the kind asked for |
 | `7` | git isn't installed, or failed |

@@ -303,6 +303,46 @@ func TestIsRelease(t *testing.T) {
 	}
 }
 
+func TestReleased(t *testing.T) {
+	t.Parallel()
+
+	for s, want := range map[string]string{"1.2.3": "1.2.3", "v1.2.3-alpha-001": "1.2.3", "0.0.1-rc-999": "0.0.1"} {
+		if got := mustParse(t, s).Released().String(); got != want {
+			t.Errorf("Parse(%q).Released() = %q, want %q", s, got, want)
+		}
+	}
+}
+
+func TestSkipsRelease(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		from string
+		next string
+		want bool
+	}{
+		{name: "a new minor version skips a pre-release's release", from: "1.2.3-rc-001", next: "1.3.0-rc-001", want: true},
+		{name: "a new patch version skips a pre-release's release", from: "1.2.3-alpha-002", next: "1.2.4", want: true},
+		{name: "a new major version skips a pre-release's release", from: "1.2.3-beta-001", next: "2.0.0", want: true},
+		{name: "the next index doesn't skip", from: "1.2.3-rc-001", next: "1.2.3-rc-002", want: false},
+		{name: "a later stage doesn't skip", from: "1.2.3-alpha-001", next: "1.2.3-rc-001", want: false},
+		{name: "releasing doesn't skip", from: "1.2.3-rc-001", next: "1.2.3", want: false},
+		{name: "bumping a release doesn't skip", from: "1.2.3", next: "1.3.0-rc-001", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			from, next := mustParse(t, tt.from), mustParse(t, tt.next)
+			if got := from.SkipsRelease(next); got != tt.want {
+				t.Errorf("Parse(%q).SkipsRelease(%q) = %t, want %t", tt.from, tt.next, got, tt.want)
+			}
+		})
+	}
+}
+
 func mustParse(t *testing.T, s string) Version {
 	t.Helper()
 

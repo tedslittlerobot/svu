@@ -151,6 +151,20 @@ func (v Version) IsRelease() bool {
 	return v.Stage == Release
 }
 
+// Released returns v's release version: v without its suffix, so that
+// 1.2.3-rc-001 gives 1.2.3. A release gives itself.
+func (v Version) Released() Version {
+	return Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
+}
+
+// SkipsRelease reports whether moving from v to next skips v's release
+// (§Skipping a release): v is a pre-release, and next has a different
+// MAJOR.MINOR.PATCH. 1.2.3-rc-001 to 1.3.0-rc-001 skips 1.2.3, but
+// 1.2.3-rc-001 to 1.2.3-rc-002 or to 1.2.3 doesn't.
+func (v Version) SkipsRelease(next Version) bool {
+	return !v.IsRelease() && v.Released() != next.Released()
+}
+
 func latest(candidates []string, keep func(Version) bool) (Version, bool) {
 	var (
 		best  Version

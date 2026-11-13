@@ -27,7 +27,11 @@ func TestTagFlags(t *testing.T) {
 		// Scope.
 		{name: "latest reads only tags on the checked-out history", args: []string{"latest"}, want: "v1.3.0-rc-001\n"},
 		{name: "latest reads every tag with --global", args: []string{"latest", "--global"}, want: "v2.0.0\n"},
-		{name: "modify reads only tags on the checked-out history", args: []string{"modify", "--patch"}, want: "v1.3.1\n"},
+		{
+			name: "modify reads only tags on the checked-out history",
+			args: []string{"modify", "--patch", "--skip-release"},
+			want: "v1.3.1\n",
+		},
 		{name: "modify reads every tag with --global", args: []string{"m", "--global", "--patch"}, want: "v2.0.1\n"},
 
 		// Prefix.
@@ -61,7 +65,7 @@ func TestTagFlags(t *testing.T) {
 		},
 		{
 			name: "modify bumps the latest version in an older major version",
-			args: []string{"modify", "--global", "--for-major", "1", "--patch"},
+			args: []string{"modify", "--global", "--for-major", "1", "--patch", "--skip-release"},
 			want: "v1.3.1\n",
 		},
 		{
@@ -398,7 +402,11 @@ func TestForMajorAndStageRegressionInRealGitRepository(t *testing.T) {
 		want string
 	}{
 		{name: "latest reads one major version", args: []string{"latest", "--for-major", "1"}, want: "v1.5.0-rc-001\n"},
-		{name: "a patch stays in that major version", args: []string{"modify", "--for-major", "1", "--patch"}, want: "v1.5.1\n"},
+		{
+			name: "a patch stays in that major version",
+			args: []string{"modify", "--for-major", "1", "--patch", "--skip-release"},
+			want: "v1.5.1\n",
+		},
 		{name: "a hotfix stays in that major version", args: []string{"modify", "--for-major", "1", "--hotfix"}, want: "v1.4.3\n"},
 		{
 			name: "going back a stage carries on after every branch's tags",

@@ -23,10 +23,11 @@ const autoFlag = "auto"
 
 // autoVersion works out the next version for semvu modify --auto: it reads the
 // latest tag that q matches, and bumps it as the Conventional Commits since
-// then need. If explain isn't nil, it writes how it decided there. It also
-// returns the text the latest version came from, for its "v".
+// then need, at the stage mods asks for. If explain isn't nil, it writes how
+// it decided there. It also returns the text the latest version came from,
+// for its "v".
 func autoVersion(
-	ctx context.Context, env environment, q tagQuery, stage semver.Stage, explain io.Writer,
+	ctx context.Context, env environment, q tagQuery, mods *modifiers, explain io.Writer,
 ) (semver.Version, string, error) {
 	latest, tag, err := latestTag(ctx, env.readTags, q)
 	if err != nil {
@@ -61,13 +62,17 @@ func autoVersion(
 		release, _ = q.latestRelease(tags)
 	}
 
-	plan, err := semver.Auto(latest, release, bumpPart(summary.Bump), stage)
+	plan, err := semver.Auto(latest, release, bumpPart(summary.Bump), mods.stage())
 	if err != nil {
 		return semver.Version{}, "", fmt.Errorf("working out the next version: %w", err)
 	}
 
 	if !q.inMajor(plan.Next) {
 		return semver.Version{}, "", leavesMajorError(q, since, plan.Next)
+	}
+
+	if err := checkSkippedRelease(ctx, env.readTags, q, mods, latest, plan.Next); err != nil {
+		return semver.Version{}, "", err
 	}
 
 	if explain != nil {

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -35,6 +36,11 @@ input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
 
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
+
+Read from git tags, a version can't move on from a pre-release that hasn't
+been released: with 1.2.3-rc-001 the latest tag, --minor fails until 1.2.3 is
+tagged on some branch. Release it with --release, or add --skip-release to
+move on anyway. This applies to --auto too.
 
 --for-major reads only the tags with that MAJOR version, to work on an older
 major version: with v1.4.2 and v2.0.0 tagged, --for-major 1 --patch gives
@@ -97,6 +103,10 @@ func newModifyCommand(env environment) *cobra.Command {
 
 			if flag := tags.changed(cmd); flag != "" && len(args) > 0 {
 				return gitFlagWithVersionError(flag)
+			}
+
+			if mods.skipsRelease() && len(args) > 0 {
+				return gitFlagWithVersionError("--" + skipReleaseFlag)
 			}
 
 			if tags.forMajor.set && mods.bumpsMajor() {
@@ -194,9 +204,49 @@ func modifyVersion(
 		}
 	}
 
-	v, err = mods.apply(v, taken)
+	next, err := mods.apply(v, taken)
+	if err != nil {
+		return semver.Version{}, "", err
+	}
 
-	return v, source, err
+	if len(args) == 0 {
+		if err := checkSkippedRelease(cmd.Context(), env.readTags, q, mods, v, next); err != nil {
+			return semver.Version{}, "", err
+		}
+	}
+
+	return next, source, nil
+}
+
+// checkSkippedRelease checks that going from the version read from git tags
+// to next doesn't skip from's release (§Skipping a release), unless
+// --skip-release was given. A release tagged on any branch counts, so the
+// check reads every tag.
+func checkSkippedRelease(
+	ctx context.Context, readTags tagReader, q tagQuery, mods *modifiers, from, next semver.Version,
+) error {
+	if mods.skipsRelease() || !from.SkipsRelease(next) {
+		return nil
+	}
+
+	release := from.Released()
+
+	tags, err := readTags(ctx, q.dir, git.TagOptions{All: true, Prefix: q.prefix})
+	if err != nil {
+		return tagsError(err, q)
+	}
+
+	if tagName(tags, release) != "" {
+		return nil
+	}
+
+	return &userError{
+		code:     ExitModification,
+		headline: fmt.Sprintf("%q has not been released yet.", release.String()),
+		detail: fmt.Sprintf("The latest version is the pre-release %q, and %q would move on without releasing it.",
+			from.String(), next.String()),
+		hint: fmt.Sprintf("Release it first with `--release`, or add `--%s` to move on anyway.", skipReleaseFlag),
+	}
 }
 
 // runAuto works out the version for semvu modify --auto: the bump comes from
@@ -219,7 +269,7 @@ func runAuto(
 		out = cmd.ErrOrStderr()
 	}
 
-	v, source, err := autoVersion(cmd.Context(), env, q, mods.stage(), out)
+	v, source, err := autoVersion(cmd.Context(), env, q, mods, out)
 	if err != nil {
 		var ue *userError
 		if errors.As(err, &ue) {

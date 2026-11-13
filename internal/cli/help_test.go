@@ -64,6 +64,11 @@ input, the tag or --initial: v1.2.3 gives v1.2.4, and 1.2.3 gives 1.2.4. Use
 --hotfix patches the latest release, skipping pre-releases, to fix what's
 already out while a pre-release is in progress.
 
+Read from git tags, a version can't move on from a pre-release that hasn't
+been released: with 1.2.3-rc-001 the latest tag, --minor fails until 1.2.3 is
+tagged on some branch. Release it with --release, or add --skip-release to
+move on anyway. This applies to --auto too.
+
 --for-major reads only the tags with that MAJOR version, to work on an older
 major version: with v1.4.2 and v2.0.0 tagged, --for-major 1 --patch gives
 v1.4.3. The result must stay in that major version, so --major can't be used
@@ -118,6 +123,9 @@ Version modifiers (use at most one):
       --patch                   Bump PATCH
       --hotfix                  Bump PATCH of the latest release, skipping pre-releases
       --auto                    Work out the bump from the Conventional Commits since the latest tag
+
+Version options:
+      --skip-release            Let a new version start before the latest pre-release is released
 
 Stage modifiers (use at most one):
       --alpha                   Move to alpha-001, or to the next alpha
