@@ -71,6 +71,8 @@ That includes:
 - the editor that `semvu modify --apply-annotate` opens through git, which uses
   the terminal through stdin and stderr, so that stdout still holds only the
   version
+- progress for a slow step that a flag asks for, such as the push that
+  `semvu modify --push` makes (see [Progress](#progress))
 - any diagnostic or explanatory message
 
 ## Exit status
@@ -151,6 +153,26 @@ Error: semvu could not write its output.
 Hint: If this keeps happening, please report it at https://github.com/tedslittlerobot/semvu/issues.
 ```
 
+### Progress
+
+A step that can take a while, such as a push to a remote, says on stderr
+when it starts and when it has finished, one line each:
+
+```text
+Pushing v1.2.4 to origin...
+Pushed v1.2.4 to origin.
+```
+
+- The line that starts a step ends with `...` instead of a full stop. The
+  line that finishes it is an ordinary sentence.
+- Names, such as a tag or remote, are written as they are, not quoted, and
+  shown in bold.
+- If the step fails, there is no finishing line. The error follows, and says
+  what state the step left behind and how to finish it, as in
+  `git push origin v1.2.4`.
+- Progress is written whether or not stderr is a terminal, so it shows in CI
+  logs too.
+
 ### Warnings
 
 Warnings follow the same rules as errors but start with `Warning: `. A warning
@@ -194,6 +216,9 @@ unknown commands. No message reaches stderr unstyled when colour is on.
 | `Warning:` label | Bold yellow |
 | Warning headline | Yellow |
 | `Hint:` label | Bold cyan |
+| Progress verb for a step in progress, such as `Pushing` | Bold cyan |
+| Progress verb for a finished step, such as `Pushed` | Bold green |
+| Names in a progress line, such as a tag or remote | Bold |
 | Commands, flags and values suggested in a hint | Green |
 | Detail text | Default colour |
 | Secondary information (paths, URLs) | Dim |

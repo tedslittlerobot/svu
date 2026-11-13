@@ -55,6 +55,18 @@ func TestRenderNeverShowsTheCause(t *testing.T) {
 	}
 }
 
+func TestRenderKeepsBlankDetailLinesBlank(t *testing.T) {
+	t.Parallel()
+
+	var b bytes.Buffer
+
+	render(&b, &userError{headline: "Something failed.", detail: "First.\n  \nSecond."}, colour.Styler{})
+
+	if got, want := b.String(), "Error: Something failed.\n\n  First.\n\n  Second.\n"; got != want {
+		t.Errorf("render() wrote %q, want %q", got, want)
+	}
+}
+
 func TestFlagErrors(t *testing.T) {
 	t.Parallel()
 

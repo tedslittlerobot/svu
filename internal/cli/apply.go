@@ -90,11 +90,7 @@ func (f *applyFlags) tag(cmd *cobra.Command, env environment, q tagQuery, v semv
 		return nil
 	}
 
-	if err := env.pushTag(cmd.Context(), q.dir, remote, name); err != nil {
-		return pushError(err, q, remote, name)
-	}
-
-	return nil
+	return push(cmd, env, q, remote, name)
 }
 
 // applyError explains a failure to tag name. annotate is true if git was

@@ -79,6 +79,9 @@ type environment struct {
 	pushTag tagPusher
 	// getenv returns an environment variable, or "" if it is unset.
 	getenv func(string) string
+	// style returns the Styler for a stream, following --colour and the
+	// environment. newRootCommand sets it, once --colour can be read.
+	style func(w io.Writer) colour.Styler
 }
 
 // Execute runs semvu with the given arguments (excluding the program name) and
@@ -136,8 +139,12 @@ func newRootCommand(streams Streams, env environment, colourMode *colourFlag) *c
 	// describes. --help and -h write it to stderr, because they interrupt
 	// another command. semvu help, and a command group run on its own, write it
 	// to stdout, because there help is the main output.
+	env.style = func(w io.Writer) colour.Styler {
+		return colour.New(colour.Enabled(colourMode.mode, env.getenv, w))
+	}
+
 	help := func(w io.Writer, cmd *cobra.Command) {
-		renderHelp(w, cmd, colour.New(colour.Enabled(colourMode.mode, env.getenv, w)))
+		renderHelp(w, cmd, env.style(w))
 	}
 
 	root := &cobra.Command{

@@ -436,10 +436,13 @@ only that tag. semvu picks the remote:
 - **The remote is checked before anything is tagged.** If there is no remote,
   several and none called `origin`, or `--remote` names one that doesn't
   exist, semvu makes no tag, prints nothing, and exits with status `10`.
-- **If the push fails, the tag has still been made.** semvu prints nothing,
-  exits with status `7`, and says how to push the tag by hand, as in
-  `git push origin v1.2.4`. Don't just re-run semvu: it would see the new tag
-  and make the next version.
+- **It says what it's doing on stderr**, as `Pushing v1.2.4 to origin...`
+  and then `Pushed v1.2.4 to origin.`, so stdout still holds only the
+  version.
+- **If the push fails, the tag remains in the local repository.** semvu
+  prints nothing on stdout, exits with status `7`, and gives the git command
+  that retries the push, as in `git push origin v1.2.4`. Don't just re-run
+  semvu: it would see the new tag and make the next version.
 - **git can't prompt for a password.** Pushing to a remote that needs
   credentials relies on a credential helper or SSH, as in CI.
 

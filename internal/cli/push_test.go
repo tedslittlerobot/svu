@@ -104,7 +104,9 @@ func TestPush(t *testing.T) {
 				push:      recordPushes(&pushes, nil),
 			})
 
-			assertResult(t, got, result{stdout: tt.want})
+			progress := "Pushing " + tt.wantPush.name + " to " + tt.wantPush.remote + "...\n" +
+				"Pushed " + tt.wantPush.name + " to " + tt.wantPush.remote + ".\n"
+			assertResult(t, got, result{stdout: tt.want, stderr: progress})
 
 			if len(tags) != 1 || tags[0] != tt.wantTag {
 				t.Errorf("tags made = %+v, want just %+v", tags, tt.wantTag)
@@ -267,19 +269,23 @@ func TestPushFailure(t *testing.T) {
 		want    string
 	}{
 		{
-			name:    "says the tag was made, and how to push it",
+			name:    "says the tag remains, and how to retry the push",
 			args:    []string{"modify", "--patch", "--apply", "--push"},
 			pushErr: rejected,
-			want: "Error: semvu made the tag \"v1.2.4\", but git could not push it to \"origin\".\n\n" +
+			want: "Pushing v1.2.4 to origin...\n" +
+				"Error: git could not push the tag \"v1.2.4\" to \"origin\".\n\n" +
 				"  ! [rejected] v1.2.4 -> v1.2.4 (already exists)\n\n" +
-				"Hint: To push it, run git push origin v1.2.4.\n",
+				"  The tag \"v1.2.4\" was made, and remains in the local repository.\n\n" +
+				"Hint: To retry the push, run git push origin v1.2.4.\n",
 		},
 		{
-			name:    "points the push command at --directory",
+			name:    "points the retry at --directory",
 			args:    []string{"modify", "--patch", "--apply", "--push", "--directory", "my repo"},
 			pushErr: errors.New("boom"),
-			want: "Error: semvu made the tag \"v1.2.4\", but git could not push it to \"origin\".\n\n" +
-				"Hint: To push it, run git -C \"my repo\" push origin v1.2.4.\n",
+			want: "Pushing v1.2.4 to origin...\n" +
+				"Error: git could not push the tag \"v1.2.4\" to \"origin\".\n\n" +
+				"  The tag \"v1.2.4\" was made, and remains in the local repository.\n\n" +
+				"Hint: To retry the push, run git -C \"my repo\" push origin v1.2.4.\n",
 		},
 	}
 
@@ -314,6 +320,80 @@ func TestPushFailure(t *testing.T) {
 	}
 }
 
+func TestPushInColour(t *testing.T) {
+	t.Parallel()
+
+	const (
+		bold  = "\x1b[1m"
+		reset = "\x1b[0m"
+	)
+
+	tests := []struct {
+		name    string
+		args    []string
+		env     map[string]string
+		pushErr error
+		code    int
+		want    string
+	}{
+		{
+			name: "colours the progress with --colour=always",
+			args: []string{"modify", "--patch", "--apply", "--push", "--colour=always"},
+			want: "\x1b[1m\x1b[36mPushing" + reset + reset + " " + bold + "v1.2.4" + reset + " to " + bold + "origin" + reset + "...\n" +
+				"\x1b[1m\x1b[32mPushed" + reset + reset + " " + bold + "v1.2.4" + reset + " to " + bold + "origin" + reset + ".\n",
+		},
+		{
+			name: "colours the progress when the environment forces it",
+			args: []string{"modify", "--patch", "--apply", "--push"},
+			env:  map[string]string{forceColour: "1"},
+			want: "\x1b[1m\x1b[36mPushing" + reset + reset + " " + bold + "v1.2.4" + reset + " to " + bold + "origin" + reset + "...\n" +
+				"\x1b[1m\x1b[32mPushed" + reset + reset + " " + bold + "v1.2.4" + reset + " to " + bold + "origin" + reset + ".\n",
+		},
+		{
+			name: "leaves the progress plain with --colour=never",
+			args: []string{"modify", "--patch", "--apply", "--push", "--colour=never"},
+			env:  map[string]string{forceColour: "1"},
+			want: "Pushing v1.2.4 to origin...\nPushed v1.2.4 to origin.\n",
+		},
+		{
+			name:    "colours a failed push, with the retry command in green",
+			args:    []string{"modify", "--patch", "--apply", "--push", "--colour=always"},
+			pushErr: errors.New("boom"),
+			code:    ExitGit,
+			want: "\x1b[1m\x1b[36mPushing" + reset + reset + " " + bold + "v1.2.4" + reset + " to " + bold + "origin" + reset + "...\n" +
+				"\x1b[1m\x1b[31mError:" + reset + reset + " " +
+				"\x1b[31mgit could not push the tag " + reset + "\x1b[1m\x1b[31m\"v1.2.4\"" + reset + reset +
+				"\x1b[31m to " + reset + "\x1b[1m\x1b[31m\"origin\"" + reset + reset + "\x1b[31m." + reset + "\n\n" +
+				"  The tag \"v1.2.4\" was made, and remains in the local repository.\n\n" +
+				"\x1b[1m\x1b[36mHint:" + reset + reset + " To retry the push, run \x1b[32mgit push origin v1.2.4" + reset + ".\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var pushes []pushCall
+
+			got := invoke(t, invocation{
+				args:      tt.args,
+				tags:      fixedTags(t, "", "v1.2.3"),
+				createTag: recordTags(&[]tagCall{}, nil),
+				remotes:   fixedRemotes("origin"),
+				push:      recordPushes(&pushes, tt.pushErr),
+				env:       tt.env,
+			})
+
+			wantStdout := "v1.2.4\n"
+			if tt.code != ExitOK {
+				wantStdout = ""
+			}
+
+			assertResult(t, got, result{code: tt.code, stdout: wantStdout, stderr: tt.want})
+		})
+	}
+}
+
 func TestPushInRealGitRepository(t *testing.T) {
 	t.Parallel()
 
@@ -327,7 +407,10 @@ func TestPushInRealGitRepository(t *testing.T) {
 	env := invocation{tags: git.Tags, createTag: git.CreateTag, remotes: git.Remotes, push: git.PushTag}
 
 	env.args = []string{"modify", "--patch", "--apply", "--push", "--directory", dir}
-	assertResult(t, invoke(t, env), result{stdout: "v1.2.4\n"})
+	assertResult(t, invoke(t, env), result{
+		stdout: "v1.2.4\n",
+		stderr: "Pushing v1.2.4 to upstream...\nPushed v1.2.4 to upstream.\n",
+	})
 
 	pushed, err := git.Tags(t.Context(), remote, git.TagOptions{All: true})
 	if err != nil || !slices.Equal(pushed, []string{"v1.2.4"}) {

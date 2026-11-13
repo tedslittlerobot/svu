@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/tedslittlerobot/semvu/internal/colour"
 	"github.com/tedslittlerobot/semvu/internal/git"
 )
 
@@ -146,25 +147,57 @@ func remoteError(err error, q tagQuery, remotes []string, asked string) *userErr
 	return ue
 }
 
+// push pushes the tag name, which has just been made, to remote. It says on
+// stderr when it starts and when it's done, as conventions/output.md describes
+// for progress, since a push can take a while.
+func push(cmd *cobra.Command, env environment, q tagQuery, remote, name string) error {
+	w := cmd.ErrOrStderr()
+	s := env.style(w)
+
+	_, _ = fmt.Fprintln(w, progressLine(s, "Pushing", name, remote)+"...")
+
+	if err := env.pushTag(cmd.Context(), q.dir, remote, name); err != nil {
+		return pushError(err, q, remote, name)
+	}
+
+	_, _ = fmt.Fprintln(w, progressLine(s, "Pushed", name, remote)+".")
+
+	return nil
+}
+
+// progressLine writes "<verb> <tag> to <remote>", styled for stderr: the verb
+// is bold cyan while in progress and bold green once done, and the names are
+// bold. Only "Pushed" is done.
+func progressLine(s colour.Styler, verb, name, remote string) string {
+	label := s.Bold(s.Cyan(verb))
+	if verb == "Pushed" {
+		label = s.Bold(s.Green(verb))
+	}
+
+	return label + " " + s.Bold(name) + " to " + s.Bold(remote)
+}
+
 // pushError explains a failure to push the tag name to remote. The tag has
-// been made by then, so the hint says how to push it by hand.
+// been made by then, and stays, so the hint gives the git command that
+// retries the push.
 func pushError(err error, q tagQuery, remote, name string) *userError {
 	command := fmt.Sprintf("git push %s %s", remote, name)
 	if q.dir != "" {
 		command = fmt.Sprintf("git -C %q push %s %s", q.dir, remote, name)
 	}
 
-	ue := &userError{
-		code:     ExitGit,
-		headline: fmt.Sprintf("semvu made the tag %q, but git could not push it to %q.", name, remote),
-		hint:     fmt.Sprintf("To push it, run `%s`.", command),
-		err:      err,
-	}
+	detail := fmt.Sprintf("The tag %q was made, and remains in the local repository.", name)
 
 	var cmdErr *git.CommandError
-	if errors.As(err, &cmdErr) {
-		ue.detail = cmdErr.Stderr
+	if errors.As(err, &cmdErr) && cmdErr.Stderr != "" {
+		detail = cmdErr.Stderr + "\n\n" + detail
 	}
 
-	return ue
+	return &userError{
+		code:     ExitGit,
+		headline: fmt.Sprintf("git could not push the tag %q to %q.", name, remote),
+		detail:   detail,
+		hint:     fmt.Sprintf("To retry the push, run `%s`.", command),
+		err:      err,
+	}
 }

@@ -102,6 +102,13 @@ func render(w io.Writer, err error, s colour.Styler) {
 
 	if ue.detail != "" {
 		for line := range strings.SplitSeq(ue.detail, "\n") {
+			// A blank line stays blank, with no indent to leave trailing spaces.
+			if strings.TrimSpace(line) == "" {
+				b.WriteString("\n")
+
+				continue
+			}
+
 			b.WriteString("  " + line + "\n")
 		}
 	}
